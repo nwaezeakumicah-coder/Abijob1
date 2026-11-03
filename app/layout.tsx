@@ -1,5 +1,5 @@
-
 import type { Metadata } from "next";
+import { ThemeProvider } from "@/components/ThemeProvider";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -22,8 +22,7 @@ export const metadata: Metadata = {
   ],
   openGraph: {
     title: "Abi Job | Opportunity Starts Here",
-    description:
-      "Your talent. Your ambition. Your opportunity.",
+    description: "Your talent. Your ambition. Your opportunity.",
     url: "https://abijob.ng",
     siteName: "Abi Job",
     locale: "en_NG",
@@ -38,7 +37,9 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body>{children}</body>
+      <body>
+        <ThemeProvider>{children}</ThemeProvider>
+      </body>
     </html>
   );
 }

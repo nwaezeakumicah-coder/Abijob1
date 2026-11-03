@@ -1,0 +1,869 @@
+
+.application-page {
+  min-height: 75vh;
+  padding: 38px 5.5% 90px;
+  background: #f5f7f3;
+  color: #17251d;
+}
+
+.application-container {
+  width: 100%;
+  max-width: 1440px;
+  margin: 0 auto;
+}
+
+.application-back-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  margin-bottom: 30px;
+  color: #526257;
+  font-size: 14px;
+  font-weight: 700;
+  text-decoration: none;
+  transition: color 0.2s ease;
+}
+
+.application-back-link:hover {
+  color: #176b45;
+}
+
+.application-heading {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 30px;
+  margin-bottom: 36px;
+}
+
+.application-eyebrow,
+.success-eyebrow {
+  display: inline-block;
+  margin-bottom: 12px;
+  color: #176b45;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 1.7px;
+}
+
+.application-heading h1 {
+  margin: 0;
+  color: #103c2b;
+  font-size: clamp(30px, 4vw, 43px);
+  font-weight: 850;
+  letter-spacing: -1.8px;
+}
+
+.application-heading > div:first-child > p {
+  margin: 11px 0 0;
+  color: #68756c;
+  font-size: 15px;
+  line-height: 1.7;
+}
+
+.application-job-summary {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  min-width: 310px;
+  padding: 17px 20px;
+  border: 1px solid #e2e9e1;
+  border-radius: 16px;
+  background: #fff;
+}
+
+.application-job-icon {
+  display: grid;
+  width: 49px;
+  height: 49px;
+  flex-shrink: 0;
+  place-items: center;
+  border-radius: 14px;
+  background: #e7f2e9;
+  color: #176b45;
+}
+
+.application-job-summary h3 {
+  margin: 0 0 4px;
+  color: #173c2b;
+  font-size: 15px;
+  font-weight: 800;
+}
+
+.application-job-summary p {
+  margin: 0 0 8px;
+  color: #68756c;
+  font-size: 13px;
+}
+
+.application-job-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  color: #778279;
+  font-size: 11px;
+}
+
+.application-job-meta span {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.application-layout {
+  display: grid;
+  grid-template-columns: 310px minmax(0, 1fr);
+  align-items: start;
+  gap: 25px;
+}
+
+.application-sidebar {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.application-progress-card {
+  padding: 26px;
+  overflow: hidden;
+  border-radius: 19px;
+  background: #103c2b;
+  color: #fff;
+}
+
+.progress-label {
+  color: #c5dbca;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 1.3px;
+}
+
+.application-progress-card h3 {
+  margin: 15px 0 8px;
+  font-size: 25px;
+  font-weight: 800;
+  letter-spacing: -0.7px;
+}
+
+.application-progress-card > p {
+  margin: 0;
+  color: #c7d8cc;
+  font-size: 13px;
+  line-height: 1.7;
+}
+
+.application-progress-track {
+  height: 7px;
+  margin-top: 27px;
+  overflow: hidden;
+  border-radius: 20px;
+  background: rgba(255, 255, 255, 0.17);
+}
+
+.application-progress-fill {
+  height: 100%;
+  border-radius: inherit;
+  background: #d7f078;
+  transition: width 0.3s ease;
+}
+
+.progress-percentage {
+  display: block;
+  margin-top: 10px;
+  color: #dce9de;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.application-steps {
+  padding: 25px 22px;
+  border: 1px solid #e4eae2;
+  border-radius: 17px;
+  background: #fff;
+}
+
+.application-step {
+  display: flex;
+  align-items: center;
+  gap: 13px;
+  opacity: 0.55;
+}
+
+.application-step.active {
+  opacity: 1;
+}
+
+.step-number {
+  display: grid;
+  width: 39px;
+  height: 39px;
+  flex-shrink: 0;
+  place-items: center;
+  border: 1px solid #dce4dc;
+  border-radius: 50%;
+  background: #f5f7f3;
+  color: #68756c;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.application-step.active .step-number {
+  border-color: #176b45;
+  background: #176b45;
+  color: #fff;
+}
+
+.application-step strong,
+.application-step span {
+  display: block;
+}
+
+.application-step strong {
+  margin-bottom: 4px;
+  color: #24382b;
+  font-size: 13px;
+}
+
+.application-step span {
+  color: #849087;
+  font-size: 11px;
+}
+
+.step-connector {
+  width: 1px;
+  height: 24px;
+  margin: 5px 0 5px 19px;
+  background: #dfe7df;
+}
+
+.application-security {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 19px;
+  border: 1px solid #dcebdc;
+  border-radius: 15px;
+  background: #eaf3e9;
+  color: #176b45;
+}
+
+.application-security > svg {
+  flex-shrink: 0;
+}
+
+.application-security strong {
+  display: block;
+  margin-bottom: 6px;
+  font-size: 12px;
+}
+
+.application-security p {
+  margin: 0;
+  color: #607266;
+  font-size: 11px;
+  line-height: 1.7;
+}
+
+.application-form-card {
+  min-width: 0;
+  padding: 35px;
+  border: 1px solid #e3e9e1;
+  border-radius: 20px;
+  background: #fff;
+  box-shadow: 0 12px 35px rgba(24, 54, 34, 0.035);
+}
+
+.application-form-section {
+  min-height: 480px;
+}
+
+.form-section-heading {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  padding-bottom: 25px;
+  border-bottom: 1px solid #edf0eb;
+}
+
+.form-section-icon {
+  display: grid;
+  width: 48px;
+  height: 48px;
+  flex-shrink: 0;
+  place-items: center;
+  border-radius: 14px;
+  background: #e7f2e9;
+  color: #176b45;
+}
+
+.form-section-heading h2 {
+  margin: 0 0 6px;
+  color: #173c2b;
+  font-size: 21px;
+  font-weight: 800;
+  letter-spacing: -0.5px;
+}
+
+.form-section-heading p {
+  margin: 0;
+  color: #778279;
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.application-fields {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 22px 19px;
+  padding-top: 27px;
+}
+
+.application-field {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 9px;
+}
+
+.full-field {
+  grid-column: 1 / -1;
+}
+
+.application-field label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #263b2e;
+  font-size: 13px;
+  font-weight: 750;
+}
+
+.application-field input:not([type="file"]),
+.application-field select,
+.application-field textarea {
+  width: 100%;
+  min-height: 49px;
+  padding: 13px 15px;
+  outline: none;
+  border: 1px solid #dfe6dd;
+  border-radius: 10px;
+  background: #fbfcfa;
+  color: #203629;
+  font-family: inherit;
+  font-size: 13px;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.application-field textarea {
+  min-height: 105px;
+  resize: vertical;
+  line-height: 1.7;
+}
+
+.application-field input:focus,
+.application-field select:focus,
+.application-field textarea:focus {
+  border-color: #176b45;
+  box-shadow: 0 0 0 3px rgba(23, 107, 69, 0.09);
+}
+
+.application-field input::placeholder,
+.application-field textarea::placeholder {
+  color: #a0aaa1;
+}
+
+.field-hint {
+  color: #879188;
+  font-size: 11px;
+}
+
+.optional-label {
+  padding: 4px 8px;
+  border-radius: 20px;
+  background: #f0f3ef;
+  color: #758078;
+  font-size: 10px;
+  font-weight: 600;
+}
+
+.cv-upload-area {
+  display: flex !important;
+  min-height: 185px;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px !important;
+  padding: 25px;
+  border: 1.5px dashed #b9cbbd;
+  border-radius: 13px;
+  background: #f8fbf7;
+  cursor: pointer;
+  text-align: center;
+  transition: border-color 0.2s ease, background 0.2s ease;
+}
+
+.cv-upload-area:hover {
+  border-color: #176b45;
+  background: #f0f7ef;
+}
+
+.cv-upload-area input {
+  display: none;
+}
+
+.cv-upload-icon {
+  display: grid;
+  width: 49px;
+  height: 49px;
+  place-items: center;
+  border-radius: 50%;
+  background: #e5f1e5;
+  color: #176b45;
+}
+
+.cv-upload-area strong {
+  color: #284333;
+  font-size: 13px;
+}
+
+.cv-upload-area > span {
+  color: #879188;
+  font-size: 11px;
+  font-weight: 500;
+}
+
+.uploaded-cv {
+  display: flex;
+  align-items: center;
+  gap: 13px;
+  padding: 16px;
+  border: 1px solid #dce8dc;
+  border-radius: 12px;
+  background: #f7faf6;
+}
+
+.uploaded-cv-icon {
+  display: grid;
+  width: 43px;
+  height: 43px;
+  flex-shrink: 0;
+  place-items: center;
+  border-radius: 10px;
+  background: #e6f1e6;
+  color: #176b45;
+}
+
+.uploaded-cv-info {
+  display: flex;
+  min-width: 0;
+  flex: 1;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.uploaded-cv-info strong {
+  overflow: hidden;
+  color: #294333;
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.uploaded-cv-info span {
+  color: #89948b;
+  font-size: 11px;
+}
+
+.remove-cv-btn {
+  display: grid;
+  width: 37px;
+  height: 37px;
+  flex-shrink: 0;
+  place-items: center;
+  border: 0;
+  border-radius: 9px;
+  background: #fff0ed;
+  color: #bd5144;
+  cursor: pointer;
+}
+
+.application-form-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 15px;
+  margin-top: 30px;
+  padding-top: 24px;
+  border-top: 1px solid #edf0eb;
+}
+
+.required-note {
+  color: #89948b;
+  font-size: 11px;
+}
+
+.application-back-btn,
+.application-continue-btn,
+.application-primary-btn,
+.application-secondary-btn {
+  display: inline-flex;
+  min-height: 48px;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 0 21px;
+  border-radius: 10px;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 750;
+  text-decoration: none;
+  cursor: pointer;
+  transition: transform 0.2s ease, background 0.2s ease;
+}
+
+.application-back-btn {
+  border: 1px solid #dfe6dd;
+  background: #fff;
+  color: #526257;
+}
+
+.application-continue-btn,
+.application-primary-btn {
+  border: 1px solid #176b45;
+  background: #176b45;
+  color: #fff;
+}
+
+.application-continue-btn:hover,
+.application-primary-btn:hover {
+  transform: translateY(-2px);
+  background: #103c2b;
+}
+
+.application-back-btn:hover,
+.application-secondary-btn:hover {
+  background: #f1f5ef;
+}
+
+.application-error {
+  margin-top: 20px;
+  padding: 13px 15px;
+  border: 1px solid #f0c9c2;
+  border-radius: 9px;
+  background: #fff3f1;
+  color: #a33f34;
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+.review-card {
+  margin-top: 23px;
+  padding: 22px;
+  border: 1px solid #e5ebe3;
+  border-radius: 13px;
+  background: #fcfdfb;
+}
+
+.review-card-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 15px;
+  margin-bottom: 20px;
+}
+
+.review-card-heading h3 {
+  margin: 0;
+  color: #24402e;
+  font-size: 14px;
+  font-weight: 800;
+}
+
+.review-card-heading button {
+  border: 0;
+  background: transparent;
+  color: #176b45;
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.review-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 19px;
+}
+
+.review-grid > div {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.review-grid > div > span {
+  color: #8a958c;
+  font-size: 11px;
+}
+
+.review-grid > div > strong {
+  overflow-wrap: anywhere;
+  color: #2a3d30;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1.7;
+}
+
+.review-full {
+  grid-column: 1 / -1;
+}
+
+.review-file {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.review-file svg {
+  flex-shrink: 0;
+  color: #176b45;
+}
+
+.review-cover-letter {
+  white-space: pre-wrap;
+  font-weight: 500 !important;
+}
+
+.final-confirmation {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  margin-top: 22px;
+  padding: 17px;
+  border-radius: 11px;
+  background: #eaf3e9;
+  color: #176b45;
+}
+
+.final-confirmation svg {
+  flex-shrink: 0;
+}
+
+.final-confirmation p {
+  margin: 0;
+  color: #526b59;
+  font-size: 12px;
+  line-height: 1.7;
+}
+
+/* Success screen */
+
+.application-success {
+  display: flex;
+  max-width: 720px;
+  min-height: 570px;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  margin: 35px auto;
+  padding: 55px 35px;
+  border: 1px solid #e1e9df;
+  border-radius: 23px;
+  background: #fff;
+  text-align: center;
+}
+
+.success-icon {
+  display: grid;
+  width: 85px;
+  height: 85px;
+  margin-bottom: 25px;
+  place-items: center;
+  border-radius: 50%;
+  background: #e7f2e9;
+  color: #176b45;
+}
+
+.application-success h1 {
+  margin: 0;
+  color: #103c2b;
+  font-size: clamp(28px, 4vw, 39px);
+  font-weight: 850;
+  letter-spacing: -1.3px;
+}
+
+.application-success > p {
+  max-width: 490px;
+  margin: 15px auto 0;
+  color: #68756c;
+  font-size: 14px;
+  line-height: 1.8;
+}
+
+.application-success > p strong {
+  color: #294333;
+}
+
+.success-notice {
+  display: flex;
+  max-width: 520px;
+  align-items: flex-start;
+  gap: 12px;
+  margin-top: 27px;
+  padding: 17px;
+  border: 1px solid #e6e9dc;
+  border-radius: 12px;
+  background: #fafbf5;
+  color: #6b7657;
+  text-align: left;
+}
+
+.success-notice svg {
+  flex-shrink: 0;
+  color: #176b45;
+}
+
+.success-notice span {
+  font-size: 12px;
+  line-height: 1.7;
+}
+
+.success-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 12px;
+  margin-top: 30px;
+}
+
+.application-secondary-btn {
+  border: 1px solid #dfe6dd;
+  background: #fff;
+  color: #526257;
+}
+
+/* Responsive layout */
+
+@media (max-width: 1050px) {
+  .application-page {
+    padding-right: 4%;
+    padding-left: 4%;
+  }
+
+  .application-layout {
+    grid-template-columns: 265px minmax(0, 1fr);
+    gap: 18px;
+  }
+
+  .application-form-card {
+    padding: 27px;
+  }
+}
+
+@media (max-width: 760px) {
+  .application-page {
+    padding: 25px 5% 60px;
+  }
+
+  .application-heading {
+    align-items: stretch;
+    flex-direction: column;
+    gap: 22px;
+  }
+
+  .application-job-summary {
+    min-width: 0;
+  }
+
+  .application-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .application-sidebar {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    align-items: stretch;
+  }
+
+  .application-progress-card {
+    padding: 21px;
+  }
+
+  .application-steps {
+    padding: 21px 16px;
+  }
+
+  .application-security {
+    grid-column: 1 / -1;
+  }
+
+  .application-form-card {
+    padding: 25px 20px;
+  }
+
+  .application-form-section {
+    min-height: auto;
+  }
+}
+
+@media (max-width: 520px) {
+  .application-page {
+    padding-right: 4%;
+    padding-left: 4%;
+  }
+
+  .application-heading h1 {
+    font-size: 31px;
+  }
+
+  .application-sidebar {
+    grid-template-columns: 1fr;
+  }
+
+  .application-security {
+    grid-column: auto;
+  }
+
+  .application-fields,
+  .review-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .full-field,
+  .review-full {
+    grid-column: auto;
+  }
+
+  .form-section-heading h2 {
+    font-size: 18px;
+  }
+
+  .application-form-card {
+    padding: 21px 16px;
+  }
+
+  .application-form-actions {
+    align-items: stretch;
+  }
+
+  .application-back-btn,
+  .application-continue-btn {
+    flex: 1;
+    padding: 0 12px;
+  }
+
+  .application-success {
+    min-height: auto;
+    padding: 45px 20px;
+  }
+
+  .success-actions {
+    width: 100%;
+    flex-direction: column;
+  }
+
+  .success-actions a {
+    width: 100%;
+  }
+}

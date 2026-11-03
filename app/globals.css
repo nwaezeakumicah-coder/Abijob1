@@ -1,31 +1,62 @@
-
 @import "tailwindcss";
 
-/* =====================================
+/* =========================================
    ABI JOB — GLOBAL DESIGN SYSTEM
-===================================== */
+   LIGHT + DARK MODE
+========================================= */
 
-:root {
+/* =========================================
+   1. LIGHT MODE
+========================================= */
+
+:root,
+:root[data-theme="light"] {
+  color-scheme: light;
+
   /* BRAND */
   --green: #176b45;
   --green-dark: #103c2b;
   --green-deep: #0a2b1d;
-  --green-soft: #e7f2e9;
+  --green-soft: #dceadd;
   --lime: #d7f078;
 
   /* COLOURS */
   --white: #ffffff;
-  --cream: #f7f8f3;
+  --cream: #edf2e9;
   --ink: #17251d;
-  --muted: #68756c;
-  --line: #e5eae4;
-  --orange: #f0a35e;
-  --red: #dc4444;
+  --muted: #526358;
+  --line: #d0ddd0;
+  --orange: #e99b50;
+  --red: #d94343;
 
   /* SURFACES */
-  --background: #ffffff;
-  --surface: #ffffff;
-  --surface-soft: #f7f8f3;
+  --background: #eaf0e7;
+  --surface: #f3f6ef;
+  --surface-soft: #e1eae0;
+  --surface-raised: #f7f9f4;
+  --surface-hover: #dce7db;
+
+  /* TEXT */
+  --text-primary: #17251d;
+  --text-secondary: #526358;
+  --text-inverse: #ffffff;
+
+  /* BORDERS */
+  --border: #d0ddd0;
+  --border-strong: #b9cbb9;
+
+  /* STATUS */
+  --success: #176b45;
+  --success-bg: #dceadd;
+  --warning: #986019;
+  --warning-bg: #f7ead3;
+  --danger: #c83232;
+  --danger-bg: #f8e1df;
+  --info: #285e91;
+  --info-bg: #e0eaf3;
+
+  /* OVERLAY */
+  --overlay: rgba(10, 30, 20, 0.58);
 
   /* TYPOGRAPHY */
   --font-body: Arial, sans-serif;
@@ -43,15 +74,74 @@
   --radius-full: 999px;
 
   /* SHADOWS */
-  --shadow-sm: 0 2px 10px rgba(16, 60, 43, 0.05);
-  --shadow-md: 0 8px 28px rgba(16, 60, 43, 0.08);
-  --shadow-lg: 0 18px 50px rgba(16, 60, 43, 0.12);
+  --shadow-sm: 0 2px 10px rgba(16, 60, 43, 0.06);
+  --shadow-md: 0 8px 28px rgba(16, 60, 43, 0.09);
+  --shadow-lg: 0 18px 50px rgba(16, 60, 43, 0.13);
 
-  /* TRANSITIONS */
   --transition: 200ms ease;
 }
 
-/* RESET */
+/* =========================================
+   2. DARK MODE
+========================================= */
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+
+  /* BRAND */
+  --green: #55bd88;
+  --green-dark: #174b35;
+  --green-deep: #0b291d;
+  --green-soft: #193d2c;
+  --lime: #d7f078;
+
+  /* COLOURS */
+  --white: #ffffff;
+  --cream: #17221c;
+  --ink: #edf4ef;
+  --muted: #b0beb4;
+  --line: #35473a;
+  --orange: #f0ad70;
+  --red: #ff8585;
+
+  /* SURFACES */
+  --background: #101813;
+  --surface: #19251e;
+  --surface-soft: #202e25;
+  --surface-raised: #26352b;
+  --surface-hover: #304337;
+
+  /* TEXT */
+  --text-primary: #edf4ef;
+  --text-secondary: #b0beb4;
+  --text-inverse: #102017;
+
+  /* BORDERS */
+  --border: #35473a;
+  --border-strong: #4a6050;
+
+  /* STATUS */
+  --success: #65d49a;
+  --success-bg: #193d2c;
+  --warning: #f0bd70;
+  --warning-bg: #40321e;
+  --danger: #ff8585;
+  --danger-bg: #402323;
+  --info: #83b9f0;
+  --info-bg: #1d3449;
+
+  /* OVERLAY */
+  --overlay: rgba(0, 0, 0, 0.76);
+
+  /* SHADOWS */
+  --shadow-sm: 0 2px 10px rgba(0, 0, 0, 0.18);
+  --shadow-md: 0 8px 28px rgba(0, 0, 0, 0.28);
+  --shadow-lg: 0 18px 50px rgba(0, 0, 0, 0.38);
+}
+
+/* =========================================
+   3. RESET
+========================================= */
 
 * {
   box-sizing: border-box;
@@ -60,18 +150,53 @@
 html {
   scroll-behavior: smooth;
   -webkit-text-size-adjust: 100%;
+  background: var(--background);
 }
 
 body {
   margin: 0;
   min-height: 100vh;
   background: var(--background);
-  color: var(--ink);
+  color: var(--text-primary);
   font-family: var(--font-body);
   font-size: 16px;
   line-height: 1.6;
   -webkit-font-smoothing: antialiased;
+  transition:
+    background-color var(--transition),
+    color var(--transition);
 }
+
+/* =========================================
+   4. TEXT VISIBILITY
+========================================= */
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  color: var(--text-primary);
+  line-height: 1.2;
+}
+
+p {
+  color: inherit;
+}
+
+strong,
+b {
+  font-weight: 700;
+}
+
+small {
+  font-size: 0.875em;
+}
+
+/* =========================================
+   5. FORM ELEMENTS
+========================================= */
 
 button,
 input,
@@ -88,6 +213,28 @@ button:disabled {
   cursor: not-allowed;
 }
 
+input,
+textarea,
+select {
+  color: var(--text-primary);
+  border-color: var(--border);
+}
+
+input::placeholder,
+textarea::placeholder {
+  color: var(--text-secondary);
+  opacity: 1;
+}
+
+select option {
+  background: var(--surface);
+  color: var(--text-primary);
+}
+
+/* =========================================
+   6. LINKS AND IMAGES
+========================================= */
+
 a {
   color: inherit;
   text-decoration: none;
@@ -98,41 +245,106 @@ img {
   max-width: 100%;
 }
 
-h1,
-h2,
-h3,
-h4,
-p {
-  margin-top: 0;
-}
-
-h1,
-h2,
-h3,
-h4 {
-  line-height: 1.2;
-}
+/* =========================================
+   7. SELECTION
+========================================= */
 
 ::selection {
   background: var(--green);
-  color: var(--white);
+  color: #ffffff;
 }
 
-/* SHARED CONTAINER */
+/* =========================================
+   8. SHARED CONTAINER
+========================================= */
 
 .container {
   width: min(100% - 64px, var(--container-width));
   margin-inline: auto;
 }
 
-/* ACCESSIBILITY */
+/* =========================================
+   9. SHARED THEME SWITCHER
+========================================= */
+
+.abi-theme-switcher {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px;
+  background: var(--surface-soft);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-full);
+}
+
+.abi-theme-switcher button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  min-height: 38px;
+  padding: 8px 13px;
+  border: 0;
+  border-radius: var(--radius-full);
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 13px;
+  font-weight: 600;
+  transition:
+    background var(--transition),
+    color var(--transition);
+}
+
+.abi-theme-switcher button:hover {
+  background: var(--surface-hover);
+  color: var(--text-primary);
+}
+
+.abi-theme-switcher button.active {
+  background: var(--green);
+  color: #ffffff;
+}
+
+.abi-theme-switcher-compact button {
+  width: 38px;
+  height: 38px;
+  padding: 0;
+}
+
+/* =========================================
+   10. ACCESSIBILITY
+========================================= */
 
 :focus-visible {
   outline: 3px solid var(--lime);
   outline-offset: 3px;
 }
 
-/* RESPONSIVE FOUNDATIONS */
+/* =========================================
+   11. DARK MODE SCROLLBAR
+========================================= */
+
+:root[data-theme="dark"] {
+  scrollbar-color: #4a6050 #19251e;
+}
+
+:root[data-theme="dark"] ::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+:root[data-theme="dark"] ::-webkit-scrollbar-track {
+  background: #19251e;
+}
+
+:root[data-theme="dark"] ::-webkit-scrollbar-thumb {
+  background: #4a6050;
+  border-radius: 20px;
+}
+
+/* =========================================
+   12. RESPONSIVE
+========================================= */
 
 @media (max-width: 768px) {
   .container {
@@ -144,7 +356,21 @@ h4 {
   .container {
     width: min(100% - 28px, var(--container-width));
   }
+
+  .abi-theme-switcher {
+    gap: 2px;
+  }
+
+  .abi-theme-switcher button {
+    gap: 5px;
+    padding-inline: 9px;
+    font-size: 12px;
+  }
 }
+
+/* =========================================
+   13. REDUCED MOTION
+========================================= */
 
 @media (prefers-reduced-motion: reduce) {
   *,
@@ -154,4 +380,243 @@ h4 {
     animation-duration: 0.01ms !important;
     transition-duration: 0.01ms !important;
   }
+}
+/* =====================================================
+   ABI JOB — WEBSITE-WIDE DARK MODE OVERRIDE
+   Applies across ALL pages without editing page CSS
+===================================================== */
+
+:root[data-theme="dark"] body {
+  background: var(--background) !important;
+  color: var(--text-primary) !important;
+}
+
+/* PAGE BACKGROUNDS */
+
+:root[data-theme="dark"] main,
+:root[data-theme="dark"] section,
+:root[data-theme="dark"] article,
+:root[data-theme="dark"] aside,
+:root[data-theme="dark"] .page,
+:root[data-theme="dark"] [class$="-page"],
+:root[data-theme="dark"] [class*="-page-container"] {
+  color: var(--text-primary);
+}
+
+/* GENERAL TEXT */
+
+:root[data-theme="dark"] h1,
+:root[data-theme="dark"] h2,
+:root[data-theme="dark"] h3,
+:root[data-theme="dark"] h4,
+:root[data-theme="dark"] h5,
+:root[data-theme="dark"] h6,
+:root[data-theme="dark"] p,
+:root[data-theme="dark"] label,
+:root[data-theme="dark"] li,
+:root[data-theme="dark"] td,
+:root[data-theme="dark"] th,
+:root[data-theme="dark"] dt,
+:root[data-theme="dark"] dd {
+  color: var(--text-primary);
+}
+
+:root[data-theme="dark"] small,
+:root[data-theme="dark"] .description,
+:root[data-theme="dark"] .subtitle,
+:root[data-theme="dark"] .muted,
+:root[data-theme="dark"] .text-muted {
+  color: var(--text-secondary);
+}
+
+/* COMMON SURFACES */
+
+:root[data-theme="dark"] [class*="-card"],
+:root[data-theme="dark"] [class*="-panel"],
+:root[data-theme="dark"] [class*="-modal"],
+:root[data-theme="dark"] [class*="-sidebar"],
+:root[data-theme="dark"] [class*="-dropdown"],
+:root[data-theme="dark"] [class*="-menu"],
+:root[data-theme="dark"] [class*="-popup"] {
+  color: var(--text-primary);
+  border-color: var(--border);
+}
+
+/* COMMON WHITE BACKGROUNDS */
+
+:root[data-theme="dark"] [class*="-card"],
+:root[data-theme="dark"] [class*="-panel"],
+:root[data-theme="dark"] [class*="-modal"],
+:root[data-theme="dark"] [class*="-sidebar"],
+:root[data-theme="dark"] [class*="-dropdown"],
+:root[data-theme="dark"] [class*="-popup"] {
+  background-color: var(--surface);
+}
+
+/* NAVIGATION */
+
+:root[data-theme="dark"] nav,
+:root[data-theme="dark"] header {
+  color: var(--text-primary);
+  border-color: var(--border);
+}
+
+:root[data-theme="dark"] nav a,
+:root[data-theme="dark"] header a {
+  color: var(--text-secondary);
+}
+
+:root[data-theme="dark"] nav a:hover,
+:root[data-theme="dark"] header a:hover {
+  color: var(--green);
+}
+
+/* LINKS */
+
+:root[data-theme="dark"] a:not([class*="button"]):not([class*="btn"]) {
+  color: var(--green);
+}
+
+/* FORMS */
+
+:root[data-theme="dark"] input,
+:root[data-theme="dark"] textarea,
+:root[data-theme="dark"] select {
+  background-color: var(--surface-raised);
+  color: var(--text-primary);
+  border-color: var(--border);
+}
+
+:root[data-theme="dark"] input::placeholder,
+:root[data-theme="dark"] textarea::placeholder {
+  color: var(--text-secondary);
+}
+
+/* TABLES */
+
+:root[data-theme="dark"] table {
+  color: var(--text-primary);
+  border-color: var(--border);
+}
+
+:root[data-theme="dark"] tr,
+:root[data-theme="dark"] td,
+:root[data-theme="dark"] th {
+  border-color: var(--border);
+}
+
+/* COMMON DIVIDERS */
+
+:root[data-theme="dark"] hr,
+:root[data-theme="dark"] [class*="divider"] {
+  border-color: var(--border);
+}
+
+/* HOVER SURFACES */
+
+:root[data-theme="dark"] [class*="-card"]:hover,
+:root[data-theme="dark"] [class*="-item"]:hover {
+  border-color: var(--border-strong);
+}
+
+/* PRESERVE PRIMARY BUTTON CONTRAST */
+
+:root[data-theme="dark"] button[class*="primary"],
+:root[data-theme="dark"] a[class*="primary"],
+:root[data-theme="dark"] button[class*="-btn"] {
+  color: inherit;
+}
+
+/* GLOBAL THEME TRANSITION */
+
+body,
+main,
+section,
+article,
+aside,
+header,
+nav,
+[class*="-card"],
+[class*="-panel"],
+[class*="-sidebar"],
+[class*="-modal"] {
+  transition:
+    background-color 200ms ease,
+    border-color 200ms ease,
+    color 200ms ease;
+}
+
+/* =====================================================
+   ABI JOB — FORCE DARK MODE TEXT CONTRAST
+===================================================== */
+
+:root[data-theme="dark"] body,
+:root[data-theme="dark"] body * {
+  color-scheme: dark;
+}
+
+/* Force readable text across the website */
+:root[data-theme="dark"] body,
+:root[data-theme="dark"] body main,
+:root[data-theme="dark"] body section,
+:root[data-theme="dark"] body article,
+:root[data-theme="dark"] body aside,
+:root[data-theme="dark"] body div,
+:root[data-theme="dark"] body span,
+:root[data-theme="dark"] body strong,
+:root[data-theme="dark"] body b,
+:root[data-theme="dark"] body label,
+:root[data-theme="dark"] body li,
+:root[data-theme="dark"] body p {
+  color: var(--text-primary);
+}
+
+/* Secondary text */
+:root[data-theme="dark"] body small,
+:root[data-theme="dark"] body time,
+:root[data-theme="dark"] body figcaption {
+  color: var(--text-secondary);
+}
+
+/* Headings */
+:root[data-theme="dark"] body h1,
+:root[data-theme="dark"] body h2,
+:root[data-theme="dark"] body h3,
+:root[data-theme="dark"] body h4,
+:root[data-theme="dark"] body h5,
+:root[data-theme="dark"] body h6 {
+  color: var(--text-primary);
+}
+
+/* Form text */
+:root[data-theme="dark"] body input,
+:root[data-theme="dark"] body textarea,
+:root[data-theme="dark"] body select {
+  color: var(--text-primary);
+  background-color: var(--surface-raised);
+  border-color: var(--border);
+}
+
+:root[data-theme="dark"] body input::placeholder,
+:root[data-theme="dark"] body textarea::placeholder {
+  color: var(--text-secondary);
+}
+
+/* Common page surfaces */
+:root[data-theme="dark"] body [class*="sidebar"],
+:root[data-theme="dark"] body [class*="panel"],
+:root[data-theme="dark"] body [class*="card"],
+:root[data-theme="dark"] body [class*="modal"],
+:root[data-theme="dark"] body [class*="dropdown"] {
+  border-color: var(--border);
+}
+
+/* Preserve primary brand text and status colours */
+:root[data-theme="dark"] body [class*="primary"],
+:root[data-theme="dark"] body [class*="success"],
+:root[data-theme="dark"] body [class*="danger"],
+:root[data-theme="dark"] body [class*="warning"],
+:root[data-theme="dark"] body [class*="badge"],
+:root[data-theme="dark"] body [class*="status"] {
+  /* Keep their existing component colours where explicitly defined. */
 }

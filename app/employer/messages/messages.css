@@ -1,0 +1,962 @@
+
+.employer-messages-page {
+  --em-green: #176b45;
+  --em-dark: #103c2b;
+  --em-deep: #0a2b1d;
+  --em-lime: #d7f078;
+  --em-ink: #17251d;
+  --em-muted: #68756c;
+  --em-line: #e5eae4;
+  --em-bg: #f5f7f3;
+
+  display: flex;
+  min-height: 100vh;
+  background: var(--em-bg);
+  color: var(--em-ink);
+  font-family: inherit;
+}
+
+/* SIDEBAR */
+
+.employer-messages-sidebar {
+  width: 265px;
+  min-width: 265px;
+  min-height: 100vh;
+  padding: 28px 19px 22px;
+  display: flex;
+  flex-direction: column;
+  background: var(--em-deep);
+  color: #fff;
+}
+
+.employer-messages-brand {
+  display: flex;
+  align-items: center;
+  min-height: 65px;
+  padding: 0 10px;
+  margin-bottom: 30px;
+  text-decoration: none;
+}
+
+.employer-messages-company {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 15px 12px;
+  margin-bottom: 32px;
+  border: 1px solid rgba(255, 255, 255, 0.13);
+  border-radius: 13px;
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.employer-messages-company-icon,
+.employer-messages-account-icon {
+  width: 40px;
+  height: 40px;
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  border-radius: 11px;
+  color: var(--em-dark);
+  background: var(--em-lime);
+}
+
+.employer-messages-company strong,
+.employer-messages-company span {
+  display: block;
+}
+
+.employer-messages-company strong {
+  color: #fff;
+  font-size: 13px;
+  font-weight: 750;
+}
+
+.employer-messages-company span {
+  margin-top: 4px;
+  color: #d8e8dc;
+  font-size: 11px;
+}
+
+.employer-messages-nav-label {
+  margin: 0 10px 12px;
+  color: #c4d9ca;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 1.5px;
+}
+
+.employer-messages-nav {
+  display: grid;
+  gap: 6px;
+}
+
+.employer-messages-nav a {
+  min-height: 46px;
+  padding: 0 13px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  border-radius: 9px;
+  color: #e7f1e9;
+  font-size: 13px;
+  font-weight: 600;
+  text-decoration: none;
+  transition: background 0.2s ease, color 0.2s ease;
+}
+
+.employer-messages-nav a:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
+}
+
+.employer-messages-nav a.active {
+  background: var(--em-green);
+  color: #fff;
+  box-shadow: inset 3px 0 0 var(--em-lime);
+}
+
+.employer-messages-preferences {
+  margin-top: 34px;
+}
+
+.employer-messages-sidebar-bottom {
+  margin-top: auto;
+  padding-top: 35px;
+}
+
+.employer-messages-help {
+  padding: 17px 14px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 13px;
+  background: rgba(255, 255, 255, 0.055);
+}
+
+.employer-messages-help-icon {
+  width: 35px;
+  height: 35px;
+  margin-bottom: 13px;
+  display: grid;
+  place-items: center;
+  border-radius: 10px;
+  color: var(--em-deep);
+  background: var(--em-lime);
+}
+
+.employer-messages-help strong {
+  color: #fff;
+  font-size: 12px;
+}
+
+.employer-messages-help p {
+  margin: 8px 0 12px;
+  color: #e0ebe3;
+  font-size: 11px;
+  line-height: 1.7;
+}
+
+.employer-messages-help a {
+  color: var(--em-lime);
+  font-size: 11px;
+  font-weight: 750;
+  text-decoration: none;
+}
+
+.employer-messages-back {
+  min-height: 44px;
+  margin-top: 18px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 11px;
+  border-radius: 9px;
+  color: #fff;
+  font-size: 12px;
+  font-weight: 650;
+  text-decoration: none;
+}
+
+.employer-messages-back:hover {
+  background: rgba(255, 255, 255, 0.09);
+}
+
+/* MAIN AREA */
+
+.employer-messages-main {
+  min-width: 0;
+  flex: 1;
+}
+
+.employer-messages-topbar {
+  min-height: 82px;
+  padding: 15px 4%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  background: #fff;
+  border-bottom: 1px solid var(--em-line);
+}
+
+.employer-messages-topbar > div:first-child > span {
+  color: var(--em-green);
+  font-size: 10px;
+  font-weight: 850;
+  letter-spacing: 1.3px;
+}
+
+.employer-messages-topbar p {
+  margin: 5px 0 0;
+  color: var(--em-muted);
+  font-size: 12px;
+}
+
+.employer-messages-account {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.employer-messages-account strong,
+.employer-messages-account small {
+  display: block;
+}
+
+.employer-messages-account strong {
+  font-size: 12px;
+}
+
+.employer-messages-account small {
+  margin-top: 3px;
+  color: var(--em-muted);
+  font-size: 10px;
+}
+
+.employer-messages-account > svg {
+  color: var(--em-muted);
+}
+
+.employer-messages-content {
+  width: 100%;
+  max-width: 1600px;
+  margin: 0 auto;
+  padding: 34px 4% 25px;
+}
+
+.employer-messages-heading {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  margin-bottom: 25px;
+}
+
+.employer-messages-kicker {
+  color: var(--em-green);
+  font-size: 10px;
+  font-weight: 850;
+  letter-spacing: 1.4px;
+}
+
+.employer-messages-heading h1 {
+  margin: 9px 0 7px;
+  color: var(--em-ink);
+  font-size: clamp(27px, 3vw, 36px);
+  font-weight: 850;
+  letter-spacing: -1.2px;
+}
+
+.employer-messages-heading p {
+  margin: 0;
+  color: var(--em-muted);
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+/* MESSAGING WORKSPACE */
+
+.employer-messages-workspace {
+  min-height: 650px;
+  display: grid;
+  grid-template-columns: minmax(280px, 340px) minmax(0, 1fr);
+  overflow: hidden;
+  border: 1px solid var(--em-line);
+  border-radius: 17px;
+  background: #fff;
+  box-shadow: 0 8px 30px rgba(16, 60, 43, 0.045);
+}
+
+.employer-messages-list-panel {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  border-right: 1px solid var(--em-line);
+}
+
+.employer-messages-list-heading {
+  min-height: 79px;
+  padding: 17px 19px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid var(--em-line);
+}
+
+.employer-messages-list-heading h2 {
+  margin: 0;
+  color: var(--em-ink);
+  font-size: 16px;
+  font-weight: 800;
+}
+
+.employer-messages-list-heading span {
+  display: block;
+  margin-top: 5px;
+  color: var(--em-muted);
+  font-size: 11px;
+}
+
+.employer-messages-more,
+.employer-messages-chat-more {
+  width: 36px;
+  height: 36px;
+  display: grid;
+  place-items: center;
+  border: 0;
+  border-radius: 9px;
+  color: var(--em-muted);
+  background: #f3f6f2;
+  cursor: pointer;
+}
+
+.employer-messages-search {
+  height: 42px;
+  margin: 15px 15px 12px;
+  padding: 0 12px;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  border: 1px solid var(--em-line);
+  border-radius: 9px;
+  color: #819087;
+  background: #fafbf9;
+}
+
+.employer-messages-search input {
+  width: 100%;
+  min-width: 0;
+  border: 0;
+  outline: 0;
+  color: var(--em-ink);
+  background: transparent;
+  font: inherit;
+  font-size: 12px;
+}
+
+.employer-messages-search input::placeholder {
+  color: #8a968e;
+}
+
+.employer-messages-conversation-list {
+  flex: 1;
+  overflow-y: auto;
+}
+
+.employer-messages-conversation {
+  width: 100%;
+  min-height: 91px;
+  padding: 14px 15px;
+  display: flex;
+  align-items: flex-start;
+  gap: 11px;
+  border: 0;
+  border-bottom: 1px solid #edf0ec;
+  background: #fff;
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.2s ease;
+}
+
+.employer-messages-conversation:hover {
+  background: #f7faf6;
+}
+
+.employer-messages-conversation.selected {
+  background: #edf6ef;
+  box-shadow: inset 3px 0 0 var(--em-green);
+}
+
+.employer-messages-avatar {
+  width: 43px;
+  height: 43px;
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  border-radius: 50%;
+  color: #fff;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.employer-messages-avatar.green {
+  background: #287b51;
+}
+
+.employer-messages-avatar.orange {
+  background: #d77c42;
+}
+
+.employer-messages-avatar.purple {
+  background: #7963a9;
+}
+
+.employer-messages-avatar.blue {
+  background: #477ba5;
+}
+
+.employer-messages-conversation-info {
+  min-width: 0;
+  flex: 1;
+  display: block;
+}
+
+.employer-messages-conversation-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 5px;
+}
+
+.employer-messages-conversation-top strong {
+  overflow: hidden;
+  color: var(--em-ink);
+  font-size: 12px;
+  font-weight: 800;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.employer-messages-conversation-top small {
+  flex-shrink: 0;
+  color: #829087;
+  font-size: 9px;
+}
+
+.employer-messages-job {
+  display: block;
+  margin-top: 5px;
+  color: var(--em-green);
+  font-size: 10px;
+  font-weight: 750;
+}
+
+.employer-messages-preview {
+  display: block;
+  overflow: hidden;
+  margin-top: 5px;
+  color: var(--em-muted);
+  font-size: 10px;
+  line-height: 1.5;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.employer-messages-unread {
+  width: 19px;
+  height: 19px;
+  margin-top: 23px;
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  border-radius: 50%;
+  color: #fff;
+  background: var(--em-green);
+  font-size: 10px;
+  font-weight: 800;
+}
+
+.employer-messages-empty-search {
+  min-height: 220px;
+  padding: 25px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  color: #849087;
+  text-align: center;
+}
+
+.employer-messages-empty-search strong {
+  color: var(--em-ink);
+  font-size: 13px;
+}
+
+.employer-messages-empty-search span {
+  font-size: 11px;
+}
+
+/* CHAT PANEL */
+
+.employer-messages-chat-panel {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.employer-messages-chat-header {
+  min-height: 79px;
+  padding: 14px 22px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid var(--em-line);
+}
+
+.employer-messages-chat-person {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.employer-messages-avatar.large {
+  width: 45px;
+  height: 45px;
+}
+
+.employer-messages-chat-person strong,
+.employer-messages-chat-person span {
+  display: block;
+}
+
+.employer-messages-chat-person strong {
+  color: var(--em-ink);
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.employer-messages-chat-person div > span {
+  margin-top: 5px;
+  color: var(--em-muted);
+  font-size: 11px;
+}
+
+.employer-messages-job-context {
+  min-height: 43px;
+  padding: 0 22px;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  border-bottom: 1px solid var(--em-line);
+  color: var(--em-green);
+  background: #fbfcfa;
+  font-size: 11px;
+}
+
+.employer-messages-job-context span {
+  color: var(--em-muted);
+}
+
+.employer-messages-job-context strong {
+  color: var(--em-ink);
+}
+
+.employer-messages-chat-body {
+  min-height: 350px;
+  flex: 1;
+  padding: 23px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 19px;
+  overflow-y: auto;
+  background:
+    radial-gradient(circle at 15% 20%, rgba(215, 240, 120, 0.09), transparent 25%),
+    #fbfcfa;
+}
+
+.employer-messages-date-divider {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 5px;
+}
+
+.employer-messages-date-divider span {
+  padding: 7px 12px;
+  border: 1px solid var(--em-line);
+  border-radius: 20px;
+  color: var(--em-muted);
+  background: #fff;
+  font-size: 9px;
+  font-weight: 700;
+}
+
+.employer-message-row {
+  display: flex;
+  align-items: flex-end;
+  gap: 9px;
+}
+
+.employer-message-row.sent {
+  justify-content: flex-end;
+}
+
+.employer-messages-avatar.small {
+  width: 29px;
+  height: 29px;
+  font-size: 9px;
+}
+
+.employer-message-content {
+  max-width: min(76%, 520px);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.employer-message-row.sent .employer-message-content {
+  align-items: flex-end;
+}
+
+.employer-message-bubble {
+  padding: 12px 15px;
+  border: 1px solid var(--em-line);
+  border-radius: 13px 13px 13px 3px;
+  color: #35443a;
+  background: #fff;
+  font-size: 12px;
+  line-height: 1.7;
+  overflow-wrap: anywhere;
+}
+
+.employer-message-row.sent .employer-message-bubble {
+  border-color: var(--em-green);
+  border-radius: 13px 13px 3px 13px;
+  color: #fff;
+  background: var(--em-green);
+}
+
+.employer-message-time {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  color: #89958c;
+  font-size: 9px;
+}
+
+.employer-message-row.sent .employer-message-time svg {
+  color: var(--em-green);
+}
+
+/* COMPOSE */
+
+.employer-messages-compose {
+  padding: 15px 19px;
+  border-top: 1px solid var(--em-line);
+  background: #fff;
+}
+
+.employer-messages-compose textarea {
+  width: 100%;
+  min-height: 57px;
+  padding: 10px 11px;
+  resize: vertical;
+  border: 1px solid var(--em-line);
+  border-radius: 9px;
+  outline: 0;
+  color: var(--em-ink);
+  background: #fafbf9;
+  font: inherit;
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+.employer-messages-compose textarea:focus {
+  border-color: var(--em-green);
+  box-shadow: 0 0 0 3px rgba(23, 107, 69, 0.08);
+}
+
+.employer-messages-compose textarea::placeholder {
+  color: #8b968e;
+}
+
+.employer-messages-compose-footer {
+  margin-top: 11px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.employer-messages-compose-footer > div {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  min-width: 0;
+}
+
+.employer-messages-compose-footer > div > span {
+  color: #8a958d;
+  font-size: 9px;
+}
+
+.employer-messages-attach {
+  width: 32px;
+  height: 32px;
+  display: grid;
+  place-items: center;
+  border: 1px solid var(--em-line);
+  border-radius: 8px;
+  color: var(--em-muted);
+  background: #fff;
+  cursor: pointer;
+}
+
+.employer-messages-send {
+  min-height: 39px;
+  padding: 0 15px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  border: 0;
+  border-radius: 8px;
+  color: #fff;
+  background: var(--em-green);
+  font: inherit;
+  font-size: 11px;
+  font-weight: 750;
+  cursor: pointer;
+  transition: background 0.2s ease;
+}
+
+.employer-messages-send:hover:not(:disabled) {
+  background: var(--em-dark);
+}
+
+.employer-messages-send:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.employer-messages-no-selection {
+  min-height: 500px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  color: #8a968d;
+  text-align: center;
+}
+
+.employer-messages-no-selection h2 {
+  margin: 17px 0 7px;
+  color: var(--em-ink);
+  font-size: 18px;
+}
+
+.employer-messages-no-selection p {
+  margin: 0;
+  font-size: 12px;
+}
+
+/* FOOTER AND NOTICE */
+
+.employer-messages-notice {
+  margin-top: 17px;
+  padding: 13px 15px;
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  border: 1px solid #e2eadf;
+  border-radius: 10px;
+  color: var(--em-green);
+  background: #edf5eb;
+}
+
+.employer-messages-notice svg {
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+
+.employer-messages-notice p {
+  margin: 0;
+  color: #405b49;
+  font-size: 11px;
+  line-height: 1.65;
+}
+
+.employer-messages-footer {
+  padding: 23px 0 5px;
+  color: #849087;
+  font-size: 10px;
+}
+
+/* RESPONSIVE */
+
+@media (max-width: 1100px) {
+  .employer-messages-sidebar {
+    width: 235px;
+    min-width: 235px;
+  }
+
+  .employer-messages-workspace {
+    grid-template-columns: minmax(250px, 300px) minmax(0, 1fr);
+  }
+
+  .employer-messages-content {
+    padding-right: 25px;
+    padding-left: 25px;
+  }
+}
+
+@media (max-width: 800px) {
+  .employer-messages-sidebar {
+    width: 205px;
+    min-width: 205px;
+    padding-right: 13px;
+    padding-left: 13px;
+  }
+
+  .employer-messages-workspace {
+    grid-template-columns: 1fr;
+  }
+
+  .employer-messages-list-panel {
+    max-height: 330px;
+    border-right: 0;
+    border-bottom: 1px solid var(--em-line);
+  }
+
+  .employer-messages-conversation-list {
+    max-height: 235px;
+  }
+
+  .employer-messages-chat-body {
+    min-height: 350px;
+  }
+}
+
+@media (max-width: 600px) {
+  .employer-messages-page {
+    display: block;
+  }
+
+  .employer-messages-sidebar {
+    width: 100%;
+    min-width: 0;
+    min-height: auto;
+    padding: 13px 16px;
+  }
+
+  .employer-messages-brand {
+    min-height: 48px;
+    margin-bottom: 12px;
+  }
+
+  .employer-messages-company {
+    margin-bottom: 14px;
+  }
+
+  .employer-messages-nav-label {
+    margin-bottom: 7px;
+  }
+
+  .employer-messages-nav {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .employer-messages-nav a {
+    min-height: 40px;
+    padding: 0 9px;
+    font-size: 11px;
+  }
+
+  .employer-messages-preferences {
+    margin-top: 15px;
+  }
+
+  .employer-messages-sidebar-bottom {
+    display: none;
+  }
+
+  .employer-messages-topbar {
+    min-height: 70px;
+    padding: 12px 17px;
+  }
+
+  .employer-messages-topbar p {
+    max-width: 190px;
+    line-height: 1.5;
+  }
+
+  .employer-messages-account {
+    gap: 7px;
+  }
+
+  .employer-messages-account-icon {
+    width: 34px;
+    height: 34px;
+  }
+
+  .employer-messages-account > div:nth-child(2) {
+    display: none;
+  }
+
+  .employer-messages-content {
+    padding: 25px 13px;
+  }
+
+  .employer-messages-heading {
+    margin-bottom: 18px;
+  }
+
+  .employer-messages-heading p {
+    font-size: 12px;
+  }
+
+  .employer-messages-workspace {
+    border-radius: 12px;
+  }
+
+  .employer-messages-list-heading {
+    min-height: 68px;
+  }
+
+  .employer-messages-chat-header {
+    padding: 12px 14px;
+  }
+
+  .employer-messages-job-context {
+    padding: 0 14px;
+  }
+
+  .employer-messages-chat-body {
+    min-height: 330px;
+    padding: 17px 12px;
+  }
+
+  .employer-message-content {
+    max-width: 84%;
+  }
+
+  .employer-messages-compose {
+    padding: 12px;
+  }
+
+  .employer-messages-compose-footer > div > span {
+    display: none;
+  }
+
+  .employer-messages-send {
+    padding: 0 12px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .employer-messages-page *,
+  .employer-messages-page *::before,
+  .employer-messages-page *::after {
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+  }
+}

@@ -1,0 +1,492 @@
+
+.guidelines-page {
+  background: #f7f8f3;
+  color: #17251d;
+  min-height: 100vh;
+}
+
+.guidelines-hero {
+  min-height: 470px;
+  padding: 65px 7%;
+  background: #103c2b;
+  color: #ffffff;
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+}
+
+.guidelines-hero-inner {
+  max-width: 1400px;
+  width: 100%;
+  margin: 0 auto;
+  position: relative;
+  z-index: 2;
+}
+
+.guidelines-breadcrumb {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  color: #e1eee5;
+  font-size: 14px;
+  margin-bottom: 42px;
+}
+
+.guidelines-breadcrumb a {
+  color: #ffffff;
+  text-decoration: none;
+}
+
+.guidelines-breadcrumb a:hover {
+  color: #d7f078;
+}
+
+.guidelines-eyebrow,
+.guidelines-section-label {
+  display: inline-block;
+  color: #176b45;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 1.5px;
+}
+
+.guidelines-eyebrow {
+  color: #d7f078;
+  margin-bottom: 18px;
+  font-size: 12px;
+}
+
+.guidelines-hero h1 {
+  font-size: clamp(42px, 6vw, 76px);
+  line-height: 1.08;
+  letter-spacing: -2.5px;
+  font-weight: 800;
+  margin: 0;
+}
+
+.guidelines-hero h1 span {
+  color: #d7f078;
+}
+
+.guidelines-hero-inner > p {
+  max-width: 680px;
+  color: #ffffff;
+  font-size: 17px;
+  line-height: 1.8;
+  margin-top: 24px;
+}
+
+.guidelines-hero-note {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  color: #ffffff;
+  font-size: 14px;
+  font-weight: 600;
+  margin-top: 28px;
+}
+
+.guidelines-hero-note span {
+  width: 27px;
+  height: 27px;
+  border-radius: 50%;
+  background: #d7f078;
+  color: #103c2b;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 900;
+}
+
+.guidelines-decoration {
+  position: absolute;
+  border: 1px solid rgba(215, 240, 120, 0.18);
+  border-radius: 50%;
+  pointer-events: none;
+}
+
+.guidelines-decoration-one {
+  width: 430px;
+  height: 430px;
+  right: -100px;
+  top: -110px;
+}
+
+.guidelines-decoration-two {
+  width: 300px;
+  height: 300px;
+  right: 90px;
+  bottom: -200px;
+}
+
+.guidelines-intro-section {
+  padding: 75px 7% 35px;
+}
+
+.guidelines-intro {
+  max-width: 1400px;
+  margin: 0 auto;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 80px;
+  align-items: center;
+}
+
+.guidelines-intro h2 {
+  color: #17251d;
+  font-size: clamp(30px, 4vw, 44px);
+  line-height: 1.2;
+  letter-spacing: -1.3px;
+  margin: 17px 0 0;
+}
+
+.guidelines-intro h2 span {
+  color: #176b45;
+}
+
+.guidelines-intro > p {
+  color: #536057;
+  font-size: 16px;
+  line-height: 1.9;
+}
+
+.guidelines-list-section {
+  padding: 55px 7% 85px;
+}
+
+.guidelines-list-heading {
+  max-width: 1400px;
+  margin: 0 auto 38px;
+}
+
+.guidelines-list-heading h2 {
+  color: #17251d;
+  font-size: clamp(28px, 3vw, 40px);
+  letter-spacing: -1px;
+  margin: 13px 0 10px;
+}
+
+.guidelines-list-heading p {
+  color: #59665d;
+  font-size: 15px;
+  line-height: 1.8;
+}
+
+.guidelines-grid {
+  max-width: 1400px;
+  margin: 0 auto;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 24px;
+}
+
+.guideline-card {
+  background: #ffffff;
+  border: 1px solid #e5eae4;
+  border-radius: 18px;
+  padding: 30px;
+  transition: transform 0.25s ease, box-shadow 0.25s ease;
+}
+
+.guideline-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 16px 35px rgba(16, 60, 43, 0.08);
+}
+
+.guideline-card-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 23px;
+}
+
+.guideline-number {
+  background: #e7f2e9;
+  color: #176b45;
+  border-radius: 10px;
+  padding: 10px 13px;
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.guideline-check {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  background: #103c2b;
+  color: #d7f078;
+  border-radius: 50%;
+  font-weight: 900;
+}
+
+.guideline-card h3 {
+  color: #17251d;
+  font-size: 21px;
+  letter-spacing: -0.4px;
+  margin: 0 0 12px;
+}
+
+.guideline-description {
+  color: #59665d;
+  font-size: 14px;
+  line-height: 1.8;
+  margin: 0 0 19px;
+}
+
+.guideline-card ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.guideline-card li {
+  position: relative;
+  padding-left: 24px;
+  color: #435148;
+  font-size: 13px;
+  line-height: 1.7;
+}
+
+.guideline-card li::before {
+  content: "✓";
+  position: absolute;
+  left: 0;
+  top: 0;
+  color: #176b45;
+  font-weight: 900;
+}
+
+.guidelines-enforcement-section {
+  padding: 0 7% 85px;
+}
+
+.guidelines-enforcement {
+  max-width: 1400px;
+  margin: 0 auto;
+  display: grid;
+  grid-template-columns: 65px minmax(0, 1fr);
+  gap: 25px;
+  padding: 45px;
+  border-radius: 20px;
+  background: #103c2b;
+  color: #ffffff;
+}
+
+.guidelines-enforcement-icon {
+  width: 55px;
+  height: 55px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #d7f078;
+  color: #103c2b;
+  font-size: 27px;
+  font-weight: 900;
+}
+
+.guidelines-enforcement .guidelines-section-label {
+  color: #d7f078;
+}
+
+.guidelines-enforcement h2 {
+  color: #ffffff;
+  font-size: clamp(24px, 3vw, 34px);
+  letter-spacing: -0.7px;
+  margin: 13px 0;
+}
+
+.guidelines-enforcement p,
+.guidelines-enforcement li {
+  color: #ffffff;
+  font-size: 14px;
+  line-height: 1.9;
+}
+
+.guidelines-enforcement ul {
+  padding-left: 20px;
+  margin: 15px 0;
+}
+
+.guidelines-enforcement li::marker {
+  color: #d7f078;
+}
+
+.guidelines-enforcement-footnote {
+  color: #ffffff !important;
+  font-size: 12px !important;
+}
+
+.guidelines-final-section {
+  padding: 0 7% 90px;
+}
+
+.guidelines-final-card {
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 65px;
+  border-radius: 22px;
+  background: #e7f2e9;
+  text-align: center;
+}
+
+.guidelines-final-card h2 {
+  color: #103c2b;
+  font-size: clamp(32px, 4vw, 48px);
+  line-height: 1.15;
+  letter-spacing: -1.5px;
+  margin: 18px 0;
+}
+
+.guidelines-final-card > p {
+  color: #344b3b;
+  font-size: 15px;
+  line-height: 1.9;
+  max-width: 650px;
+  margin: 0 auto;
+}
+
+.guidelines-final-actions {
+  display: flex;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 14px;
+  margin-top: 30px;
+}
+
+.guidelines-primary-button,
+.guidelines-secondary-button {
+  min-height: 49px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 23px;
+  border-radius: 9px;
+  font-size: 13px;
+  font-weight: 800;
+  text-decoration: none;
+  transition: 0.2s ease;
+}
+
+.guidelines-primary-button {
+  background: #176b45;
+  color: #ffffff;
+}
+
+.guidelines-primary-button:hover {
+  background: #103c2b;
+  transform: translateY(-2px);
+}
+
+.guidelines-secondary-button {
+  background: #ffffff;
+  color: #103c2b;
+  border: 1px solid #cbdacb;
+}
+
+.guidelines-secondary-button:hover {
+  background: #d7f078;
+  border-color: #d7f078;
+}
+
+@media (max-width: 900px) {
+  .guidelines-intro {
+    gap: 35px;
+  }
+
+  .guidelines-grid {
+    gap: 18px;
+  }
+
+  .guideline-card {
+    padding: 24px;
+  }
+
+  .guidelines-final-card {
+    padding: 45px 30px;
+  }
+}
+
+@media (max-width: 700px) {
+  .guidelines-hero {
+    min-height: auto;
+    padding: 55px 6%;
+  }
+
+  .guidelines-breadcrumb {
+    margin-bottom: 32px;
+  }
+
+  .guidelines-hero h1 {
+    font-size: clamp(39px, 10vw, 58px);
+    letter-spacing: -1.5px;
+  }
+
+  .guidelines-hero-inner > p {
+    font-size: 15px;
+  }
+
+  .guidelines-intro-section {
+    padding: 55px 6% 20px;
+  }
+
+  .guidelines-intro {
+    grid-template-columns: 1fr;
+    gap: 15px;
+  }
+
+  .guidelines-intro > p {
+    font-size: 14px;
+  }
+
+  .guidelines-list-section {
+    padding: 45px 6% 60px;
+  }
+
+  .guidelines-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .guidelines-enforcement-section {
+    padding: 0 6% 60px;
+  }
+
+  .guidelines-enforcement {
+    grid-template-columns: 1fr;
+    padding: 30px 24px;
+    gap: 18px;
+  }
+
+  .guidelines-final-section {
+    padding: 0 6% 65px;
+  }
+
+  .guidelines-final-card {
+    padding: 40px 22px;
+  }
+}
+
+@media (max-width: 420px) {
+  .guidelines-hero h1 {
+    font-size: 37px;
+  }
+
+  .guidelines-final-card h2 {
+    font-size: 32px;
+  }
+
+  .guidelines-final-actions {
+    flex-direction: column;
+  }
+
+  .guidelines-primary-button,
+  .guidelines-secondary-button {
+    width: 100%;
+  }
+}

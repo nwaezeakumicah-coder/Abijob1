@@ -1,0 +1,253 @@
+
+/* =========================================
+   ABI JOB — REGISTRATION SELECTION
+========================================= */
+
+.register-page {
+  min-height: 700px;
+  padding: 75px 40px 100px;
+  background:
+    radial-gradient(
+      circle at 90% 8%,
+      rgba(215, 240, 120, 0.15),
+      transparent 25%
+    ),
+    #f7f8f3;
+}
+
+.register-intro {
+  max-width: 850px;
+  margin: 0 auto 65px;
+  text-align: center;
+}
+
+.register-eyebrow {
+  display: inline-block;
+  margin-bottom: 18px;
+  color: var(--green);
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 1.5px;
+}
+
+.register-intro h1 {
+  margin: 0;
+  color: var(--ink);
+  font-size: clamp(43px, 6vw, 70px);
+  font-weight: 800;
+  line-height: 1.1;
+  letter-spacing: -3px;
+}
+
+.register-intro h1 span {
+  color: var(--green);
+}
+
+.register-intro > p {
+  max-width: 620px;
+  margin: 20px auto 0;
+  color: var(--muted);
+  font-size: 17px;
+  line-height: 1.8;
+}
+
+.register-selection {
+  width: min(100%, 1250px);
+  margin: 0 auto;
+}
+
+.register-section-heading {
+  margin-bottom: 30px;
+  text-align: center;
+}
+
+.register-section-heading > div > span {
+  color: var(--green);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 1.5px;
+}
+
+.register-section-heading h2 {
+  margin: 12px 0;
+  color: var(--ink);
+  font-size: clamp(27px, 4vw, 38px);
+  font-weight: 800;
+  letter-spacing: -1.2px;
+}
+
+.register-section-heading p {
+  color: var(--muted);
+  font-size: 15px;
+  line-height: 1.7;
+}
+
+.register-type-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 22px;
+}
+
+.register-type-card {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 340px;
+  padding: 32px;
+  border: 1px solid #e5eae4;
+  border-radius: 18px;
+  background: #fff;
+  color: var(--ink);
+  text-decoration: none;
+  box-shadow: 0 5px 20px rgba(16, 60, 43, 0.035);
+  transition:
+    transform 0.25s ease,
+    border-color 0.25s ease,
+    box-shadow 0.25s ease;
+}
+
+.register-type-card:hover {
+  transform: translateY(-6px);
+  border-color: rgba(23, 107, 69, 0.35);
+  box-shadow: 0 18px 40px rgba(16, 60, 43, 0.09);
+}
+
+.register-type-card:focus-visible {
+  outline: 3px solid var(--green);
+  outline-offset: 4px;
+}
+
+.register-type-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 58px;
+  height: 58px;
+  margin-bottom: 25px;
+  border-radius: 16px;
+  background: var(--green-soft);
+  color: var(--green);
+}
+
+.register-type-card h3 {
+  margin: 0;
+  color: var(--ink);
+  font-size: 22px;
+  font-weight: 800;
+  line-height: 1.4;
+}
+
+.register-type-card > p {
+  margin: 12px 0 20px;
+  color: var(--muted);
+  font-size: 14px;
+  line-height: 1.8;
+}
+
+.register-type-card ul {
+  display: grid;
+  gap: 11px;
+  padding: 0;
+  margin: 0 0 25px;
+  list-style: none;
+}
+
+.register-type-card li {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  color: #526157;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.register-type-card li svg {
+  flex-shrink: 0;
+  color: var(--green);
+}
+
+.register-type-link {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  margin-top: auto;
+  color: var(--green);
+  font-size: 14px;
+  font-weight: 800;
+}
+
+.register-login-prompt {
+  margin: 35px 0 0;
+  color: var(--muted);
+  font-size: 14px;
+  text-align: center;
+}
+
+.register-login-prompt a {
+  color: var(--green);
+  font-weight: 800;
+  text-decoration: none;
+}
+
+.register-login-prompt a:hover {
+  text-decoration: underline;
+}
+
+/* TABLET */
+
+@media (max-width: 900px) {
+  .register-type-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+/* MOBILE */
+
+@media (max-width: 600px) {
+  .register-page {
+    padding: 60px 20px 75px;
+  }
+
+  .register-intro {
+    margin-bottom: 45px;
+  }
+
+  .register-intro h1 {
+    font-size: clamp(40px, 11vw, 55px);
+    letter-spacing: -2px;
+  }
+
+  .register-intro > p {
+    font-size: 15px;
+  }
+
+  .register-type-grid {
+    grid-template-columns: 1fr;
+    gap: 17px;
+  }
+
+  .register-type-card {
+    min-height: 300px;
+    padding: 27px;
+  }
+
+  .register-type-card h3 {
+    font-size: 21px;
+  }
+
+  .register-section-heading h2 {
+    font-size: 28px;
+  }
+}
+
+/* REDUCED MOTION */
+
+@media (prefers-reduced-motion: reduce) {
+  .register-type-card {
+    transition: none;
+  }
+
+  .register-type-card:hover {
+    transform: none;
+  }
+}
