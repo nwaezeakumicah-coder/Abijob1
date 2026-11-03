@@ -1,3 +1,4 @@
+
 "use client";
 
 import {
@@ -10,16 +11,11 @@ import {
 export type ThemePreference = "light" | "dark" | "system";
 
 type ThemeContextType = {
-  theme: "light";
+  theme: ThemePreference;
   setTheme: (theme: ThemePreference) => void;
 };
 
 const ThemeContext = createContext<ThemeContextType | null>(null);
-
-function applyLightTheme() {
-  document.documentElement.dataset.theme = "light";
-  document.documentElement.style.colorScheme = "light";
-}
 
 export function ThemeProvider({
   children,
@@ -27,11 +23,13 @@ export function ThemeProvider({
   children: ReactNode;
 }) {
   useEffect(() => {
-    applyLightTheme();
+    document.documentElement.dataset.theme = "light";
+    document.documentElement.style.colorScheme = "light";
   }, []);
 
   function setTheme(_theme: ThemePreference) {
-    applyLightTheme();
+    document.documentElement.dataset.theme = "light";
+    document.documentElement.style.colorScheme = "light";
   }
 
   return (
