@@ -4,35 +4,21 @@ import {
   createContext,
   useContext,
   useEffect,
-  useState,
   type ReactNode,
 } from "react";
 
 export type ThemePreference = "light" | "dark" | "system";
 
 type ThemeContextType = {
-  theme: ThemePreference;
+  theme: "light";
   setTheme: (theme: ThemePreference) => void;
 };
 
 const ThemeContext = createContext<ThemeContextType | null>(null);
 
-const STORAGE_KEY = "abijob-theme";
-
-function applyTheme(theme: ThemePreference) {
-  const prefersDark = window.matchMedia(
-    "(prefers-color-scheme: dark)"
-  ).matches;
-
-  const resolvedTheme =
-    theme === "system"
-      ? prefersDark
-        ? "dark"
-        : "light"
-      : theme;
-
-  document.documentElement.dataset.theme = resolvedTheme;
-  document.documentElement.style.colorScheme = resolvedTheme;
+function applyLightTheme() {
+  document.documentElement.dataset.theme = "light";
+  document.documentElement.style.colorScheme = "light";
 }
 
 export function ThemeProvider({
@@ -40,58 +26,21 @@ export function ThemeProvider({
 }: {
   children: ReactNode;
 }) {
-  const [theme, setThemeState] = useState<ThemePreference>("system");
-
-  // Load the saved preference once.
   useEffect(() => {
-    try {
-      const stored = localStorage.getItem(STORAGE_KEY);
-
-      if (
-        stored === "light" ||
-        stored === "dark" ||
-        stored === "system"
-      ) {
-        setThemeState(stored);
-      }
-    } catch {
-      // Use system preference if localStorage is unavailable.
-    }
+    applyLightTheme();
   }, []);
 
-  // Apply the selected theme and listen for system changes.
-  useEffect(() => {
-    applyTheme(theme);
-
-    const media = window.matchMedia(
-      "(prefers-color-scheme: dark)"
-    );
-
-    const handleChange = () => {
-      if (theme === "system") {
-        applyTheme("system");
-      }
-    };
-
-    media.addEventListener("change", handleChange);
-
-    return () => {
-      media.removeEventListener("change", handleChange);
-    };
-  }, [theme]);
-
-  function setTheme(nextTheme: ThemePreference) {
-    setThemeState(nextTheme);
-
-    try {
-      localStorage.setItem(STORAGE_KEY, nextTheme);
-    } catch {
-      // Theme still works for the current session.
-    }
+  function setTheme(_theme: ThemePreference) {
+    applyLightTheme();
   }
 
   return (
-    <ThemeContext.Provider value={{ theme, setTheme }}>
+    <ThemeContext.Provider
+      value={{
+        theme: "light",
+        setTheme,
+      }}
+    >
       {children}
     </ThemeContext.Provider>
   );
