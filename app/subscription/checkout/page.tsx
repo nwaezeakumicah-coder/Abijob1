@@ -21,9 +21,18 @@ type BillingInterval = "monthly" | "yearly";
 type Plan = {
   account_role: AccountRole;
   billing_interval: BillingInterval;
-  amount_kobo: number;
+  amount_kobo: number | string;
   trial_days: number;
   trial_access_percent: number;
+};
+
+type PaymentInitializationResponse = {
+  success?: boolean;
+  authorization_url?: string;
+  authorizationUrl?: string;
+  reference?: string;
+  error?: string;
+  message?: string;
 };
 
 const roleLabels: Record<AccountRole, string> = {
@@ -32,22 +41,55 @@ const roleLabels: Record<AccountRole, string> = {
   employer: "Employer",
 };
 
+function normalizeRole(value: string | null): AccountRole | null {
+  if (!value) return null;
+
+  const normalized = value.toLowerCase().replace(/-/g, "_");
+
+  if (normalized === "job_seeker") return "job_seeker";
+
+  if (
+    normalized === "professional" ||
+    normalized === "skilled_professional"
+  ) {
+    return "professional";
+  }
+
+  if (normalized === "employer") return "employer";
+
+  return null;
+}
+
+function getBillingPath(role: AccountRole | null) {
+  if (role === "job_seeker") return "/dashboard/subscription";
+
+  if (role === "professional") return "/professional/subscription";
+
+  if (role === "employer") return "/employer/subscription";
+
+  return "/subscription";
+}
+
 function CheckoutContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
 
   const [supabase] = useState(() => createClient());
+
   const [loading, setLoading] = useState(true);
   const [processing, setProcessing] = useState(false);
   const [role, setRole] = useState<AccountRole | null>(null);
   const [plan, setPlan] = useState<Plan | null>(null);
+  const [annualSavings, setAnnualSavings] = useState<number | null>(null);
   const [error, setError] = useState("");
 
   const requestedType = searchParams.get("type");
-  const requestedPlan = searchParams.get("plan");
+
+  const requestedInterval =
+    searchParams.get("interval") || searchParams.get("plan");
 
   const billingInterval: BillingInterval =
-    requestedPlan === "annual" || requestedPlan === "yearly"
+    requestedInterval === "annual" || requestedInterval === "yearly"
       ? "yearly"
       : "monthly";
 
@@ -57,6 +99,8 @@ function CheckoutContent() {
     async function loadCheckout() {
       setLoading(true);
       setError("");
+      setPlan(null);
+      setAnnualSavings(null);
 
       try {
         const {
@@ -65,7 +109,11 @@ function CheckoutContent() {
         } = await supabase.auth.getUser();
 
         if (authError || !user) {
-          router.replace("/login?next=/subscription/checkout");
+          router.replace(
+            `/login?next=${encodeURIComponent(
+              `/subscription/checkout?type=${requestedType || ""}&interval=${billingInterval}`
+            )}`
+          );
           return;
         }
 
@@ -77,25 +125,19 @@ function CheckoutContent() {
 
         if (profileError) throw profileError;
 
-        const accountRole = profile?.role as AccountRole;
+        const accountRole = normalizeRole(profile?.role);
 
-        if (
-          !accountRole ||
-          !["job_seeker", "professional", "employer"].includes(accountRole)
-        ) {
-          throw new Error("Your account type could not be identified.");
+        if (!accountRole) {
+          throw new Error(
+            "Your account type could not be identified. Please contact support."
+          );
         }
 
-        // The account role comes from the authenticated profile,
-        // not from the URL parameter.
-        const requestedRoleMatches =
-          !requestedType ||
-          requestedType === accountRole ||
-          (requestedType === "job-seeker" && accountRole === "job_seeker");
+        const selectedRole = normalizeRole(requestedType);
 
-        if (!requestedRoleMatches) {
+        if (requestedType && selectedRole !== accountRole) {
           throw new Error(
-            "The selected account category does not match your account. Please return to the subscription page."
+            "The selected account category does not match your account. Please return to your Subscription & Billing page."
           );
         }
 
@@ -110,9 +152,45 @@ function CheckoutContent() {
 
         if (planError) throw planError;
 
+        if (!planData) {
+          throw new Error(
+            "The selected subscription plan is currently unavailable."
+          );
+        }
+
+        let savings: number | null = null;
+
+        if (billingInterval === "yearly") {
+          const { data: monthlyPlan, error: monthlyPlanError } =
+            await supabase
+              .from("subscription_plans")
+              .select("amount_kobo")
+              .eq("account_role", accountRole)
+              .eq("billing_interval", "monthly")
+              .maybeSingle();
+
+          if (monthlyPlanError) {
+            console.error(
+              "Could not calculate annual savings:",
+              monthlyPlanError
+            );
+          }
+
+          if (monthlyPlan) {
+            const calculatedSavings =
+              Number(monthlyPlan.amount_kobo) * 12 -
+              Number(planData.amount_kobo);
+
+            if (calculatedSavings > 0) {
+              savings = calculatedSavings;
+            }
+          }
+        }
+
         if (!cancelled) {
           setRole(accountRole);
           setPlan(planData as Plan);
+          setAnnualSavings(savings);
         }
       } catch (err) {
         console.error("Checkout loading error:", err);
@@ -125,7 +203,9 @@ function CheckoutContent() {
           );
         }
       } finally {
-        if (!cancelled) setLoading(false);
+        if (!cancelled) {
+          setLoading(false);
+        }
       }
     }
 
@@ -136,12 +216,12 @@ function CheckoutContent() {
     };
   }, [supabase, router, requestedType, billingInterval]);
 
-  const formatPrice = (amountKobo: number) =>
+  const formatPrice = (amountKobo: number | string) =>
     new Intl.NumberFormat("en-NG", {
       style: "currency",
       currency: "NGN",
       maximumFractionDigits: 0,
-    }).format(amountKobo / 100);
+    }).format(Number(amountKobo) / 100);
 
   async function handlePayment() {
     if (!plan || !role || processing) return;
@@ -156,31 +236,52 @@ function CheckoutContent() {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
+          accountRole: role,
           billingInterval: plan.billing_interval,
         }),
+        cache: "no-store",
       });
 
-      const result = await response.json();
+      let result: PaymentInitializationResponse;
 
-      if (!response.ok) {
-        throw new Error(result.error || "Unable to start your payment.");
+      try {
+        result = await response.json();
+      } catch {
+        throw new Error(
+          "We could not understand the payment server response. Please try again."
+        );
       }
 
-      if (!result.authorization_url) {
+      if (!response.ok) {
+        throw new Error(
+          result.error ||
+            result.message ||
+            "Unable to start your payment."
+        );
+      }
+
+      const authorizationUrl =
+        result.authorization_url || result.authorizationUrl;
+
+      if (!authorizationUrl) {
         throw new Error("Paystack did not return a checkout link.");
       }
 
-      window.location.assign(result.authorization_url);
+      window.location.assign(authorizationUrl);
     } catch (err) {
       console.error("Payment initialization error:", err);
+
       setError(
         err instanceof Error
           ? err.message
           : "Payment could not be started. Please try again."
       );
+
       setProcessing(false);
     }
   }
+
+  const billingPath = getBillingPath(role);
 
   if (loading) {
     return (
@@ -197,8 +298,8 @@ function CheckoutContent() {
     <main className="checkout-page">
       <div className="checkout-container">
         <header className="checkout-header">
-          <Link href="/subscription" className="checkout-logo">
-            <img src="/images/abijob-logo-green.png" alt="Abi Job" />
+          <Link href={billingPath} className="checkout-logo">
+            <img src="/image/abijob-logo-green.png" alt="Abi Job" />
           </Link>
 
           <div className="checkout-secure-label">
@@ -207,9 +308,9 @@ function CheckoutContent() {
           </div>
         </header>
 
-        <Link href="/subscription" className="checkout-back">
+        <Link href={billingPath} className="checkout-back">
           <ArrowLeft size={16} />
-          Back to subscription plans
+          Back to Subscription & Billing
         </Link>
 
         <section className="checkout-heading">
@@ -224,7 +325,9 @@ function CheckoutContent() {
           <div className="checkout-error" role="alert">
             <strong>Checkout issue</strong>
             <p>{error}</p>
-            <Link href="/subscription">Return to subscription plans</Link>
+            <Link href={billingPath}>
+              Return to Subscription & Billing
+            </Link>
           </div>
         )}
 
@@ -236,6 +339,7 @@ function CheckoutContent() {
                   <span>YOUR SELECTED PLAN</span>
                   <h2>{roleLabels[role]}</h2>
                 </div>
+
                 <div className="checkout-summary-icon">
                   <CreditCard size={24} />
                 </div>
@@ -254,11 +358,13 @@ function CheckoutContent() {
                 </span>
               </div>
 
-              {plan.billing_interval === "yearly" && (
-                <p className="checkout-saving">
-                  You save ₦3,840 compared with 12 monthly payments.
-                </p>
-              )}
+              {plan.billing_interval === "yearly" &&
+                annualSavings !== null && (
+                  <p className="checkout-saving">
+                    You save {formatPrice(annualSavings)} compared with 12
+                    monthly payments.
+                  </p>
+                )}
 
               <div className="checkout-divider" />
 
@@ -267,16 +373,20 @@ function CheckoutContent() {
               <ul className="checkout-includes">
                 <li>
                   <CheckCircle2 size={17} />
-                  30-day free trial with full platform benefits
+                  {plan.trial_days}-day free trial with{" "}
+                  {plan.trial_access_percent}% platform access
                 </li>
+
                 <li>
                   <CheckCircle2 size={17} />
                   Access to features for your account category
                 </li>
+
                 <li>
                   <CheckCircle2 size={17} />
                   Secure payment processing through Paystack
                 </li>
+
                 <li>
                   <CheckCircle2 size={17} />
                   Subscription and payment history
@@ -286,8 +396,10 @@ function CheckoutContent() {
               <div className="checkout-trial-notice">
                 <strong>Your free trial</strong>
                 <p>
-                  Your account includes a 30-day trial with 100% platform
-                  benefits. This checkout is for the paid plan you selected.
+                  Your account includes a {plan.trial_days}-day trial with{" "}
+                  {plan.trial_access_percent}% platform access. You can
+                  subscribe during your trial. This checkout is for the paid
+                  plan you selected.
                 </p>
               </div>
             </section>
@@ -298,6 +410,7 @@ function CheckoutContent() {
               </div>
 
               <h2>Ready to continue?</h2>
+
               <p>
                 You will be redirected to Paystack to complete payment using
                 the payment methods available to you.
@@ -316,7 +429,10 @@ function CheckoutContent() {
               >
                 {processing ? (
                   <>
-                    <LoaderCircle className="checkout-button-spinner" size={19} />
+                    <LoaderCircle
+                      className="checkout-button-spinner"
+                      size={19}
+                    />
                     Connecting to Paystack...
                   </>
                 ) : (
@@ -333,8 +449,8 @@ function CheckoutContent() {
                 not collect or store your card details.
               </div>
 
-              <Link href="/subscription" className="checkout-cancel-link">
-                Cancel and return to plans
+              <Link href={billingPath} className="checkout-cancel-link">
+                Cancel and return to billing
               </Link>
             </aside>
           </div>

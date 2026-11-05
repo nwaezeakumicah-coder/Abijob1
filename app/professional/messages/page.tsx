@@ -1,11 +1,11 @@
-
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import Logo from "../../../components/Logo";
+import { createClient } from "@/lib/supabase/client";
 import {
-  Activity,
   ArrowLeft,
   ArrowRight,
   Bell,
@@ -25,180 +25,320 @@ import {
 } from "lucide-react";
 import "./messages.css";
 
+type MessageRecord = {
+  id: string;
+  application_id: string;
+  sender_id: string;
+  recipient_id: string;
+  body: string;
+  read_at: string | null;
+  created_at: string;
+};
+
+type ApplicationRecord = {
+  id: string;
+  job_id: string;
+  applicant_id: string;
+  status: string;
+  created_at: string;
+};
+
+type JobRecord = {
+  id: string;
+  title: string;
+  employer_id: string;
+};
+
+type ProfileRecord = {
+  id: string;
+  full_name: string | null;
+  headline: string | null;
+};
+
 type Message = {
-  id: number;
+  id: string;
   text: string;
   time: string;
   sender: "me" | "them";
-  read?: boolean;
+  read: boolean;
+  sender_id: string;
+  recipient_id: string;
+  read_at: string | null;
 };
 
 type Conversation = {
-  id: number;
+  id: string;
+  applicationId: string;
+  employerId: string;
   name: string;
   role: string;
   initials: string;
   color: string;
   online: boolean;
   unread: number;
+  time: string;
   messages: Message[];
 };
 
-const STORAGE_KEY = "abijob-professional-conversations";
+const COLORS = ["green", "orange", "purple", "blue", "pink"];
 
-const initialConversations: Conversation[] = [
-  {
-    id: 1,
-    name: "Amara Okafor",
-    role: "Recruitment Manager · BrightPath Ltd",
-    initials: "AO",
-    color: "green",
-    online: true,
-    unread: 2,
-    messages: [
-      {
-        id: 1,
-        text: "Hello! I came across your professional profile on Abi Job.",
-        time: "9:14 AM",
-        sender: "them",
-      },
-      {
-        id: 2,
-        text: "Your experience and listed skills caught our attention. We may have an opportunity that suits your background.",
-        time: "9:15 AM",
-        sender: "them",
-      },
-      {
-        id: 3,
-        text: "Thank you for reaching out. I'd be happy to learn more about the opportunity.",
-        time: "9:23 AM",
-        sender: "me",
-        read: true,
-      },
-      {
-        id: 4,
-        text: "Great! Could you share a little more about your availability?",
-        time: "9:30 AM",
-        sender: "them",
-      },
-    ],
-  },
-  {
-    id: 2,
-    name: "Daniel Eze",
-    role: "Business Owner · Eze Digital Studio",
-    initials: "DE",
-    color: "orange",
-    online: false,
-    unread: 0,
-    messages: [
-      {
-        id: 1,
-        text: "Good afternoon. I saw your profile and wanted to ask about your services.",
-        time: "Yesterday",
-        sender: "them",
-      },
-      {
-        id: 2,
-        text: "Good afternoon! Thank you for contacting me. What would you like to know?",
-        time: "Yesterday",
-        sender: "me",
-        read: true,
-      },
-      {
-        id: 3,
-        text: "Are you currently available for a new project?",
-        time: "Yesterday",
-        sender: "them",
-      },
-    ],
-  },
-  {
-    id: 3,
-    name: "Chisom Nwosu",
-    role: "Talent Coordinator · WorkLink",
-    initials: "CN",
-    color: "purple",
-    online: true,
-    unread: 0,
-    messages: [
-      {
-        id: 1,
-        text: "Thank you for submitting your application. We will review your details and get back to you.",
-        time: "Monday",
-        sender: "them",
-      },
-      {
-        id: 2,
-        text: "Thank you. I look forward to hearing from you.",
-        time: "Monday",
-        sender: "me",
-        read: true,
-      },
-    ],
-  },
-  {
-    id: 4,
-    name: "Ifeanyi Umeh",
-    role: "Project Manager · Creative Hub",
-    initials: "IU",
-    color: "blue",
-    online: false,
-    unread: 0,
-    messages: [
-      {
-        id: 1,
-        text: "We are looking for skilled professionals for an upcoming project.",
-        time: "Oct 28",
-        sender: "them",
-      },
-    ],
-  },
-];
+function getInitials(name: string) {
+  return name
+    .trim()
+    .split(/\s+/)
+    .slice(0, 2)
+    .map((part) => part[0])
+    .join("")
+    .toUpperCase() || "EM";
+}
+
+function formatMessageTime(value: string) {
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) return "";
+
+  return date.toLocaleTimeString([], {
+    hour: "numeric",
+    minute: "2-digit",
+  });
+}
+
+function formatConversationTime(value: string) {
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) return "";
+
+  const today = new Date();
+  const isToday = date.toDateString() === today.toDateString();
+
+  if (isToday) {
+    return formatMessageTime(value);
+  }
+
+  const yesterday = new Date();
+  yesterday.setDate(yesterday.getDate() - 1);
+
+  if (date.toDateString() === yesterday.toDateString()) {
+    return "Yesterday";
+  }
+
+  return date.toLocaleDateString([], {
+    month: "short",
+    day: "numeric",
+  });
+}
 
 export default function ProfessionalMessagesPage() {
+  const router = useRouter();
+
   const [conversations, setConversations] = useState<Conversation[]>([]);
-  const [selectedId, setSelectedId] = useState<number | null>(null);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [messageInput, setMessageInput] = useState("");
   const [loaded, setLoaded] = useState(false);
   const [mobileChatOpen, setMobileChatOpen] = useState(false);
+  const [userId, setUserId] = useState<string | null>(null);
+  const [sending, setSending] = useState(false);
+  const [error, setError] = useState("");
 
-  useEffect(() => {
+  const loadConversations = useCallback(async () => {
+    const supabase = createClient();
+
+    setError("");
+
     try {
-      const stored = localStorage.getItem(STORAGE_KEY);
+      const {
+        data: { user },
+        error: authError,
+      } = await supabase.auth.getUser();
 
-      if (stored) {
-        const parsed = JSON.parse(stored);
-
-        if (Array.isArray(parsed)) {
-          setConversations(parsed);
-          setSelectedId(parsed[0]?.id ?? null);
-        } else {
-          setConversations(initialConversations);
-          setSelectedId(initialConversations[0].id);
-        }
-      } else {
-        setConversations(initialConversations);
-        setSelectedId(initialConversations[0].id);
+      if (authError || !user) {
+        router.replace("/login");
+        return;
       }
-    } catch {
-      setConversations(initialConversations);
-      setSelectedId(initialConversations[0].id);
+
+      setUserId(user.id);
+
+      // Confirm that this is a Professional account.
+      const { data: profile, error: profileError } = await supabase
+        .from("profiles")
+        .select("role")
+        .eq("id", user.id)
+        .single();
+
+      if (profileError || profile?.role !== "professional") {
+        router.replace("/dashboard");
+        return;
+      }
+
+      // Load applications submitted by this professional.
+      const { data: applications, error: applicationsError } =
+        await supabase
+          .from("job_applications")
+          .select("id, job_id, applicant_id, status, created_at")
+          .eq("applicant_id", user.id)
+          .order("created_at", { ascending: false });
+
+      if (applicationsError) throw applicationsError;
+
+      const applicationRecords =
+        (applications || []) as ApplicationRecord[];
+
+      if (applicationRecords.length === 0) {
+        setConversations([]);
+        setSelectedId(null);
+        return;
+      }
+
+      const applicationIds = applicationRecords.map(
+        (application) => application.id
+      );
+
+      const jobIds = [
+        ...new Set(applicationRecords.map((application) => application.job_id)),
+      ];
+
+      // Load the jobs connected to those applications.
+      const { data: jobs, error: jobsError } = await supabase
+        .from("jobs")
+        .select("id, title, employer_id")
+        .in("id", jobIds);
+
+      if (jobsError) throw jobsError;
+
+      const jobRecords = (jobs || []) as JobRecord[];
+
+      const employerIds = [
+        ...new Set(jobRecords.map((job) => job.employer_id)),
+      ];
+
+      // Employer profile details may be restricted by privacy policies.
+      // If they are unavailable, the inbox will use a safe fallback name.
+      let profileRecords: ProfileRecord[] = [];
+
+      if (employerIds.length > 0) {
+        const { data: employerProfiles } = await supabase
+          .from("profiles")
+          .select("id, full_name, headline")
+          .in("id", employerIds);
+
+        profileRecords = (employerProfiles || []) as ProfileRecord[];
+      }
+
+      // Load messages belonging to the professional's applications.
+      const { data: messages, error: messagesError } = await supabase
+        .from("messages")
+        .select(
+          "id, application_id, sender_id, recipient_id, body, read_at, created_at"
+        )
+        .in("application_id", applicationIds)
+        .order("created_at", { ascending: true });
+
+      if (messagesError) throw messagesError;
+
+      const messageRecords = (messages || []) as MessageRecord[];
+
+      const nextConversations: Conversation[] = applicationRecords.map(
+        (application, index) => {
+          const job = jobRecords.find(
+            (record) => record.id === application.job_id
+          );
+
+          const employer = profileRecords.find(
+            (record) => record.id === job?.employer_id
+          );
+
+          const employerName = employer?.full_name || "Employer";
+
+          const applicationMessages = messageRecords
+            .filter(
+              (message) => message.application_id === application.id
+            )
+            .map((message) => ({
+              id: message.id,
+              text: message.body,
+              time: formatMessageTime(message.created_at),
+              sender: message.sender_id === user.id ? "me" : "them",
+              read: message.read_at !== null,
+              sender_id: message.sender_id,
+              recipient_id: message.recipient_id,
+              read_at: message.read_at,
+            })) as Message[];
+
+          const unread = applicationMessages.filter(
+            (message) =>
+              message.recipient_id === user.id &&
+              message.read_at === null
+          ).length;
+
+          const lastMessage =
+            applicationMessages[applicationMessages.length - 1];
+
+          return {
+            id: application.id,
+            applicationId: application.id,
+            employerId: job?.employer_id || "",
+            name: employerName,
+            role: job?.title || "Job application",
+            initials: getInitials(employerName),
+            color: COLORS[index % COLORS.length],
+            online: false,
+            unread,
+            time: lastMessage
+              ? lastMessage.time
+              : formatConversationTime(application.created_at),
+            messages: applicationMessages,
+          };
+        }
+      );
+
+      // Put conversations with the most recent messages first.
+      nextConversations.sort((a, b) => {
+        const aLast =
+          messageRecords
+            .filter((message) => message.application_id === a.applicationId)
+            .map((message) => message.created_at)
+            .pop() || "";
+
+        const bLast =
+          messageRecords
+            .filter((message) => message.application_id === b.applicationId)
+            .map((message) => message.created_at)
+            .pop() || "";
+
+        return bLast.localeCompare(aLast);
+      });
+
+      setConversations(nextConversations);
+
+      setSelectedId((currentId) => {
+        if (
+          currentId &&
+          nextConversations.some(
+            (conversation) => conversation.id === currentId
+          )
+        ) {
+          return currentId;
+        }
+
+        return nextConversations[0]?.id || null;
+      });
+    } catch (err) {
+      console.error("Professional messages error:", err);
+
+      setError(
+        err instanceof Error
+          ? err.message
+          : "Unable to load your conversations."
+      );
     } finally {
       setLoaded(true);
     }
-  }, []);
+  }, [router]);
 
   useEffect(() => {
-    if (!loaded) return;
-
-    try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(conversations));
-    } catch {
-      console.error("Unable to save professional messages.");
-    }
-  }, [conversations, loaded]);
+    loadConversations();
+  }, [loadConversations]);
 
   const selectedConversation = conversations.find(
     (conversation) => conversation.id === selectedId
@@ -223,50 +363,102 @@ export default function ProfessionalMessagesPage() {
     0
   );
 
-  function openConversation(id: number) {
+  async function openConversation(id: string) {
     setSelectedId(id);
     setMobileChatOpen(true);
 
+    if (!userId) return;
+
+    const conversation = conversations.find((item) => item.id === id);
+
+    if (!conversation) return;
+
+    const unreadIds = conversation.messages
+      .filter(
+        (message) =>
+          message.recipient_id === userId && message.read_at === null
+      )
+      .map((message) => message.id);
+
+    if (unreadIds.length === 0) return;
+
+    const supabase = createClient();
+    const readAt = new Date().toISOString();
+
+    const { error: updateError } = await supabase
+      .from("messages")
+      .update({ read_at: readAt })
+      .in("id", unreadIds)
+      .eq("recipient_id", userId);
+
+    if (updateError) {
+      console.error("Unable to mark messages as read:", updateError);
+      setError("Unable to update message read status.");
+      return;
+    }
+
     setConversations((current) =>
-      current.map((conversation) =>
-        conversation.id === id
-          ? { ...conversation, unread: 0 }
-          : conversation
+      current.map((item) =>
+        item.id === id
+          ? {
+              ...item,
+              unread: 0,
+              messages: item.messages.map((message) =>
+                unreadIds.includes(message.id)
+                  ? { ...message, read_at: readAt, read: true }
+                  : message
+              ),
+            }
+          : item
       )
     );
   }
 
-  function sendMessage() {
+  async function sendMessage() {
     const text = messageInput.trim();
 
-    if (!text || !selectedConversation) return;
+    if (
+      !text ||
+      !selectedConversation ||
+      !userId ||
+      !selectedConversation.employerId ||
+      sending
+    ) {
+      return;
+    }
 
-    const now = new Date();
-    const time = now.toLocaleTimeString([], {
-      hour: "numeric",
-      minute: "2-digit",
-    });
+    setSending(true);
+    setError("");
 
-    const newMessage: Message = {
-      id: Date.now(),
-      text,
-      time,
-      sender: "me",
-      read: false,
-    };
+    try {
+      const supabase = createClient();
 
-    setConversations((current) =>
-      current.map((conversation) =>
-        conversation.id === selectedConversation.id
-          ? {
-              ...conversation,
-              messages: [...conversation.messages, newMessage],
-            }
-          : conversation
-      )
-    );
+      const { error: sendError } = await supabase
+        .from("messages")
+        .insert({
+          application_id: selectedConversation.applicationId,
+          sender_id: userId,
+          recipient_id: selectedConversation.employerId,
+          body: text,
+        });
 
-    setMessageInput("");
+      if (sendError) throw sendError;
+
+      setMessageInput("");
+
+      // Reload the saved conversation from Supabase.
+      await loadConversations();
+    } catch (err) {
+      console.error("Unable to send professional message:", err);
+
+      setError(
+        err instanceof Error
+          ? err.message
+          : "Your message could not be sent. Please try again."
+      );
+    } finally {
+      setSending(false);
+    }
   }
 
   function handleComposerKeyDown(
@@ -311,7 +503,7 @@ export default function ProfessionalMessagesPage() {
           </Link>
 
           <Link href="/professional/experience">
-            <Activity size={19} />
+            <BriefcaseBusiness size={19} />
             <span>Experience</span>
           </Link>
 
@@ -383,8 +575,8 @@ export default function ProfessionalMessagesPage() {
               <span>YOUR CONNECTIONS</span>
               <h2>Stay connected. Move opportunities forward.</h2>
               <p>
-                Communicate with employers, clients and people interested in
-                your professional services.
+                Communicate with employers about the opportunities you have
+                applied for.
               </p>
             </div>
 
@@ -397,6 +589,21 @@ export default function ProfessionalMessagesPage() {
             </div>
           </div>
 
+          {error && (
+            <div
+              role="alert"
+              style={{
+                padding: "12px 16px",
+                marginBottom: "16px",
+                borderRadius: "8px",
+                background: "#fff1f0",
+                color: "#a12622",
+              }}
+            >
+              {error}
+            </div>
+          )}
+
           <section className="professional-messages-workspace">
             <aside
               className={`professional-messages-list ${
@@ -407,13 +614,15 @@ export default function ProfessionalMessagesPage() {
                 <div>
                   <h2>Inbox</h2>
                   <span>
-                    {unreadCount} unread {unreadCount === 1 ? "message" : "messages"}
+                    {unreadCount} unread{" "}
+                    {unreadCount === 1 ? "message" : "messages"}
                   </span>
                 </div>
                 <button
                   type="button"
-                  aria-label="More inbox options"
-                  title="Inbox options"
+                  aria-label="Refresh conversations"
+                  title="Refresh conversations"
+                  onClick={loadConversations}
                 >
                   <MoreVertical size={19} />
                 </button>
@@ -466,7 +675,9 @@ export default function ProfessionalMessagesPage() {
                         <div className="professional-messages-contact-details">
                           <div className="professional-messages-contact-top">
                             <strong>{conversation.name}</strong>
-                            <span>{lastMessage?.time}</span>
+                            <span>
+                              {lastMessage?.time || conversation.time}
+                            </span>
                           </div>
 
                           <p>{conversation.role}</p>
@@ -474,7 +685,7 @@ export default function ProfessionalMessagesPage() {
                           <div className="professional-messages-contact-bottom">
                             <span>
                               {lastMessage?.sender === "me" && "You: "}
-                              {lastMessage?.text}
+                              {lastMessage?.text || "No messages yet"}
                             </span>
 
                             {conversation.unread > 0 && (
@@ -487,9 +698,24 @@ export default function ProfessionalMessagesPage() {
                   })
                 ) : (
                   <div className="professional-messages-list-empty">
-                    <Search size={23} />
-                    <strong>No conversations found</strong>
-                    <span>Try searching with another name or keyword.</span>
+                    {conversations.length === 0 ? (
+                      <>
+                        <MessageCircle size={23} />
+                        <strong>No conversations yet</strong>
+                        <span>
+                          Conversations will appear here when you apply for
+                          opportunities and exchange messages with employers.
+                        </span>
+                      </>
+                    ) : (
+                      <>
+                        <Search size={23} />
+                        <strong>No conversations found</strong>
+                        <span>
+                          Try searching with another name or keyword.
+                        </span>
+                      </>
+                    )}
                   </div>
                 )}
               </div>
@@ -521,22 +747,13 @@ export default function ProfessionalMessagesPage() {
                       className={`professional-messages-contact-avatar large ${selectedConversation.color}`}
                     >
                       {selectedConversation.initials}
-                      {selectedConversation.online && (
-                        <span className="professional-messages-online-dot" />
-                      )}
                     </div>
 
                     <div className="professional-messages-chat-person">
                       <strong>{selectedConversation.name}</strong>
                       <span>
-                        <i
-                          className={
-                            selectedConversation.online ? "online" : ""
-                          }
-                        />
-                        {selectedConversation.online
-                          ? "Online"
-                          : "Offline"}
+                        <i />
+                        Employer
                       </span>
                       <small>{selectedConversation.role}</small>
                     </div>
@@ -556,40 +773,51 @@ export default function ProfessionalMessagesPage() {
                   </div>
 
                   <div className="professional-messages-chat-body">
-                    {selectedConversation.messages.map((message) => (
-                      <div
-                        key={message.id}
-                        className={`professional-message-row ${
-                          message.sender === "me" ? "sent" : "received"
-                        }`}
-                      >
-                        {message.sender === "them" && (
-                          <div
-                            className={`professional-message-mini-avatar ${selectedConversation.color}`}
-                          >
-                            {selectedConversation.initials}
-                          </div>
-                        )}
+                    {selectedConversation.messages.length > 0 ? (
+                      selectedConversation.messages.map((message) => (
+                        <div
+                          key={message.id}
+                          className={`professional-message-row ${
+                            message.sender === "me" ? "sent" : "received"
+                          }`}
+                        >
+                          {message.sender === "them" && (
+                            <div
+                              className={`professional-message-mini-avatar ${selectedConversation.color}`}
+                            >
+                              {selectedConversation.initials}
+                            </div>
+                          )}
 
-                        <div className="professional-message-content">
-                          <div className="professional-message-bubble">
-                            {message.text}
-                          </div>
-                          <div className="professional-message-meta">
-                            <span>{message.time}</span>
-                            {message.sender === "me" && (
-                              <span className="professional-message-read">
-                                {message.read ? (
-                                  <CheckCheck size={14} />
-                                ) : (
-                                  <Check size={14} />
-                                )}
-                              </span>
-                            )}
+                          <div className="professional-message-content">
+                            <div className="professional-message-bubble">
+                              {message.text}
+                            </div>
+                            <div className="professional-message-meta">
+                              <span>{message.time}</span>
+                              {message.sender === "me" && (
+                                <span className="professional-message-read">
+                                  {message.read ? (
+                                    <CheckCheck size={14} />
+                                  ) : (
+                                    <Check size={14} />
+                                  )}
+                                </span>
+                              )}
+                            </div>
                           </div>
                         </div>
+                      ))
+                    ) : (
+                      <div className="professional-messages-list-empty">
+                        <MessageCircle size={23} />
+                        <strong>Start the conversation</strong>
+                        <span>
+                          Send a message to this employer about your
+                          application.
+                        </span>
                       </div>
-                    ))}
+                    )}
                   </div>
 
                   <form
@@ -603,11 +831,9 @@ export default function ProfessionalMessagesPage() {
                       <button
                         type="button"
                         aria-label="Attach file"
-                        title="File attachments will be available after backend integration"
+                        title="File attachments are not available yet"
                         onClick={() =>
-                          alert(
-                            "File attachments will be available after backend integration."
-                          )
+                          alert("File attachments are not available yet.")
                         }
                       >
                         <Paperclip size={19} />
@@ -615,7 +841,7 @@ export default function ProfessionalMessagesPage() {
                       <button
                         type="button"
                         aria-label="Emoji"
-                        title="Emoji"
+                        title="Add a smile"
                         onClick={() =>
                           setMessageInput((current) => `${current} 😊`)
                         }
@@ -637,7 +863,7 @@ export default function ProfessionalMessagesPage() {
                     <button
                       type="submit"
                       className="professional-messages-send"
-                      disabled={!messageInput.trim()}
+                      disabled={!messageInput.trim() || sending}
                       aria-label="Send message"
                     >
                       <Send size={18} />
@@ -645,7 +871,9 @@ export default function ProfessionalMessagesPage() {
                   </form>
 
                   <p className="professional-messages-composer-note">
-                    Press Enter to send · Shift + Enter for a new line
+                    {sending
+                      ? "Sending message..."
+                      : "Press Enter to send · Shift + Enter for a new line"}
                   </p>
                 </>
               ) : (

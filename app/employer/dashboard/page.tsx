@@ -25,6 +25,7 @@ import {
   Users,
   UserRoundCheck,
   RefreshCw,
+  CreditCard,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import "./dashboard.css";
@@ -84,6 +85,7 @@ const employerMobileLinks = [
   { href: "/employer/messages", label: "Messages", icon: MessageCircle },
   { href: "/professionals", label: "Find professionals", icon: Search },
   { href: "/employer/notifications", label: "Notifications", icon: Bell },
+  { href: "/employer/subscription", label: "Subscription & Billing", icon: CreditCard },
   { href: "/employer/profile", label: "Company profile", icon: Building2 },
   { href: "/employer/settings", label: "Settings", icon: Settings },
 ];
@@ -506,6 +508,10 @@ export default function EmployerDashboardPage() {
           <Link href="/employer/profile">
             <Building2 size={19} />
             Company profile
+          </Link>
+          <Link href="/employer/subscription">
+            <CreditCard size={19} />
+            Subscription & Billing
           </Link>
           <Link href="/employer/settings">
             <Settings size={19} />

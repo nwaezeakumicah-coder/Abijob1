@@ -2,9 +2,10 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState, type FormEvent } from "react";
+import { useCallback, useEffect, useMemo, useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import Logo from "../../components/Logo";
+import { createClient } from "@/lib/supabase/client";
 import {
   ArrowLeft,
   Bell,
@@ -27,310 +28,300 @@ import {
 } from "lucide-react";
 import "./messages.css";
 
-type Message = {
-  id: number;
+type MessageRecord = {
+  id: string;
+  application_id: string;
+  sender_id: string;
+  recipient_id: string;
+  body: string;
+  read_at: string | null;
+  created_at: string;
+};
+
+type ApplicationRecord = {
+  id: string;
+  job_id: string;
+  created_at: string;
+};
+
+type JobRecord = {
+  id: string;
+  title: string;
+  employer_id: string;
+};
+
+type ChatMessage = {
+  id: string;
   text: string;
   time: string;
   sender: "me" | "them";
 };
 
 type Conversation = {
-  id: number;
+  id: string;
+  applicationId: string;
+  recipientId: string;
   name: string;
   role: string;
   initials: string;
   color: string;
-  online: boolean;
   unread: number;
   lastMessage: string;
   time: string;
-  messages: Message[];
+  messages: ChatMessage[];
 };
 
-type AccountRole = "job-seeker" | "professional" | "employer";
-
-const initialConversations: Conversation[] = [
-  {
-    id: 1,
-    name: "Chisom Eze",
-    role: "Recruitment Manager · BrightTech",
-    initials: "CE",
-    color: "green",
-    online: true,
-    unread: 2,
-    lastMessage: "Please send your updated CV when you can.",
-    time: "10:42 AM",
-    messages: [
-      {
-        id: 1,
-        text: "Hello Micah, thank you for applying for the Frontend Developer position.",
-        time: "10:12 AM",
-        sender: "them",
-      },
-      {
-        id: 2,
-        text: "We have reviewed your profile and would like to discuss the next stage of the process.",
-        time: "10:18 AM",
-        sender: "them",
-      },
-      {
-        id: 3,
-        text: "Thank you for reaching out. I would be happy to discuss the opportunity.",
-        time: "10:25 AM",
-        sender: "me",
-      },
-      {
-        id: 4,
-        text: "Please send your updated CV when you can.",
-        time: "10:42 AM",
-        sender: "them",
-      },
-    ],
-  },
-  {
-    id: 2,
-    name: "Amara Okafor",
-    role: "Fashion Designer · Made in Aba Studio",
-    initials: "AO",
-    color: "orange",
-    online: true,
-    unread: 0,
-    lastMessage: "That works perfectly. See you then!",
-    time: "Yesterday",
-    messages: [
-      {
-        id: 1,
-        text: "Hi, I saw your profile and wanted to connect about a design project.",
-        time: "Yesterday",
-        sender: "them",
-      },
-      {
-        id: 2,
-        text: "Thank you for reaching out. I would love to hear more about it.",
-        time: "Yesterday",
-        sender: "me",
-      },
-      {
-        id: 3,
-        text: "That works perfectly. See you then!",
-        time: "Yesterday",
-        sender: "them",
-      },
-    ],
-  },
-  {
-    id: 3,
-    name: "David Nwosu",
-    role: "Business Owner · Daves Digital",
-    initials: "DN",
-    color: "blue",
-    online: false,
-    unread: 0,
-    lastMessage: "Can we schedule a quick conversation?",
-    time: "Yesterday",
-    messages: [
-      {
-        id: 1,
-        text: "I am looking for someone to help with our business website.",
-        time: "Yesterday",
-        sender: "them",
-      },
-      {
-        id: 2,
-        text: "I can help with that. Could you share more details about the project?",
-        time: "Yesterday",
-        sender: "me",
-      },
-      {
-        id: 3,
-        text: "Can we schedule a quick conversation?",
-        time: "Yesterday",
-        sender: "them",
-      },
-    ],
-  },
-  {
-    id: 4,
-    name: "Grace Iheanacho",
-    role: "HR Officer · Abia Business Hub",
-    initials: "GI",
-    color: "purple",
-    online: false,
-    unread: 0,
-    lastMessage: "Your application is under review.",
-    time: "Oct 29",
-    messages: [
-      {
-        id: 1,
-        text: "Good afternoon. I am following up on my application.",
-        time: "Oct 29",
-        sender: "me",
-      },
-      {
-        id: 2,
-        text: "Your application is under review.",
-        time: "Oct 29",
-        sender: "them",
-      },
-    ],
-  },
-  {
-    id: 5,
-    name: "Emeka Ude",
-    role: "Graphic Designer · Creative Works",
-    initials: "EU",
-    color: "pink",
-    online: false,
-    unread: 0,
-    lastMessage: "I have shared the project details.",
-    time: "Oct 27",
-    messages: [
-      {
-        id: 1,
-        text: "Are you available for a branding project?",
-        time: "Oct 27",
-        sender: "them",
-      },
-      {
-        id: 2,
-        text: "Yes, I am available. Please share the brief.",
-        time: "Oct 27",
-        sender: "me",
-      },
-      {
-        id: 3,
-        text: "I have shared the project details.",
-        time: "Oct 27",
-        sender: "them",
-      },
-    ],
-  },
-];
-
-function normaliseRole(value: unknown): AccountRole | null {
-  if (typeof value !== "string") return null;
-
-  const role = value.trim().toLowerCase().replace(/_/g, "-");
-
-  if (
-    role === "employer" ||
-    role === "business" ||
-    role === "business-owner"
-  ) {
-    return "employer";
-  }
-
-  if (
-    role === "professional" ||
-    role === "skilled-professional" ||
-    role === "skilled-professionals" ||
-    role === "artisan" ||
-    role === "artisans" ||
-    role === "skilled-professionals-&-artisans"
-  ) {
-    return "professional";
-  }
-
-  if (
-    role === "job-seeker" ||
-    role === "jobseeker" ||
-    role === "job-seekers" ||
-    role === "seeker"
-  ) {
-    return "job-seeker";
-  }
-
-  return null;
+function formatTime(value: string) {
+  return new Date(value).toLocaleTimeString([], {
+    hour: "2-digit",
+    minute: "2-digit",
+  });
 }
 
-function getAccountRole(): AccountRole {
-  const storageKeys = [
-    "abijob-user",
-    "abijob-current-user",
-    "abijob-auth-user",
-    "abijob-profile",
-    "abijob-account",
-  ];
+function formatLastMessageTime(value: string) {
+  const date = new Date(value);
+  const today = new Date();
 
-  for (const key of storageKeys) {
-    try {
-      const storedValue = window.localStorage.getItem(key);
-      if (!storedValue) continue;
-
-      const parsed = JSON.parse(storedValue);
-
-      if (typeof parsed === "string") {
-        const directRole = normaliseRole(parsed);
-        if (directRole) return directRole;
-        continue;
-      }
-
-      if (!parsed || typeof parsed !== "object") continue;
-
-      const accountObjects = [
-        parsed,
-        parsed.user,
-        parsed.profile,
-        parsed.account,
-        parsed.user_metadata,
-      ];
-
-      for (const account of accountObjects) {
-        if (!account || typeof account !== "object") continue;
-
-        const data = account as Record<string, unknown>;
-
-        const roleValues = [
-          data.role,
-          data.accountType,
-          data.account_type,
-          data.userType,
-          data.user_type,
-          data.type,
-        ];
-
-        for (const value of roleValues) {
-          const detectedRole = normaliseRole(value);
-          if (detectedRole) return detectedRole;
-        }
-      }
-    } catch {
-      // Ignore invalid or unavailable local storage values.
-    }
+  if (date.toDateString() === today.toDateString()) {
+    return formatTime(value);
   }
 
-  // This route is the Job Seeker messaging workspace by default.
-  return "job-seeker";
+  return date.toLocaleDateString([], {
+    day: "numeric",
+    month: "short",
+  });
+}
+
+function getInitials(name: string) {
+  return name
+    .trim()
+    .split(/\s+/)
+    .slice(0, 2)
+    .map((part) => part.charAt(0))
+    .join("")
+    .toUpperCase() || "EM";
 }
 
 export default function MessagesPage() {
   const router = useRouter();
+  const supabase = createClient();
 
   const [accessChecked, setAccessChecked] = useState(false);
-  const [conversations, setConversations] = useState(initialConversations);
-  const [activeId, setActiveId] = useState(1);
+  const [userId, setUserId] = useState("");
+  const [userName, setUserName] = useState("Job Seeker");
+  const [conversations, setConversations] = useState<Conversation[]>([]);
+  const [activeId, setActiveId] = useState("");
   const [search, setSearch] = useState("");
   const [showUnreadOnly, setShowUnreadOnly] = useState(false);
   const [messageText, setMessageText] = useState("");
   const [showNewMessage, setShowNewMessage] = useState(false);
-  const [newMessageTarget, setNewMessageTarget] = useState("2");
+  const [newMessageTarget, setNewMessageTarget] = useState("");
   const [mobileListOpen, setMobileListOpen] = useState(true);
+  const [loading, setLoading] = useState(true);
+  const [sending, setSending] = useState(false);
+  const [error, setError] = useState("");
+
+  const loadConversations = useCallback(async (currentUserId: string) => {
+    setError("");
+
+    const { data: applicationRows, error: applicationError } = await supabase
+      .from("job_applications")
+      .select("id, job_id, created_at")
+      .eq("applicant_id", currentUserId)
+      .order("created_at", { ascending: false });
+
+    if (applicationError) {
+      console.error("Could not load applications:", applicationError);
+      setError("We could not load your applications. Please refresh the page.");
+      setConversations([]);
+      return;
+    }
+
+    const applications = (applicationRows || []) as ApplicationRecord[];
+
+    if (applications.length === 0) {
+      setConversations([]);
+      setActiveId("");
+      return;
+    }
+
+    const jobIds = [...new Set(applications.map((item) => item.job_id))];
+
+    const { data: jobRows, error: jobError } = await supabase
+      .from("jobs")
+      .select("id, title, employer_id")
+      .in("id", jobIds);
+
+    if (jobError) {
+      console.error("Could not load application jobs:", jobError);
+      setError("We could not load the jobs connected to your applications.");
+      setConversations([]);
+      return;
+    }
+
+    const jobs = (jobRows || []) as JobRecord[];
+    const jobMap = new Map(jobs.map((job) => [job.id, job]));
+
+    const usableApplications = applications.filter((application) =>
+      jobMap.has(application.job_id)
+    );
+
+    if (usableApplications.length === 0) {
+      setConversations([]);
+      setActiveId("");
+      return;
+    }
+
+    const applicationIds = usableApplications.map((item) => item.id);
+
+    const { data: messageRows, error: messageError } = await supabase
+      .from("messages")
+      .select(
+        "id, application_id, sender_id, recipient_id, body, read_at, created_at"
+      )
+      .in("application_id", applicationIds)
+      .order("created_at", { ascending: true });
+
+    if (messageError) {
+      console.error("Could not load messages:", messageError);
+      setError("We could not load your messages. Please refresh the page.");
+      setConversations([]);
+      return;
+    }
+
+    const messages = (messageRows || []) as MessageRecord[];
+
+    const nextConversations: Conversation[] = usableApplications.map(
+      (application, index) => {
+        const job = jobMap.get(application.job_id)!;
+
+        const applicationMessages = messages.filter(
+          (message) => message.application_id === application.id
+        );
+
+        const lastMessage =
+          applicationMessages[applicationMessages.length - 1];
+
+        const unread = applicationMessages.filter(
+          (message) =>
+            message.recipient_id === currentUserId && message.read_at === null
+        ).length;
+
+        return {
+          id: application.id,
+          applicationId: application.id,
+          recipientId: job.employer_id,
+          name: "Employer",
+          role: job.title || "Job application",
+          initials: "EM",
+          color: ["green", "blue", "orange", "purple", "teal"][index % 5],
+          unread,
+          lastMessage: lastMessage
+            ? lastMessage.body
+            : "Start a conversation about this application.",
+          time: lastMessage
+            ? formatLastMessageTime(lastMessage.created_at)
+            : formatLastMessageTime(application.created_at),
+          messages: applicationMessages.map((message) => ({
+            id: message.id,
+            text: message.body,
+            time: formatTime(message.created_at),
+            sender:
+              message.sender_id === currentUserId ? "me" : "them",
+          })),
+        };
+      }
+    );
+
+    setConversations(nextConversations);
+
+    setActiveId((currentId) => {
+      if (
+        currentId &&
+        nextConversations.some((conversation) => conversation.id === currentId)
+      ) {
+        return currentId;
+      }
+
+      return nextConversations[0]?.id || "";
+    });
+  }, [supabase]);
 
   useEffect(() => {
-    const accountRole = getAccountRole();
+    let cancelled = false;
 
-    if (accountRole === "professional") {
-      router.replace("/professional/messages");
-      return;
+    async function initialise() {
+      setLoading(true);
+
+      const {
+        data: { user },
+        error: authError,
+      } = await supabase.auth.getUser();
+
+      if (cancelled) return;
+
+      if (authError || !user) {
+        router.replace("/login");
+        return;
+      }
+
+      const { data: profile, error: profileError } = await supabase
+        .from("profiles")
+        .select("role, full_name")
+        .eq("id", user.id)
+        .maybeSingle();
+
+      if (cancelled) return;
+
+      if (profileError) {
+        console.error("Could not verify account role:", profileError);
+        setError("We could not verify your account. Please try again.");
+        setLoading(false);
+        setAccessChecked(true);
+        return;
+      }
+
+      const role = String(profile?.role || "")
+        .trim()
+        .toLowerCase()
+        .replace(/_/g, "-");
+
+      if (
+        role === "professional" ||
+        role === "skilled-professional" ||
+        role === "artisan"
+      ) {
+        router.replace("/professional/messages");
+        return;
+      }
+
+      if (role === "employer") {
+        router.replace("/employer/messages");
+        return;
+      }
+
+      if (role !== "job-seeker" && role !== "jobseeker" && role !== "seeker") {
+        router.replace("/dashboard");
+        return;
+      }
+
+      setUserId(user.id);
+      setUserName(profile?.full_name || "Job Seeker");
+      setAccessChecked(true);
+
+      await loadConversations(user.id);
+
+      if (!cancelled) {
+        setLoading(false);
+      }
     }
 
-    if (accountRole === "employer") {
-      router.replace("/employer/messages");
-      return;
-    }
+    initialise();
 
-    setAccessChecked(true);
-  }, [router]);
+    return () => {
+      cancelled = true;
+    };
+  }, [router, supabase, loadConversations]);
 
   const activeConversation = conversations.find(
     (conversation) => conversation.id === activeId
@@ -338,11 +329,15 @@ export default function MessagesPage() {
 
   const filteredConversations = useMemo(() => {
     return conversations.filter((conversation) => {
-      const matchesSearch =
-        conversation.name.toLowerCase().includes(search.toLowerCase()) ||
-        conversation.role.toLowerCase().includes(search.toLowerCase());
+      const query = search.trim().toLowerCase();
 
-      const matchesUnread = !showUnreadOnly || conversation.unread > 0;
+      const matchesSearch =
+        conversation.name.toLowerCase().includes(query) ||
+        conversation.role.toLowerCase().includes(query) ||
+        conversation.lastMessage.toLowerCase().includes(query);
+
+      const matchesUnread =
+        !showUnreadOnly || conversation.unread > 0;
 
       return matchesSearch && matchesUnread;
     });
@@ -353,54 +348,121 @@ export default function MessagesPage() {
     0
   );
 
-  function openConversation(id: number) {
+  async function openConversation(id: string) {
     setActiveId(id);
     setMobileListOpen(false);
 
+    const conversation = conversations.find((item) => item.id === id);
+
+    if (!conversation || conversation.unread === 0 || !userId) return;
+
+    const unreadIds = conversation.messages
+      .filter((message) => message.sender === "them")
+      .map((message) => message.id);
+
+    if (unreadIds.length === 0) return;
+
+    const readAt = new Date().toISOString();
+
+    const { error: updateError } = await supabase
+      .from("messages")
+      .update({ read_at: readAt })
+      .in("id", unreadIds)
+      .eq("recipient_id", userId);
+
+    if (updateError) {
+      console.error("Could not mark messages as read:", updateError);
+      return;
+    }
+
     setConversations((current) =>
-      current.map((conversation) =>
-        conversation.id === id ? { ...conversation, unread: 0 } : conversation
+      current.map((item) =>
+        item.id === id
+          ? {
+              ...item,
+              unread: 0,
+              messages: item.messages.map((message) =>
+                unreadIds.includes(message.id)
+                  ? { ...message }
+                  : message
+              ),
+            }
+          : item
       )
     );
   }
 
-  function sendMessage(event: FormEvent<HTMLFormElement>) {
+  async function sendMessage(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
     const trimmedMessage = messageText.trim();
 
-    if (!trimmedMessage || !activeConversation) return;
+    if (
+      !trimmedMessage ||
+      !activeConversation ||
+      !userId ||
+      sending
+    ) {
+      return;
+    }
 
-    const newMessage: Message = {
-      id: Date.now(),
-      text: trimmedMessage,
-      time: new Date().toLocaleTimeString([], {
-        hour: "2-digit",
-        minute: "2-digit",
-      }),
+    setSending(true);
+    setError("");
+
+    const { data, error: sendError } = await supabase
+      .from("messages")
+      .insert({
+        application_id: activeConversation.applicationId,
+        sender_id: userId,
+        recipient_id: activeConversation.recipientId,
+        body: trimmedMessage,
+      })
+      .select(
+        "id, application_id, sender_id, recipient_id, body, read_at, created_at"
+      )
+      .single();
+
+    if (sendError || !data) {
+      console.error("Message could not be sent:", sendError);
+      setError(
+        sendError?.message ||
+          "Your message could not be sent. Please try again."
+      );
+      setSending(false);
+      return;
+    }
+
+    const savedMessage = data as MessageRecord;
+
+    const newMessage: ChatMessage = {
+      id: savedMessage.id,
+      text: savedMessage.body,
+      time: formatTime(savedMessage.created_at),
       sender: "me",
     };
 
     setConversations((current) =>
       current.map((conversation) =>
-        conversation.id === activeId
+        conversation.id === activeConversation.id
           ? {
               ...conversation,
               messages: [...conversation.messages, newMessage],
               lastMessage: trimmedMessage,
-              time: "Just now",
+              time: formatLastMessageTime(savedMessage.created_at),
             }
           : conversation
       )
     );
 
     setMessageText("");
+    setSending(false);
   }
 
   function startNewMessage() {
-    const targetId = Number(newMessageTarget);
+    if (!newMessageTarget) return;
+
     const target = conversations.find(
-      (conversation) => conversation.id === targetId
+      (conversation) => conversation.id === newMessageTarget
     );
 
     if (!target) return;
@@ -420,6 +482,8 @@ export default function MessagesPage() {
       </main>
     );
   }
+
+  const avatarInitials = getInitials(userName);
 
   return (
     <main className="messages-page">
@@ -478,9 +542,9 @@ export default function MessagesPage() {
           </Link>
 
           <div className="messages-user-mini">
-            <div className="messages-user-avatar">M</div>
+            <div className="messages-user-avatar">{avatarInitials}</div>
             <div className="messages-user-info">
-              <strong>Micah</strong>
+              <strong>{userName}</strong>
               <span>Job Seeker</span>
             </div>
             <MoreHorizontal size={20} />
@@ -510,7 +574,7 @@ export default function MessagesPage() {
               aria-label="Open your profile"
               onClick={() => router.push("/profile")}
             >
-              M
+              {avatarInitials}
             </button>
           </div>
         </header>
@@ -525,12 +589,22 @@ export default function MessagesPage() {
 
             <button
               className="messages-new-button"
-              onClick={() => setShowNewMessage(true)}
+              onClick={() => {
+                setNewMessageTarget(conversations[0]?.id || "");
+                setShowNewMessage(true);
+              }}
+              disabled={conversations.length === 0}
             >
               <Plus size={18} />
               New message
             </button>
           </div>
+
+          {error && (
+            <div className="messages-error" role="alert">
+              {error}
+            </div>
+          )}
 
           <div className="messages-workspace">
             <section
@@ -541,7 +615,11 @@ export default function MessagesPage() {
               <div className="messages-inbox-header">
                 <div>
                   <h2>Inbox</h2>
-                  <span>{conversations.length} conversations</span>
+                  <span>
+                    {loading
+                      ? "Loading conversations..."
+                      : `${conversations.length} conversations`}
+                  </span>
                 </div>
                 <button
                   className={`messages-filter-button ${
@@ -591,7 +669,13 @@ export default function MessagesPage() {
               </div>
 
               <div className="messages-conversation-list">
-                {filteredConversations.length > 0 ? (
+                {loading ? (
+                  <div className="messages-empty-list">
+                    <div className="messages-access-spinner" />
+                    <strong>Loading your inbox</strong>
+                    <span>Please wait...</span>
+                  </div>
+                ) : filteredConversations.length > 0 ? (
                   filteredConversations.map((conversation) => (
                     <button
                       key={conversation.id}
@@ -604,9 +688,6 @@ export default function MessagesPage() {
                         className={`messages-avatar avatar-${conversation.color}`}
                       >
                         {conversation.initials}
-                        {conversation.online && (
-                          <span className="messages-online-dot" />
-                        )}
                       </div>
 
                       <div className="messages-conversation-details">
@@ -631,8 +712,16 @@ export default function MessagesPage() {
                 ) : (
                   <div className="messages-empty-list">
                     <MessageCircle size={27} />
-                    <strong>No conversations found</strong>
-                    <span>Try another search or change your filter.</span>
+                    <strong>
+                      {conversations.length === 0
+                        ? "No conversations yet"
+                        : "No conversations found"}
+                    </strong>
+                    <span>
+                      {conversations.length === 0
+                        ? "When you apply for a job, you can message its employer here."
+                        : "Try another search or change your filter."}
+                    </span>
                   </div>
                 )}
               </div>
@@ -659,27 +748,20 @@ export default function MessagesPage() {
                         className={`messages-avatar avatar-${activeConversation.color}`}
                       >
                         {activeConversation.initials}
-                        {activeConversation.online && (
-                          <span className="messages-online-dot" />
-                        )}
                       </div>
 
                       <div>
                         <strong>{activeConversation.name}</strong>
-                        <span>
-                          {activeConversation.online ? (
-                            <>
-                              <i className="messages-status-dot" /> Online
-                            </>
-                          ) : (
-                            activeConversation.role
-                          )}
-                        </span>
+                        <span>{activeConversation.role}</span>
                       </div>
                     </div>
 
                     <div className="messages-chat-actions">
-                      <button aria-label="More conversation options">
+                      <button
+                        aria-label="More conversation options"
+                        type="button"
+                        title="More options"
+                      >
                         <MoreHorizontal size={21} />
                       </button>
                     </div>
@@ -690,10 +772,14 @@ export default function MessagesPage() {
                       <BriefcaseBusiness size={17} />
                     </div>
                     <div>
-                      <span>CONVERSATION</span>
+                      <span>APPLICATION CONVERSATION</span>
                       <strong>{activeConversation.role}</strong>
                     </div>
-                    <button aria-label="Conversation details">
+                    <button
+                      aria-label="Conversation details"
+                      type="button"
+                      title="Application conversation"
+                    >
                       <ChevronDown size={17} />
                     </button>
                   </div>
@@ -703,49 +789,63 @@ export default function MessagesPage() {
                       <span>Conversation history</span>
                     </div>
 
-                    {activeConversation.messages.map((message, index) => {
-                      const previousMessage =
-                        activeConversation.messages[index - 1];
-                      const showSender =
-                        !previousMessage ||
-                        previousMessage.sender !== message.sender;
+                    {activeConversation.messages.length > 0 ? (
+                      activeConversation.messages.map((message, index) => {
+                        const previousMessage =
+                          activeConversation.messages[index - 1];
 
-                      return (
-                        <div
-                          key={message.id}
-                          className={`messages-message-row ${
-                            message.sender === "me" ? "sent" : "received"
-                          }`}
-                        >
-                          {message.sender === "them" && showSender && (
-                            <div
-                              className={`messages-message-avatar avatar-${activeConversation.color}`}
-                            >
-                              {activeConversation.initials}
-                            </div>
-                          )}
+                        const showSender =
+                          !previousMessage ||
+                          previousMessage.sender !== message.sender;
 
-                          <div className="messages-message-content">
+                        return (
+                          <div
+                            key={message.id}
+                            className={`messages-message-row ${
+                              message.sender === "me" ? "sent" : "received"
+                            }`}
+                          >
                             {message.sender === "them" && showSender && (
-                              <span className="messages-message-sender">
-                                {activeConversation.name}
-                              </span>
+                              <div
+                                className={`messages-message-avatar avatar-${activeConversation.color}`}
+                              >
+                                {activeConversation.initials}
+                              </div>
                             )}
 
-                            <div className="messages-bubble">
-                              {message.text}
-                            </div>
-
-                            <div className="messages-message-meta">
-                              <span>{message.time}</span>
-                              {message.sender === "me" && (
-                                <CheckCheck size={14} />
+                            <div className="messages-message-content">
+                              {message.sender === "them" && showSender && (
+                                <span className="messages-message-sender">
+                                  {activeConversation.name}
+                                </span>
                               )}
+
+                              <div className="messages-bubble">
+                                {message.text}
+                              </div>
+
+                              <div className="messages-message-meta">
+                                <span>{message.time}</span>
+                                {message.sender === "me" && (
+                                  <CheckCheck size={14} />
+                                )}
+                              </div>
                             </div>
                           </div>
+                        );
+                      })
+                    ) : (
+                      <div className="messages-select-empty">
+                        <div className="messages-select-empty-icon">
+                          <MessageCircle size={30} />
                         </div>
-                      );
-                    })}
+                        <h3>Start the conversation</h3>
+                        <p>
+                          Send a message to the employer about your job
+                          application.
+                        </p>
+                      </div>
+                    )}
                   </div>
 
                   <form className="messages-composer" onSubmit={sendMessage}>
@@ -756,13 +856,14 @@ export default function MessagesPage() {
                         value={messageText}
                         onChange={(event) => setMessageText(event.target.value)}
                         aria-label="Write a message"
+                        disabled={sending}
                       />
 
                       <div className="messages-composer-tools">
                         <button
                           type="button"
                           aria-label="Attach a file"
-                          title="File attachments will be available when messaging is connected"
+                          title="File attachments are not available yet"
                           disabled
                         >
                           <Paperclip size={19} />
@@ -770,7 +871,7 @@ export default function MessagesPage() {
                         <button
                           type="button"
                           aria-label="Emoji"
-                          title="Emoji support will be available later"
+                          title="Emoji support is not available yet"
                           disabled
                         >
                           <Smile size={19} />
@@ -781,17 +882,20 @@ export default function MessagesPage() {
                     <button
                       type="submit"
                       className="messages-send-button"
-                      disabled={!messageText.trim()}
+                      disabled={!messageText.trim() || sending}
                       aria-label="Send message"
                     >
-                      <Send size={18} />
+                      {sending ? (
+                        <span className="messages-access-spinner" />
+                      ) : (
+                        <Send size={18} />
+                      )}
                     </button>
                   </form>
 
                   <div className="messages-composer-note">
                     <Check size={13} />
-                    Demo conversation: messages are not delivered to another
-                    user yet.
+                    Messages are sent through Abi Job.
                   </div>
                 </>
               ) : (
@@ -799,8 +903,14 @@ export default function MessagesPage() {
                   <div className="messages-select-empty-icon">
                     <MessageCircle size={30} />
                   </div>
-                  <h3>Select a conversation</h3>
-                  <p>Choose someone from your inbox to view your messages.</p>
+                  <h3>
+                    {loading ? "Loading your inbox" : "Select a conversation"}
+                  </h3>
+                  <p>
+                    {loading
+                      ? "Please wait while we retrieve your messages."
+                      : "Choose an application conversation from your inbox to view your messages."}
+                  </p>
                 </div>
               )}
             </section>
@@ -836,9 +946,11 @@ export default function MessagesPage() {
               </button>
             </div>
 
-            <p>Select a contact to open an existing demo conversation.</p>
+            <p>
+              Choose an employer connected to one of your job applications.
+            </p>
 
-            <label htmlFor="messages-contact">Choose contact</label>
+            <label htmlFor="messages-contact">Choose application</label>
             <select
               id="messages-contact"
               value={newMessageTarget}
@@ -846,7 +958,7 @@ export default function MessagesPage() {
             >
               {conversations.map((conversation) => (
                 <option key={conversation.id} value={conversation.id}>
-                  {conversation.name} — {conversation.role}
+                  {conversation.role} — {conversation.name}
                 </option>
               ))}
             </select>
@@ -861,6 +973,7 @@ export default function MessagesPage() {
               <button
                 className="messages-modal-continue"
                 onClick={startNewMessage}
+                disabled={!newMessageTarget}
               >
                 Open conversation
               </button>

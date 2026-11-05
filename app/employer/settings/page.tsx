@@ -1,4 +1,3 @@
-
 "use client";
 
 import Image from "next/image";
@@ -25,6 +24,7 @@ import {
   Users,
 } from "lucide-react";
 
+import { createClient } from "../../../lib/supabase/client";
 import "./settings.css";
 
 type EmployerPreferences = {
@@ -32,109 +32,19 @@ type EmployerPreferences = {
   applicationAlerts: boolean;
   jobUpdates: boolean;
   marketingEmails: boolean;
-  profileVisibility: boolean;
-  showContact: boolean;
-  twoFactor: boolean;
 };
-
-const STORAGE_KEY = "abijob-employer-settings";
 
 const defaultPreferences: EmployerPreferences = {
   emailNotifications: true,
   applicationAlerts: true,
   jobUpdates: true,
   marketingEmails: false,
-  profileVisibility: true,
-  showContact: true,
-  twoFactor: false,
 };
 
 function normalizeRole(value: unknown): string {
   if (typeof value !== "string") return "";
 
-  const role = value.toLowerCase().trim().replace(/[\s_]+/g, "-");
-
-  if (
-    role.includes("professional") ||
-    role.includes("artisan") ||
-    role === "skilled-worker"
-  ) {
-    return "professional";
-  }
-
-  if (
-    role.includes("employer") ||
-    role.includes("company") ||
-    role.includes("business")
-  ) {
-    return "employer";
-  }
-
-  if (
-    role.includes("job-seeker") ||
-    role === "jobseeker" ||
-    role === "seeker" ||
-    role === "candidate"
-  ) {
-    return "job-seeker";
-  }
-
-  return "";
-}
-
-function getRoleFromStorage(): string {
-  const storageKeys = [
-    "abijob-user",
-    "abijob-current-user",
-    "abijob-auth-user",
-    "abijob-profile",
-    "abijob-account",
-  ];
-
-  for (const key of storageKeys) {
-    const storedValue = localStorage.getItem(key);
-
-    if (!storedValue) continue;
-
-    try {
-      const parsed = JSON.parse(storedValue);
-
-      if (typeof parsed === "string") {
-        const role = normalizeRole(parsed);
-        if (role) return role;
-      }
-
-      if (parsed && typeof parsed === "object") {
-        const candidates = [
-          parsed.role,
-          parsed.accountType,
-          parsed.account_type,
-          parsed.userType,
-          parsed.user_type,
-          parsed.type,
-          parsed.user?.role,
-          parsed.user?.accountType,
-          parsed.user?.account_type,
-          parsed.profile?.role,
-          parsed.profile?.accountType,
-          parsed.profile?.account_type,
-          parsed.account?.role,
-          parsed.account?.accountType,
-          parsed.user_metadata?.role,
-        ];
-
-        for (const candidate of candidates) {
-          const role = normalizeRole(candidate);
-          if (role) return role;
-        }
-      }
-    } catch {
-      const role = normalizeRole(storedValue);
-      if (role) return role;
-    }
-  }
-
-  return "";
+  return value.toLowerCase().trim().replace(/[\s_]+/g, "-");
 }
 
 function Toggle({
@@ -162,9 +72,13 @@ function Toggle({
 
 export default function EmployerSettingsPage() {
   const router = useRouter();
+  const supabase = createClient();
 
   const [preferences, setPreferences] =
     useState<EmployerPreferences>(defaultPreferences);
+
+  const [companyName, setCompanyName] = useState("Your Company");
+  const [accountEmail, setAccountEmail] = useState("");
 
   const [accessChecked, setAccessChecked] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
@@ -172,40 +86,126 @@ export default function EmployerSettingsPage() {
   const [saveError, setSaveError] = useState(false);
 
   useEffect(() => {
-    const role = getRoleFromStorage();
+    let isMounted = true;
 
-    if (role === "job-seeker") {
-      router.replace("/dashboard");
-      return;
-    }
+    async function loadSettings() {
+      try {
+        const {
+          data: { user },
+          error: authError,
+        } = await supabase.auth.getUser();
 
-    if (role === "professional") {
-      router.replace("/professional/dashboard");
-      return;
-    }
+        if (authError || !user) {
+          router.replace("/login?redirect=/employer/settings");
+          return;
+        }
 
-    if (role !== "employer") {
-      router.replace("/login");
-      return;
-    }
+        if (!isMounted) return;
 
-    try {
-      const storedPreferences = localStorage.getItem(STORAGE_KEY);
+        setAccountEmail(user.email ?? "");
 
-      if (storedPreferences) {
-        const parsed = JSON.parse(storedPreferences);
+        const metadataRole = normalizeRole(
+          user.user_metadata?.role ??
+            user.user_metadata?.account_type ??
+            user.user_metadata?.accountType
+        );
 
-        setPreferences({
-          ...defaultPreferences,
-          ...parsed,
-        });
+        const appRole = normalizeRole(
+          user.app_metadata?.role ??
+            user.app_metadata?.account_type
+        );
+
+        if (
+          (metadataRole && metadataRole !== "employer") ||
+          (appRole && appRole !== "employer")
+        ) {
+          if (metadataRole === "job-seeker" || appRole === "job-seeker") {
+            router.replace("/dashboard");
+          } else if (
+            metadataRole === "professional" ||
+            appRole === "professional"
+          ) {
+            router.replace("/professional/dashboard");
+          } else {
+            router.replace("/login");
+          }
+
+          return;
+        }
+
+        // Confirm that this account has an employer profile.
+        const { data: employerProfile, error: profileError } =
+          await supabase
+            .from("employer_profiles")
+            .select("business_name")
+            .eq("user_id", user.id)
+            .maybeSingle();
+
+        if (profileError) {
+          throw new Error(
+            "We could not verify your employer profile. Please try again."
+          );
+        }
+
+        if (!employerProfile && metadataRole !== "employer" && appRole !== "employer") {
+          router.replace("/login");
+          return;
+        }
+
+        if (!isMounted) return;
+
+        if (employerProfile?.business_name) {
+          setCompanyName(employerProfile.business_name);
+        }
+
+        // Load the employer's saved preferences.
+        const { data: savedPreferences, error: preferencesError } =
+          await supabase
+            .from("employer_preferences")
+            .select(
+              "email_notifications, application_alerts, job_updates, marketing_emails"
+            )
+            .eq("user_id", user.id)
+            .maybeSingle();
+
+        if (preferencesError) {
+          throw new Error(
+            "We could not load your preferences. Please refresh the page."
+          );
+        }
+
+        if (savedPreferences && isMounted) {
+          setPreferences({
+            emailNotifications: savedPreferences.email_notifications,
+            applicationAlerts: savedPreferences.application_alerts,
+            jobUpdates: savedPreferences.job_updates,
+            marketingEmails: savedPreferences.marketing_emails,
+          });
+        }
+
+        if (isMounted) {
+          setAccessChecked(true);
+        }
+      } catch (error) {
+        if (!isMounted) return;
+
+        setSaveError(true);
+        setSaveMessage(
+          error instanceof Error
+            ? error.message
+            : "Something went wrong while loading your settings."
+        );
+
+        setAccessChecked(true);
       }
-    } catch {
-      setPreferences(defaultPreferences);
     }
 
-    setAccessChecked(true);
-  }, [router]);
+    loadSettings();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [router, supabase]);
 
   const updatePreference = useCallback(
     (key: keyof EmployerPreferences, value: boolean) => {
@@ -220,21 +220,65 @@ export default function EmployerSettingsPage() {
     []
   );
 
-  function handleSave() {
+  async function handleSave() {
     setIsSaving(true);
     setSaveMessage("");
     setSaveError(false);
 
     try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(preferences));
+      const {
+        data: { user },
+        error: authError,
+      } = await supabase.auth.getUser();
 
-      setSaveMessage(
-        "Your employer preferences have been saved on this device."
-      );
-    } catch {
+      if (authError || !user) {
+        throw new Error("Your session has expired. Please sign in again.");
+      }
+
+      const { data: existingPreferences, error: lookupError } =
+        await supabase
+          .from("employer_preferences")
+          .select("user_id")
+          .eq("user_id", user.id)
+          .maybeSingle();
+
+      if (lookupError) {
+        throw new Error("Could not check your saved preferences.");
+      }
+
+      const preferenceData = {
+        user_id: user.id,
+        email_notifications: preferences.emailNotifications,
+        application_alerts: preferences.applicationAlerts,
+        job_updates: preferences.jobUpdates,
+        marketing_emails: preferences.marketingEmails,
+      };
+
+      const { error: saveError } = existingPreferences
+        ? await supabase
+            .from("employer_preferences")
+            .update({
+              email_notifications: preferenceData.email_notifications,
+              application_alerts: preferenceData.application_alerts,
+              job_updates: preferenceData.job_updates,
+              marketing_emails: preferenceData.marketing_emails,
+            })
+            .eq("user_id", user.id)
+        : await supabase
+            .from("employer_preferences")
+            .insert(preferenceData);
+
+      if (saveError) {
+        throw new Error(saveError.message);
+      }
+
+      setSaveMessage("Your preferences have been saved to your Abi Job account.");
+    } catch (error) {
       setSaveError(true);
       setSaveMessage(
-        "Your preferences could not be saved. Check your browser storage settings and try again."
+        error instanceof Error
+          ? error.message
+          : "Your preferences could not be saved. Please try again."
       );
     } finally {
       setIsSaving(false);
@@ -252,11 +296,10 @@ export default function EmployerSettingsPage() {
 
   return (
     <main className="employer-settings-page">
-      {/* SIDEBAR */}
       <aside className="employer-settings-sidebar">
         <Link href="/" className="employer-settings-brand">
           <Image
-            src="/images/abijob-logo-white.png"
+            src="/image/abijob-logo-white.png"
             alt="Abi Job - Opportunity Starts Here"
             width={170}
             height={65}
@@ -271,7 +314,7 @@ export default function EmployerSettingsPage() {
           </div>
 
           <div>
-            <strong>Your Company</strong>
+            <strong>{companyName}</strong>
             <span>Employer account</span>
           </div>
         </div>
@@ -347,9 +390,7 @@ export default function EmployerSettingsPage() {
         </div>
       </aside>
 
-      {/* MAIN CONTENT */}
       <section className="employer-settings-main">
-        {/* TOPBAR */}
         <header className="employer-settings-topbar">
           <div>
             <span>EMPLOYER WORKSPACE</span>
@@ -362,7 +403,7 @@ export default function EmployerSettingsPage() {
             </div>
 
             <div>
-              <strong>Your Company</strong>
+              <strong>{companyName}</strong>
               <small>Employer</small>
             </div>
 
@@ -371,7 +412,6 @@ export default function EmployerSettingsPage() {
         </header>
 
         <div className="employer-settings-content">
-          {/* HEADING */}
           <div className="employer-settings-heading">
             <div>
               <span className="employer-settings-kicker">
@@ -397,7 +437,6 @@ export default function EmployerSettingsPage() {
             </button>
           </div>
 
-          {/* ACCOUNT SETTINGS */}
           <section className="employer-settings-card">
             <div className="employer-settings-section-heading">
               <div className="employer-settings-section-icon">
@@ -423,11 +462,8 @@ export default function EmployerSettingsPage() {
               </div>
 
               <div className="employer-settings-info-item">
-                <span>Account status</span>
-                <strong className="employer-settings-status">
-                  <CheckCircle2 size={15} />
-                  Active workspace
-                </strong>
+                <span>Account email</span>
+                <strong>{accountEmail || "Not available"}</strong>
               </div>
 
               <div className="employer-settings-info-item">
@@ -437,7 +473,6 @@ export default function EmployerSettingsPage() {
             </div>
           </section>
 
-          {/* NOTIFICATIONS */}
           <section className="employer-settings-card">
             <div className="employer-settings-section-heading">
               <div className="employer-settings-section-icon">
@@ -502,7 +537,9 @@ export default function EmployerSettingsPage() {
                 <Toggle
                   label="Job post updates"
                   checked={preferences.jobUpdates}
-                  onChange={(value) => updatePreference("jobUpdates", value)}
+                  onChange={(value) =>
+                    updatePreference("jobUpdates", value)
+                  }
                 />
               </div>
 
@@ -527,7 +564,6 @@ export default function EmployerSettingsPage() {
             </div>
           </section>
 
-          {/* PRIVACY */}
           <section className="employer-settings-card">
             <div className="employer-settings-section-heading">
               <div className="employer-settings-section-icon">
@@ -536,7 +572,9 @@ export default function EmployerSettingsPage() {
 
               <div>
                 <h2>Privacy and visibility</h2>
-                <p>Control how your business information appears.</p>
+                <p>
+                  Public visibility controls are not connected yet.
+                </p>
               </div>
             </div>
 
@@ -549,17 +587,14 @@ export default function EmployerSettingsPage() {
                 <div className="employer-settings-option-text">
                   <strong>Public company profile</strong>
                   <p>
-                    Allow job seekers to discover your company profile.
+                    This control will become available when public company
+                    profile visibility is implemented.
                   </p>
                 </div>
 
-                <Toggle
-                  label="Public company profile"
-                  checked={preferences.profileVisibility}
-                  onChange={(value) =>
-                    updatePreference("profileVisibility", value)
-                  }
-                />
+                <span className="employer-settings-info-item">
+                  Coming soon
+                </span>
               </div>
 
               <div className="employer-settings-option">
@@ -568,23 +603,20 @@ export default function EmployerSettingsPage() {
                 </div>
 
                 <div className="employer-settings-option-text">
-                  <strong>Display business contact details</strong>
+                  <strong>Business contact visibility</strong>
                   <p>
-                    Allow visitors to see your published business contact
-                    information.
+                    Contact visibility will be connected when the public
+                    company profile is implemented.
                   </p>
                 </div>
 
-                <Toggle
-                  label="Display business contact details"
-                  checked={preferences.showContact}
-                  onChange={(value) => updatePreference("showContact", value)}
-                />
+                <span className="employer-settings-info-item">
+                  Coming soon
+                </span>
               </div>
             </div>
           </section>
 
-          {/* SECURITY */}
           <section className="employer-settings-card">
             <div className="employer-settings-section-heading">
               <div className="employer-settings-section-icon">
@@ -618,20 +650,16 @@ export default function EmployerSettingsPage() {
               <div>
                 <strong>Two-factor authentication</strong>
                 <p>
-                  Add an extra layer of protection to your account. Full
-                  authentication setup will be connected with the backend.
+                  Additional authentication setup is not yet available.
                 </p>
               </div>
 
-              <Toggle
-                label="Two-factor authentication"
-                checked={preferences.twoFactor}
-                onChange={(value) => updatePreference("twoFactor", value)}
-              />
+              <span className="employer-settings-info-item">
+                Coming soon
+              </span>
             </div>
           </section>
 
-          {/* DANGER ZONE */}
           <section className="employer-settings-danger-card">
             <div className="employer-settings-danger-heading">
               <div className="employer-settings-danger-icon">
@@ -648,8 +676,8 @@ export default function EmployerSettingsPage() {
               <div>
                 <strong>Deactivate employer account</strong>
                 <p>
-                  Account deactivation will be available after account
-                  management is connected to the backend.
+                  Account deactivation will become available after the
+                  account-management process is implemented.
                 </p>
               </div>
 
@@ -659,11 +687,10 @@ export default function EmployerSettingsPage() {
             </div>
           </section>
 
-          {/* SAVE FOOTER */}
           <div className="employer-settings-bottom-actions">
             <span>
               <CheckCircle2 size={16} />
-              Preferences are saved on this device when you choose Save.
+              Preferences are saved to your Abi Job account.
             </span>
 
             <button

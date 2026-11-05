@@ -1,3 +1,4 @@
+
 "use client";
 
 import Link from "next/link";
@@ -85,6 +86,40 @@ const labelStyle: CSSProperties = {
   fontWeight: 700,
   opacity: 1,
 };
+
+// Only allow redirects to this Abi Job website.
+function getSafeNextDestination(): string | null {
+  const params = new URLSearchParams(window.location.search);
+  const requestedNext = params.get("next");
+
+  if (
+    !requestedNext ||
+    !requestedNext.startsWith("/") ||
+    requestedNext.startsWith("//") ||
+    requestedNext.includes("\\")
+  ) {
+    return null;
+  }
+
+  try {
+    const destination = new URL(
+      requestedNext,
+      window.location.origin
+    );
+
+    if (destination.origin !== window.location.origin) {
+      return null;
+    }
+
+    return (
+      destination.pathname +
+      destination.search +
+      destination.hash
+    );
+  } catch {
+    return null;
+  }
+}
 
 export default function LoginPage() {
   const router = useRouter();
@@ -188,9 +223,9 @@ export default function LoginPage() {
         );
       }
 
-      const destination = dashboardRoutes[profile.role];
+      const dashboardDestination = dashboardRoutes[profile.role];
 
-      if (!destination) {
+      if (!dashboardDestination) {
         console.error("Abi Job invalid account role:", profile.role);
 
         await supabase.auth.signOut();
@@ -199,6 +234,12 @@ export default function LoginPage() {
           "Your account has an unrecognized role. Please contact Abi Job support."
         );
       }
+
+      // Use the requested internal destination when it is safe.
+      // Otherwise, send the user to their role-specific dashboard.
+      const requestedDestination = getSafeNextDestination();
+      const destination =
+        requestedDestination || dashboardDestination;
 
       setPassword("");
       router.replace(destination);

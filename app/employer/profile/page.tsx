@@ -3,6 +3,7 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import {
   ArrowLeft,
   BriefcaseBusiness,
@@ -25,6 +26,7 @@ import {
 } from "lucide-react";
 
 import Logo from "../../../components/Logo";
+import { createClient } from "../../../lib/supabase/client";
 import "./profile.css";
 
 type CompanyProfile = {
@@ -43,7 +45,7 @@ type CompanyProfile = {
 };
 
 const defaultProfile: CompanyProfile = {
-  companyName: "Your Company",
+  companyName: "",
   industry: "Technology",
   companySize: "1–10 employees",
   location: "Aba, Abia State",
@@ -57,54 +59,231 @@ const defaultProfile: CompanyProfile = {
   linkedin: "",
 };
 
+function nullableText(value: string) {
+  return value.trim() || null;
+}
+
 export default function EmployerProfilePage() {
+  const router = useRouter();
+
   const [profile, setProfile] = useState<CompanyProfile>(defaultProfile);
   const [saved, setSaved] = useState(false);
   const [saveError, setSaveError] = useState("");
   const [currentYear, setCurrentYear] = useState<number | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
 
   useEffect(() => {
-    // Calculate the current year in the browser after mounting.
-    setCurrentYear(new Date().getFullYear());
+    let active = true;
 
-    try {
-      const storedProfile = localStorage.getItem(
-        "abijob-employer-company-profile"
-      );
+    async function loadCompanyProfile() {
+      setCurrentYear(new Date().getFullYear());
 
-      if (storedProfile) {
-        const parsedProfile = JSON.parse(
-          storedProfile
-        ) as Partial<CompanyProfile>;
+      try {
+        const supabase = createClient();
 
-        setProfile({ ...defaultProfile, ...parsedProfile });
+        const {
+          data: { user },
+          error: authError,
+        } = await supabase.auth.getUser();
+
+        if (authError) {
+          throw authError;
+        }
+
+        if (!user) {
+          router.replace("/login?redirect=/employer/profile");
+          return;
+        }
+
+        const { data, error } = await supabase
+          .from("employer_profiles")
+          .select(
+            [
+              "user_id",
+              "business_name",
+              "business_type",
+              "company_size",
+              "address",
+              "website",
+              "business_email",
+              "phone",
+              "founded_year",
+              "description",
+              "facebook_url",
+              "instagram_url",
+              "linkedin_url",
+            ].join(", ")
+          )
+          .eq("user_id", user.id)
+          .maybeSingle();
+
+        if (error) {
+          throw error;
+        }
+
+        if (!active) return;
+
+        if (data) {
+          setProfile({
+            companyName: data.business_name ?? "",
+            industry: data.business_type ?? "Technology",
+            companySize: data.company_size ?? "1–10 employees",
+            location: data.address ?? "",
+            website: data.website ?? "",
+            email: data.business_email ?? "",
+            phone: data.phone ?? "",
+            founded: data.founded_year?.toString() ?? "",
+            description: data.description ?? "",
+            facebook: data.facebook_url ?? "",
+            instagram: data.instagram_url ?? "",
+            linkedin: data.linkedin_url ?? "",
+          });
+        }
+      } catch (error) {
+        console.error("Employer profile loading error:", error);
+
+        if (active) {
+          setSaveError(
+            "We couldn't load your company profile. Please refresh the page and try again."
+          );
+        }
+      } finally {
+        if (active) {
+          setLoading(false);
+        }
       }
-    } catch {
-      setSaveError("We couldn't load your saved profile information.");
     }
-  }, []);
+
+    loadCompanyProfile();
+
+    return () => {
+      active = false;
+    };
+  }, [router]);
 
   function updateField<K extends keyof CompanyProfile>(
     field: K,
     value: CompanyProfile[K]
   ) {
-    setProfile((current) => ({ ...current, [field]: value }));
+    setProfile((current) => ({
+      ...current,
+      [field]: value,
+    }));
+
     setSaved(false);
     setSaveError("");
   }
 
-  function handleSave() {
+  async function handleSave() {
+    if (loading || saving) return;
+
+    if (!profile.companyName.trim()) {
+      setSaveError("Please enter your company name before saving.");
+      return;
+    }
+
+    const foundedYear = profile.founded.trim()
+      ? Number(profile.founded)
+      : null;
+
+    if (
+      foundedYear !== null &&
+      (!Number.isInteger(foundedYear) ||
+        foundedYear < 1800 ||
+        foundedYear > (currentYear ?? new Date().getFullYear()))
+    ) {
+      setSaveError("Please enter a valid year established.");
+      return;
+    }
+
+    setSaving(true);
+    setSaved(false);
+    setSaveError("");
+
     try {
-      localStorage.setItem(
-        "abijob-employer-company-profile",
-        JSON.stringify(profile)
-      );
+      const supabase = createClient();
+
+      const {
+        data: { user },
+        error: authError,
+      } = await supabase.auth.getUser();
+
+      if (authError) throw authError;
+
+      if (!user) {
+        router.replace("/login?redirect=/employer/profile");
+        return;
+      }
+
+      const profileData = {
+        user_id: user.id,
+        business_name: nullableText(profile.companyName),
+        business_type: nullableText(profile.industry),
+        company_size: nullableText(profile.companySize),
+        address: nullableText(profile.location),
+        website: nullableText(profile.website),
+        business_email: nullableText(profile.email),
+        phone: nullableText(profile.phone),
+        founded_year: foundedYear,
+        description: nullableText(profile.description),
+        facebook_url: nullableText(profile.facebook),
+        instagram_url: nullableText(profile.instagram),
+        linkedin_url: nullableText(profile.linkedin),
+      };
+
+      // Check whether this employer already has a company profile.
+      const { data: existingProfile, error: lookupError } = await supabase
+        .from("employer_profiles")
+        .select("user_id")
+        .eq("user_id", user.id)
+        .maybeSingle();
+
+      if (lookupError) throw lookupError;
+
+      if (existingProfile) {
+        // Update the existing company profile.
+        const { error: updateError } = await supabase
+          .from("employer_profiles")
+          .update({
+            business_name: profileData.business_name,
+            business_type: profileData.business_type,
+            company_size: profileData.company_size,
+            address: profileData.address,
+            website: profileData.website,
+            business_email: profileData.business_email,
+            phone: profileData.phone,
+            founded_year: profileData.founded_year,
+            description: profileData.description,
+            facebook_url: profileData.facebook_url,
+            instagram_url: profileData.instagram_url,
+            linkedin_url: profileData.linkedin_url,
+          })
+          .eq("user_id", user.id);
+
+        if (updateError) throw updateError;
+      } else {
+        // Create the employer's company profile.
+        // Verification fields are deliberately left to the database/admin.
+        const { error: insertError } = await supabase
+          .from("employer_profiles")
+          .insert(profileData);
+
+        if (insertError) throw insertError;
+      }
 
       setSaved(true);
       setSaveError("");
-    } catch {
-      setSaved(false);
-      setSaveError("Your changes could not be saved in this browser.");
+    } catch (error) {
+      console.error("Employer profile save error:", error);
+
+      setSaveError(
+        error instanceof Error
+          ? error.message
+          : "Your company profile could not be saved. Please try again."
+      );
+    } finally {
+      setSaving(false);
     }
   }
 
@@ -234,11 +413,18 @@ export default function EmployerProfilePage() {
               type="button"
               className="employer-profile-save-top"
               onClick={handleSave}
+              disabled={loading || saving}
             >
               <Save size={17} />
-              Save changes
+              {saving ? "Saving..." : "Save changes"}
             </button>
           </div>
+
+          {loading && (
+            <div className="employer-profile-save-message" role="status">
+              Loading your company profile...
+            </div>
+          )}
 
           <section className="employer-profile-banner">
             <div className="employer-profile-banner-art">
@@ -303,6 +489,7 @@ export default function EmployerProfilePage() {
                   value={profile.companyName}
                   onChange={(e) => updateField("companyName", e.target.value)}
                   placeholder="Enter your company name"
+                  maxLength={150}
                 />
               </label>
 
@@ -511,19 +698,25 @@ export default function EmployerProfilePage() {
           <div className="employer-profile-bottom-actions">
             <span>
               <CheckCircle2 size={16} />
-              Saved in this browser for this demo.
+              {saved
+                ? "Your changes are saved to Abi Job."
+                : "Your company details are stored securely in Abi Job."}
             </span>
 
-            <button type="button" onClick={handleSave}>
+            <button
+              type="button"
+              onClick={handleSave}
+              disabled={loading || saving}
+            >
               <Save size={17} />
-              Save company profile
+              {saving ? "Saving..." : "Save company profile"}
             </button>
           </div>
 
           {saved && (
             <div className="employer-profile-save-message" role="status">
               <CheckCircle2 size={17} />
-              Your company profile has been saved in this browser.
+              Your company profile has been saved successfully.
             </div>
           )}
 

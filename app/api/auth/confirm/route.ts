@@ -1,6 +1,6 @@
 
 import { NextResponse } from "next/server";
-import { createClient } from "../../../lib/supabase/server";
+import { createClient } from "../../../../lib/supabase/server";
 
 const dashboardRoutes: Record<string, string> = {
   job_seeker: "/dashboard",

@@ -13,13 +13,10 @@ import {
   Sparkles,
   Crown,
   ShieldCheck,
-  Users,
   Megaphone,
   CalendarDays,
-  BadgeCheck,
   Zap,
   Target,
-  TrendingUp,
   CircleHelp,
 } from "lucide-react";
 
@@ -106,7 +103,7 @@ export default function SubscriptionPage() {
   const selectedAccount = accountDetails[selectedType];
 
   const monthlyPrice = 2000;
-  const annualPrice = 20160;
+  const annualPrice = 22800;
 
   const currentPrice =
     billing === "monthly" ? monthlyPrice : annualPrice;
@@ -290,7 +287,7 @@ export default function SubscriptionPage() {
             aria-pressed={billing === "annual"}
           >
             Annually
-            <span>Save 16%</span>
+            <span>Save 5%</span>
           </button>
         </div>
 
@@ -573,8 +570,8 @@ export default function SubscriptionPage() {
               <h3>How much does membership cost?</h3>
 
               <p>
-                Membership costs ₦2,000 monthly or ₦20,160 annually.
-                Annual subscribers save ₦3,840 compared with monthly
+                Membership costs ₦2,000 monthly or ₦22,800 annually.
+                Annual subscribers save ₦1,200 compared with monthly
                 payments over 12 months.
               </p>
             </div>

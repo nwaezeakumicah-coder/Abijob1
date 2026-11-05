@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useEffect, useState } from "react";
@@ -32,6 +31,7 @@ import {
   Eye,
   CalendarDays,
   MessageCircle,
+  CreditCard,
 } from "lucide-react";
 
 import "./professional-dashboard.css";
@@ -45,6 +45,7 @@ const navigation = [
   { label: "AI CV Builder", href: "/cv-builder", icon: FileText },
   { label: "Messages", href: "/professional/messages", icon: MessageCircle },
   { label: "Notifications", href: "/professional/notifications", icon: Bell, count: 3 },
+  { label: "Subscription & Billing", href: "/professional/subscription", icon: CreditCard },
   { label: "Settings", href: "/professional/settings", icon: Settings },
 ];
 
@@ -162,6 +163,7 @@ export default function ProfessionalDashboard() {
       }
 
       const name = profile.full_name?.trim() || "Professional";
+
       const initials = name
         .split(/\s+/)
         .filter(Boolean)

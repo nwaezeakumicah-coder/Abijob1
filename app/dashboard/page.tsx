@@ -14,6 +14,7 @@ import {
   CheckCircle2,
   ChevronRight,
   Clock3,
+  CreditCard,
   FileText,
   LayoutDashboard,
   MapPin,
@@ -188,6 +189,15 @@ export default function DashboardPage() {
           >
             <Building2 size={19} />
             <span>Abi Hub</span>
+          </Link>
+
+          <Link
+            href="/dashboard/subscription"
+            className="dashboard-nav-link"
+            onClick={() => setSidebarOpen(false)}
+          >
+            <CreditCard size={19} />
+            <span>Subscription & Billing</span>
           </Link>
 
           <Link
@@ -463,11 +473,7 @@ export default function DashboardPage() {
                         <strong>{activity.title}</strong>
                         <p>{activity.detail}</p>
                         <Link
-                          href={
-                            index === 1
-                              ? "/jobs"
-                              : "/profile"
-                          }
+                          href={index === 1 ? "/jobs" : "/profile"}
                         >
                           {activity.time} <ArrowUpRight size={13} />
                         </Link>

@@ -1,6 +1,7 @@
+
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
@@ -23,246 +24,415 @@ import {
   Trash2,
 } from "lucide-react";
 import Logo from "../../../components/Logo";
+import { createClient } from "../../../lib/supabase/client";
 import "./notifications.css";
 
+type NotificationCategory =
+  | "application"
+  | "job"
+  | "account"
+  | "system";
+
 type Notification = {
-  id: number;
+  id: string;
   title: string;
   description: string;
-  time: string;
-  category: "application" | "job" | "account" | "system";
-  unread: boolean;
-  href: string;
+  category: NotificationCategory;
+  href: string | null;
+  is_read: boolean;
+  created_at: string;
 };
 
-type AccountRole = "job-seeker" | "professional" | "employer";
-
-const initialNotifications: Notification[] = [
-  {
-    id: 1,
-    title: "New application received",
-    description:
-      "A candidate has submitted an application for your Frontend Developer vacancy.",
-    time: "10 minutes ago",
-    category: "application",
-    unread: true,
-    href: "/employer/applicants",
-  },
-  {
-    id: 2,
-    title: "Your job posting is under review",
-    description:
-      "Your recently submitted job vacancy is awaiting administrator approval.",
-    time: "2 hours ago",
-    category: "job",
-    unread: true,
-    href: "/employer/jobs",
-  },
-  {
-    id: 3,
-    title: "New candidate application",
-    description:
-      "You have received a new application for your Customer Service Officer vacancy.",
-    time: "Yesterday",
-    category: "application",
-    unread: true,
-    href: "/employer/applicants",
-  },
-  {
-    id: 4,
-    title: "Employer profile reminder",
-    description:
-      "Complete your company profile to help candidates learn more about your business.",
-    time: "2 days ago",
-    category: "account",
-    unread: false,
-    href: "/employer/profile",
-  },
-  {
-    id: 5,
-    title: "Welcome to Abi Job",
-    description:
-      "Your employer account has been created. You can now manage vacancies and applications.",
-    time: "3 days ago",
-    category: "system",
-    unread: false,
-    href: "/employer/dashboard",
-  },
-];
+type FilterType = "all" | "unread" | "read";
 
 const categoryDetails = {
   application: {
     label: "Applications",
     icon: UserPlus,
     color: "application",
+    fallbackHref: "/employer/applicants",
   },
   job: {
     label: "Job updates",
     icon: BriefcaseBusiness,
     color: "job",
+    fallbackHref: "/employer/jobs",
   },
   account: {
     label: "Account",
     icon: ShieldCheck,
     color: "account",
+    fallbackHref: "/employer/profile",
   },
   system: {
     label: "System",
     icon: Bell,
     color: "system",
+    fallbackHref: "/employer/dashboard",
   },
 };
 
-const roleStorageKeys = [
-  "abijob-user",
-  "abijob-current-user",
-  "abijob-auth-user",
-  "abijob-profile",
-  "abijob-account",
-];
-
-function normalizeRole(value: unknown): AccountRole | null {
+function normalizeRole(value: unknown): string | null {
   if (typeof value !== "string") return null;
 
-  const role = value.toLowerCase().trim().replace(/[\s_]+/g, "-");
-
-  if (
-    ["employer", "company", "business", "business-owner"].includes(role)
-  ) {
-    return "employer";
-  }
-
-  if (
-    [
-      "professional",
-      "skilled-professional",
-      "artisan",
-      "skilled-professional-artisan",
-      "skilled-professionals-artisans",
-    ].includes(role)
-  ) {
-    return "professional";
-  }
-
-  if (
-    ["job-seeker", "jobseeker", "candidate", "seeker"].includes(role)
-  ) {
-    return "job-seeker";
-  }
-
-  return null;
+  return value.toLowerCase().trim().replace(/[\s_]+/g, "-");
 }
 
-function getStoredAccountRole(): AccountRole | null {
-  if (typeof window === "undefined") return null;
+function getNotificationHref(notification: Notification): string {
+  const allowedFallback =
+    categoryDetails[notification.category]?.fallbackHref ??
+    "/employer/dashboard";
 
-  for (const key of roleStorageKeys) {
-    try {
-      const storedValue = window.localStorage.getItem(key);
-      if (!storedValue) continue;
+  const href = notification.href?.trim();
 
-      const parsed = JSON.parse(storedValue);
-
-      if (typeof parsed === "string") {
-        const role = normalizeRole(parsed);
-        if (role) return role;
-      }
-
-      if (parsed && typeof parsed === "object") {
-        const candidates = [
-          parsed.role,
-          parsed.accountType,
-          parsed.account_type,
-          parsed.userType,
-          parsed.user_type,
-          parsed.type,
-          parsed.user?.role,
-          parsed.user?.accountType,
-          parsed.user?.account_type,
-          parsed.profile?.role,
-          parsed.profile?.accountType,
-          parsed.profile?.account_type,
-          parsed.account?.role,
-          parsed.user_metadata?.role,
-          parsed.user_metadata?.account_type,
-        ];
-
-        for (const candidate of candidates) {
-          const role = normalizeRole(candidate);
-          if (role) return role;
-        }
-      }
-    } catch {
-      const role = normalizeRole(window.localStorage.getItem(key));
-      if (role) return role;
-    }
+  // Only allow safe internal links in the employer workspace.
+  if (
+    href &&
+    href.startsWith("/") &&
+    !href.startsWith("//") &&
+    !href.includes("\\") &&
+    (
+      href === "/employer" ||
+      href.startsWith("/employer/") ||
+      href === "/support"
+    )
+  ) {
+    return href;
   }
 
-  return null;
+  return allowedFallback;
+}
+
+function formatNotificationTime(value: string): string {
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    return "Recently";
+  }
+
+  const seconds = Math.floor((date.getTime() - Date.now()) / 1000);
+  const absoluteSeconds = Math.abs(seconds);
+
+  const formatter = new Intl.RelativeTimeFormat("en", {
+    numeric: "auto",
+  });
+
+  if (absoluteSeconds < 60) {
+    return formatter.format(Math.round(seconds), "second");
+  }
+
+  if (absoluteSeconds < 3600) {
+    return formatter.format(Math.round(seconds / 60), "minute");
+  }
+
+  if (absoluteSeconds < 86400) {
+    return formatter.format(Math.round(seconds / 3600), "hour");
+  }
+
+  if (absoluteSeconds < 604800) {
+    return formatter.format(Math.round(seconds / 86400), "day");
+  }
+
+  return date.toLocaleDateString("en-NG", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+  });
 }
 
 export default function EmployerNotificationsPage() {
   const router = useRouter();
 
-  const [notifications, setNotifications] =
-    useState<Notification[]>(initialNotifications);
-  const [activeFilter, setActiveFilter] = useState("all");
+  const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [activeFilter, setActiveFilter] = useState<FilterType>("all");
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [accessChecked, setAccessChecked] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [userId, setUserId] = useState<string | null>(null);
+  const [error, setError] = useState("");
+  const [actionLoading, setActionLoading] = useState(false);
+
+  const loadNotifications = useCallback(async (currentUserId: string) => {
+    const supabase = createClient();
+
+    const { data, error: queryError } = await supabase
+      .from("notifications")
+      .select(
+        "id, title, description, category, href, is_read, created_at"
+      )
+      .eq("user_id", currentUserId)
+      .order("created_at", { ascending: false });
+
+    if (queryError) {
+      console.error("Notification loading error:", queryError);
+      setError("We couldn't load your notifications. Please try again.");
+      return;
+    }
+
+    const validCategories: NotificationCategory[] = [
+      "application",
+      "job",
+      "account",
+      "system",
+    ];
+
+    const rows = (data ?? []).map((item) => ({
+      ...item,
+      category: validCategories.includes(
+        item.category as NotificationCategory
+      )
+        ? (item.category as NotificationCategory)
+        : "system",
+    })) as Notification[];
+
+    setNotifications(rows);
+    setError("");
+  }, []);
 
   useEffect(() => {
-    const role = getStoredAccountRole();
+    let active = true;
 
-    if (role === "job-seeker") {
-      router.replace("/dashboard");
-      return;
+    async function initializePage() {
+      const supabase = createClient();
+
+      try {
+        const { data, error: authError } =
+          await supabase.auth.getUser();
+
+        if (authError || !data.user) {
+          router.replace("/login?redirect=/employer/notifications");
+          return;
+        }
+
+        const user = data.user;
+
+        const roleCandidates = [
+          user.app_metadata?.role,
+          user.user_metadata?.role,
+          user.user_metadata?.account_type,
+          user.user_metadata?.accountType,
+          user.user_metadata?.user_type,
+        ];
+
+        const roles = roleCandidates
+          .map(normalizeRole)
+          .filter(Boolean);
+
+        const knownRole = roles.find((role) =>
+          [
+            "employer",
+            "job-seeker",
+            "jobseeker",
+            "candidate",
+            "professional",
+            "artisan",
+            "skilled-professional",
+            "skilled-professionals-artisans",
+          ].includes(role as string)
+        );
+
+        if (
+          knownRole &&
+          [
+            "job-seeker",
+            "jobseeker",
+            "candidate",
+            "professional",
+            "artisan",
+            "skilled-professional",
+            "skilled-professionals-artisans",
+          ].includes(knownRole)
+        ) {
+          router.replace(
+            knownRole === "professional" ||
+            knownRole === "artisan" ||
+            knownRole === "skilled-professional" ||
+            knownRole === "skilled-professionals-artisans"
+              ? "/professional/dashboard"
+              : "/dashboard"
+          );
+          return;
+        }
+
+        if (knownRole !== "employer") {
+          const { data: employerProfile, error: profileError } =
+            await supabase
+              .from("employer_profiles")
+              .select("user_id")
+              .eq("user_id", user.id)
+              .maybeSingle();
+
+          if (profileError || !employerProfile) {
+            router.replace("/dashboard");
+            return;
+          }
+        }
+
+        if (!active) return;
+
+        setUserId(user.id);
+        setAccessChecked(true);
+
+        await loadNotifications(user.id);
+      } catch (initializationError) {
+        console.error(
+          "Employer notifications initialization error:",
+          initializationError
+        );
+
+        if (active) {
+          setError(
+            "Something went wrong while opening your notifications."
+          );
+          setAccessChecked(true);
+        }
+      } finally {
+        if (active) {
+          setLoading(false);
+        }
+      }
     }
 
-    if (role === "professional") {
-      router.replace("/professional/dashboard");
-      return;
-    }
+    initializePage();
 
-    setAccessChecked(true);
-  }, [router]);
+    return () => {
+      active = false;
+    };
+  }, [router, loadNotifications]);
 
   const unreadCount = notifications.filter(
-    (notification) => notification.unread
+    (notification) => !notification.is_read
   ).length;
 
-  const filteredNotifications = notifications.filter((notification) => {
-    if (activeFilter === "unread") return notification.unread;
-    if (activeFilter === "read") return !notification.unread;
-    return true;
-  });
+  const readCount = notifications.length - unreadCount;
 
-  function markAsRead(id: number) {
+  const filteredNotifications = notifications.filter(
+    (notification) => {
+      if (activeFilter === "unread") return !notification.is_read;
+      if (activeFilter === "read") return notification.is_read;
+      return true;
+    }
+  );
+
+  async function markAsRead(id: string) {
+    if (!userId || actionLoading) return;
+
+    setActionLoading(true);
+    setError("");
+
+    const supabase = createClient();
+
+    const { error: updateError } = await supabase
+      .from("notifications")
+      .update({ is_read: true })
+      .eq("id", id)
+      .eq("user_id", userId);
+
+    if (updateError) {
+      console.error("Mark notification as read error:", updateError);
+      setError("We couldn't update this notification.");
+      setActionLoading(false);
+      return;
+    }
+
     setNotifications((current) =>
       current.map((notification) =>
         notification.id === id
-          ? { ...notification, unread: false }
+          ? { ...notification, is_read: true }
           : notification
       )
     );
+
+    setActionLoading(false);
   }
 
-  function markAllAsRead() {
+  async function markAllAsRead() {
+    if (!userId || unreadCount === 0 || actionLoading) return;
+
+    setActionLoading(true);
+    setError("");
+
+    const supabase = createClient();
+
+    const { error: updateError } = await supabase
+      .from("notifications")
+      .update({ is_read: true })
+      .eq("user_id", userId)
+      .eq("is_read", false);
+
+    if (updateError) {
+      console.error("Mark all notifications as read error:", updateError);
+      setError("We couldn't update your notifications.");
+      setActionLoading(false);
+      return;
+    }
+
     setNotifications((current) =>
       current.map((notification) => ({
         ...notification,
-        unread: false,
+        is_read: true,
       }))
     );
+
+    setActionLoading(false);
   }
 
-  function deleteNotification(id: number) {
+  async function deleteNotification(id: string) {
+    if (!userId || actionLoading) return;
+
+    setActionLoading(true);
+    setError("");
+
+    const supabase = createClient();
+
+    const { error: deleteError } = await supabase
+      .from("notifications")
+      .delete()
+      .eq("id", id)
+      .eq("user_id", userId);
+
+    if (deleteError) {
+      console.error("Delete notification error:", deleteError);
+      setError("We couldn't delete this notification.");
+      setActionLoading(false);
+      return;
+    }
+
     setNotifications((current) =>
       current.filter((notification) => notification.id !== id)
     );
+
+    setActionLoading(false);
   }
 
-  function clearAllNotifications() {
+  async function clearAllNotifications() {
+    if (!userId || notifications.length === 0 || actionLoading) return;
+
+    const confirmed = window.confirm(
+      "Are you sure you want to permanently delete all your notifications?"
+    );
+
+    if (!confirmed) return;
+
+    setActionLoading(true);
+    setError("");
+
+    const supabase = createClient();
+
+    const { error: deleteError } = await supabase
+      .from("notifications")
+      .delete()
+      .eq("user_id", userId);
+
+    if (deleteError) {
+      console.error("Clear notifications error:", deleteError);
+      setError("We couldn't clear your notifications.");
+      setActionLoading(false);
+      return;
+    }
+
     setNotifications([]);
+    setActionLoading(false);
   }
 
   if (!accessChecked) {
@@ -316,7 +486,10 @@ export default function EmployerNotificationsPage() {
           WORKSPACE
         </span>
 
-        <nav className="employer-notifications-nav" aria-label="Employer workspace">
+        <nav
+          className="employer-notifications-nav"
+          aria-label="Employer workspace"
+        >
           <Link href="/employer/dashboard">
             <LayoutDashboard size={19} />
             <span>Overview</span>
@@ -357,7 +530,10 @@ export default function EmployerNotificationsPage() {
           ACCOUNT
         </span>
 
-        <nav className="employer-notifications-nav" aria-label="Employer account">
+        <nav
+          className="employer-notifications-nav"
+          aria-label="Employer account"
+        >
           <Link href="/employer/profile">
             <UserRound size={19} />
             <span>Company profile</span>
@@ -400,6 +576,7 @@ export default function EmployerNotificationsPage() {
             >
               <Menu size={22} />
             </button>
+
             <div>
               <span className="employer-notifications-breadcrumb">
                 Employer workspace / Notifications
@@ -444,8 +621,8 @@ export default function EmployerNotificationsPage() {
               </span>
               <h1>Your notifications</h1>
               <p>
-                Keep track of applications, job updates and important account
-                activity.
+                Keep track of applications, job updates and important
+                account activity.
               </p>
             </div>
 
@@ -454,13 +631,44 @@ export default function EmployerNotificationsPage() {
             </div>
           </div>
 
+          {error && (
+            <div
+              role="alert"
+              style={{
+                padding: "13px 16px",
+                marginBottom: 20,
+                border: "1px solid #f0c9c5",
+                borderRadius: 9,
+                background: "#fff4f2",
+                color: "#a43d35",
+                fontSize: 13,
+              }}
+            >
+              {error}
+              <button
+                type="button"
+                onClick={() => userId && loadNotifications(userId)}
+                style={{
+                  marginLeft: 12,
+                  border: 0,
+                  background: "transparent",
+                  color: "#176b45",
+                  fontWeight: 700,
+                  cursor: "pointer",
+                }}
+              >
+                Try again
+              </button>
+            </div>
+          )}
+
           <div className="employer-notifications-stats">
             <div className="employer-notifications-stat-card">
               <span className="employer-notifications-stat-icon total">
                 <Bell size={20} />
               </span>
               <div>
-                <strong>{notifications.length}</strong>
+                <strong>{loading ? "—" : notifications.length}</strong>
                 <span>Total notifications</span>
               </div>
             </div>
@@ -470,7 +678,7 @@ export default function EmployerNotificationsPage() {
                 <FileText size={20} />
               </span>
               <div>
-                <strong>{unreadCount}</strong>
+                <strong>{loading ? "—" : unreadCount}</strong>
                 <span>Unread notifications</span>
               </div>
             </div>
@@ -480,7 +688,7 @@ export default function EmployerNotificationsPage() {
                 <CheckCheck size={20} />
               </span>
               <div>
-                <strong>{notifications.length - unreadCount}</strong>
+                <strong>{loading ? "—" : readCount}</strong>
                 <span>Read notifications</span>
               </div>
             </div>
@@ -491,7 +699,9 @@ export default function EmployerNotificationsPage() {
               <div>
                 <h3>Recent activity</h3>
                 <p>
-                  {unreadCount > 0
+                  {loading
+                    ? "Loading your notifications..."
+                    : unreadCount > 0
                     ? `You have ${unreadCount} unread notification${
                         unreadCount === 1 ? "" : "s"
                       }.`
@@ -502,7 +712,9 @@ export default function EmployerNotificationsPage() {
               <div className="employer-notifications-actions">
                 <button
                   onClick={markAllAsRead}
-                  disabled={unreadCount === 0}
+                  disabled={
+                    loading || unreadCount === 0 || actionLoading
+                  }
                 >
                   <CheckCheck size={16} />
                   Mark all as read
@@ -511,7 +723,11 @@ export default function EmployerNotificationsPage() {
                 <button
                   className="clear-button"
                   onClick={clearAllNotifications}
-                  disabled={notifications.length === 0}
+                  disabled={
+                    loading ||
+                    notifications.length === 0 ||
+                    actionLoading
+                  }
                 >
                   <Trash2 size={16} />
                   Clear all
@@ -527,8 +743,12 @@ export default function EmployerNotificationsPage() {
               ].map((filter) => (
                 <button
                   key={filter.id}
-                  className={activeFilter === filter.id ? "active" : ""}
-                  onClick={() => setActiveFilter(filter.id)}
+                  className={
+                    activeFilter === filter.id ? "active" : ""
+                  }
+                  onClick={() =>
+                    setActiveFilter(filter.id as FilterType)
+                  }
                   aria-pressed={activeFilter === filter.id}
                 >
                   {filter.label}
@@ -540,16 +760,22 @@ export default function EmployerNotificationsPage() {
             </div>
 
             <div className="employer-notifications-list">
-              {filteredNotifications.length > 0 ? (
+              {loading ? (
+                <div className="employer-notifications-empty">
+                  <span className="employer-notifications-spinner" />
+                  <p>Loading notifications...</p>
+                </div>
+              ) : filteredNotifications.length > 0 ? (
                 filteredNotifications.map((notification) => {
-                  const details = categoryDetails[notification.category];
+                  const details =
+                    categoryDetails[notification.category];
                   const CategoryIcon = details.icon;
 
                   return (
                     <article
                       key={notification.id}
                       className={`employer-notification-item ${
-                        notification.unread ? "unread" : ""
+                        !notification.is_read ? "unread" : ""
                       }`}
                     >
                       <div
@@ -561,7 +787,7 @@ export default function EmployerNotificationsPage() {
                       <div className="employer-notification-details">
                         <div className="employer-notification-title-row">
                           <h4>{notification.title}</h4>
-                          {notification.unread && (
+                          {!notification.is_read && (
                             <span className="employer-notification-new">
                               NEW
                             </span>
@@ -573,7 +799,9 @@ export default function EmployerNotificationsPage() {
                         <div className="employer-notification-meta">
                           <span>
                             <Clock size={13} />
-                            {notification.time}
+                            {formatNotificationTime(
+                              notification.created_at
+                            )}
                           </span>
                           <span className="employer-notification-category">
                             {details.label}
@@ -582,15 +810,22 @@ export default function EmployerNotificationsPage() {
 
                         <div className="employer-notification-item-actions">
                           <Link
-                            href={notification.href}
-                            onClick={() => markAsRead(notification.id)}
+                            href={getNotificationHref(notification)}
+                            onClick={() => {
+                              if (!notification.is_read) {
+                                void markAsRead(notification.id);
+                              }
+                            }}
                           >
                             View details <ArrowRight size={14} />
                           </Link>
 
-                          {notification.unread && (
+                          {!notification.is_read && (
                             <button
-                              onClick={() => markAsRead(notification.id)}
+                              onClick={() =>
+                                markAsRead(notification.id)
+                              }
+                              disabled={actionLoading}
                             >
                               <Check size={14} />
                               Mark as read
@@ -604,6 +839,7 @@ export default function EmployerNotificationsPage() {
                         onClick={() =>
                           deleteNotification(notification.id)
                         }
+                        disabled={actionLoading}
                         aria-label={`Delete notification: ${notification.title}`}
                       >
                         <Trash2 size={17} />
@@ -624,6 +860,7 @@ export default function EmployerNotificationsPage() {
                       ? "You have no read notifications."
                       : "Your notifications will appear here when there is new activity."}
                   </p>
+
                   {activeFilter !== "all" && (
                     <button onClick={() => setActiveFilter("all")}>
                       View all notifications
@@ -637,14 +874,8 @@ export default function EmployerNotificationsPage() {
           <div className="employer-notifications-footer-note">
             <ShieldCheck size={17} />
             <span>
-              Important account and job activity updates will appear here.
+              Your notifications are private to your employer account.
             </span>
-          </div>
-
-          <div className="employer-notifications-demo-notice">
-            <strong>Preview mode:</strong> These are sample notifications.
-            Your real-time notifications will be connected when the Abi Job
-            backend is implemented.
           </div>
         </div>
       </section>

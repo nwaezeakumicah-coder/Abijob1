@@ -1,0 +1,12 @@
+node_modules/
+.next/
+out/
+.env*
+!.env.example
+*.tsbuildinfo
+
+.env
+.env.*
+!.env.example
+.next/
+node_modules/

@@ -3,7 +3,6 @@ import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { createClient as createServerSupabaseClient } from "@/lib/supabase/server";
 
-
 const allowedRoles = ["job_seeker", "professional", "employer"];
 const allowedIntervals = ["monthly", "yearly"];
 
@@ -39,7 +38,6 @@ function getAdminClient() {
 
 export async function POST(request: Request) {
   try {
-    // Authenticate the customer.
     const supabase = await createServerSupabaseClient();
 
     const {
@@ -54,7 +52,6 @@ export async function POST(request: Request) {
       );
     }
 
-    // Validate the request body.
     let body: JsonRecord;
 
     try {
@@ -81,7 +78,6 @@ export async function POST(request: Request) {
 
     const admin = getAdminClient();
 
-    // Find a payment belonging to the authenticated user.
     const { data: payment, error: paymentError } = await admin
       .from("payment_transactions")
       .select("*")
@@ -106,8 +102,7 @@ export async function POST(request: Request) {
       );
     }
 
-    // Handle an already completed payment.
-    if (payment.status === "paid") {
+    if (payment.status === "successful") {
       return NextResponse.json({
         success: true,
         alreadyProcessed: true,
@@ -129,7 +124,6 @@ export async function POST(request: Request) {
       );
     }
 
-    // Validate the stored payment information.
     const paymentMetadata = asRecord(payment.metadata);
 
     const accountRole = paymentMetadata.account_role;
@@ -155,14 +149,12 @@ export async function POST(request: Request) {
       );
     }
 
-    // Confirm the subscription belongs to this user and account type.
-    const { data: subscription, error: subscriptionError } =
-      await admin
-        .from("subscriptions")
-        .select("id,user_id,account_role")
-        .eq("id", payment.subscription_id)
-        .eq("user_id", user.id)
-        .maybeSingle();
+    const { data: subscription, error: subscriptionError } = await admin
+      .from("subscriptions")
+      .select("id,user_id,account_role")
+      .eq("id", payment.subscription_id)
+      .eq("user_id", user.id)
+      .maybeSingle();
 
     if (subscriptionError) {
       console.error("Subscription lookup error:", subscriptionError);
@@ -183,7 +175,6 @@ export async function POST(request: Request) {
       );
     }
 
-    // Verify the transaction directly with Paystack.
     const paystackSecret = process.env.PAYSTACK_SECRET_KEY;
 
     if (!paystackSecret) {
@@ -236,7 +227,6 @@ export async function POST(request: Request) {
     const metadata = asRecord(transaction.metadata);
     const verifiedAmount = Number(transaction.amount);
 
-    // Compare Paystack's transaction with our stored payment.
     if (
       transaction.status !== "success" ||
       transaction.reference !== reference ||
@@ -249,10 +239,7 @@ export async function POST(request: Request) {
       String(metadata.subscription_id) !==
         String(payment.subscription_id)
     ) {
-      console.error(
-        "Payment verification mismatch:",
-        reference
-      );
+      console.error("Payment verification mismatch:", reference);
 
       return NextResponse.json(
         { error: "Payment details could not be validated." },
@@ -260,8 +247,6 @@ export async function POST(request: Request) {
       );
     }
 
-    // Activate through the protected database function.
-    // Database locking and idempotency prevent duplicate activation.
     const { error: activationError } = await admin.rpc(
       "complete_paystack_subscription",
       {
@@ -275,10 +260,7 @@ export async function POST(request: Request) {
     );
 
     if (activationError) {
-      console.error(
-        "Subscription activation error:",
-        activationError
-      );
+      console.error("Subscription activation error:", activationError);
 
       return NextResponse.json(
         {
