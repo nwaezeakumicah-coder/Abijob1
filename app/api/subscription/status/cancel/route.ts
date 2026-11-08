@@ -1,11 +1,29 @@
-
-import { NextResponse } from "next/server";
+﻿import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 
+function jsonResponse(
+  body: Record<string, unknown>,
+  status = 200
+) {
+  return NextResponse.json(body, {
+    status,
+    headers: {
+      "Cache-Control": "private, no-store, no-cache, must-revalidate",
+      Pragma: "no-cache",
+      Expires: "0",
+    },
+  });
+}
+
+function isValidDate(value: unknown): value is string {
+  return (
+    typeof value === "string" &&
+    Number.isFinite(Date.parse(value))
+  );
+}
 
 export async function POST() {
   try {
-    // Authenticate the current user.
     const supabase = await createClient();
 
     const {
@@ -14,117 +32,175 @@ export async function POST() {
     } = await supabase.auth.getUser();
 
     if (authError || !user) {
-      return NextResponse.json(
-        { error: "Please log in to manage your subscription." },
-        { status: 401 }
+      return jsonResponse(
+        {
+          success: false,
+          error: "Please sign in to manage your subscription.",
+        },
+        401
       );
     }
 
-    // Retrieve only this user's subscription.
-    const { data: subscription, error: subscriptionError } =
-      await supabase
-        .from("subscriptions")
-        .select(
-          "id,user_id,status,current_period_end,cancel_at_period_end"
-        )
-        .eq("user_id", user.id)
-        .maybeSingle();
+    const { data, error } = await supabase.rpc(
+      "schedule_subscription_cancellation"
+    );
 
-    if (subscriptionError) {
-      console.error("Subscription lookup error:", subscriptionError);
+    if (error) {
+      console.error(
+        "Subscription cancellation RPC failed:",
+        error.message
+      );
 
-      return NextResponse.json(
-        { error: "Could not retrieve your subscription." },
-        { status: 500 }
+      return jsonResponse(
+        {
+          success: false,
+          error: "We could not update your subscription. Please try again.",
+        },
+        500
       );
     }
-
-    if (!subscription) {
-      return NextResponse.json(
-        { error: "No subscription was found for your account." },
-        { status: 404 }
-      );
-    }
-
-    const periodEnd = subscription.current_period_end
-      ? new Date(subscription.current_period_end).getTime()
-      : null;
 
     if (
-      subscription.status !== "active" ||
-      periodEnd === null ||
-      !Number.isFinite(periodEnd) ||
-      periodEnd <= Date.now()
+      typeof data !== "object" ||
+      data === null ||
+      Array.isArray(data)
     ) {
-      return NextResponse.json(
+      return jsonResponse(
         {
-          error:
-            "There is no active paid subscription available to mark as not renewing.",
+          success: false,
+          error: "The subscription service returned an invalid response.",
         },
-        { status: 400 }
+        500
       );
     }
 
-    // Return the existing preference if it has already been recorded.
-    if (subscription.cancel_at_period_end) {
-      return NextResponse.json({
-        success: true,
-        alreadyScheduled: true,
-        message:
-          "Your subscription is already marked as not renewing. Your paid access remains available until the current billing period expires.",
-        accessUntil: subscription.current_period_end,
-        automaticRecurringBilling: false,
-      });
-    }
+    const result = data as {
+      result?: string;
+      trial_started_at?: unknown;
+      trial_ends_at?: unknown;
+      paid_period_starts_at?: unknown;
+      paid_period_ends_at?: unknown;
+    };
 
-    // Record the user's preference not to renew.
-    const { data: updatedSubscription, error: updateError } =
-      await supabase
-        .from("subscriptions")
-        .update({
-          cancel_at_period_end: true,
-          updated_at: new Date().toISOString(),
-        })
-        .eq("id", subscription.id)
-        .eq("user_id", user.id)
-        .select(
-          "id,cancel_at_period_end,current_period_end"
+    switch (result.result) {
+      case "unauthenticated":
+        return jsonResponse(
+          {
+            success: false,
+            error: "Your session has expired. Please sign in again.",
+          },
+          401
+        );
+
+      case "not_found":
+        return jsonResponse(
+          {
+            success: false,
+            error: "No subscription was found for your account.",
+          },
+          404
+        );
+
+      case "not_eligible":
+        return jsonResponse(
+          {
+            success: false,
+            error:
+              "This membership is no longer eligible for cancellation.",
+          },
+          409
+        );
+
+      case "scheduled":
+      case "already_scheduled": {
+        const trialStartedAt = isValidDate(result.trial_started_at)
+          ? result.trial_started_at
+          : null;
+
+        const trialEndsAt = isValidDate(result.trial_ends_at)
+          ? result.trial_ends_at
+          : null;
+
+        const paidPeriodStartsAt = isValidDate(
+          result.paid_period_starts_at
         )
-        .single();
+          ? result.paid_period_starts_at
+          : null;
 
-    if (updateError || !updatedSubscription) {
-      console.error("Subscription cancellation error:", updateError);
+        const paidPeriodEndsAt = isValidDate(
+          result.paid_period_ends_at
+        )
+          ? result.paid_period_ends_at
+          : null;
 
-      return NextResponse.json(
-        {
-          error:
-            "We could not update your subscription preference. Please try again.",
-        },
-        { status: 500 }
-      );
+        const now = Date.now();
+
+        const trialIsActive =
+          trialStartedAt !== null &&
+          trialEndsAt !== null &&
+          Date.parse(trialStartedAt) <= now &&
+          Date.parse(trialEndsAt) > now;
+
+        const paidPeriodIsScheduled =
+          paidPeriodStartsAt !== null &&
+          paidPeriodEndsAt !== null &&
+          Date.parse(paidPeriodStartsAt) > now &&
+          Date.parse(paidPeriodEndsAt) > now;
+
+        const alreadyScheduled = result.result === "already_scheduled";
+
+        let message: string;
+
+        if (alreadyScheduled) {
+          message =
+            "Your membership is already marked as not renewing. Your existing access will continue until its applicable expiry date.";
+        } else if (trialIsActive && paidPeriodIsScheduled) {
+          message =
+            "Your membership is marked as not renewing. Your current free trial and already-scheduled paid period will remain available until their applicable expiry dates.";
+        } else if (trialIsActive) {
+          message =
+            "Your membership is marked as not renewing. Your free trial will remain available until it expires.";
+        } else {
+          message =
+            "Your membership is marked as not renewing. Your existing paid access will continue until the current paid period expires.";
+        }
+
+        return jsonResponse({
+          success: true,
+          alreadyScheduled,
+          message,
+          automaticRecurringBilling: false,
+          trialStartedAt,
+          trialEndsAt,
+          paidPeriodStartsAt,
+          paidPeriodEndsAt,
+          cancelAtPeriodEnd: true,
+        });
+      }
+
+      default:
+        console.error(
+          "Unexpected cancellation result:",
+          result.result
+        );
+
+        return jsonResponse(
+          {
+            success: false,
+            error: "We could not confirm the cancellation request.",
+          },
+          500
+        );
     }
-
-    return NextResponse.json({
-      success: true,
-      alreadyScheduled: false,
-      message:
-        "Your subscription has been marked as not renewing. Your paid access remains available until your current billing period expires.",
-      automaticRecurringBilling: false,
-      subscription: {
-        id: updatedSubscription.id,
-        cancelAtPeriodEnd: updatedSubscription.cancel_at_period_end,
-        accessUntil: updatedSubscription.current_period_end,
-      },
-    });
   } catch (error) {
-    console.error("Subscription cancellation API error:", error);
+    console.error("Subscription cancellation error:", error);
 
-    return NextResponse.json(
+    return jsonResponse(
       {
-        error:
-          "An unexpected error occurred while managing your subscription.",
+        success: false,
+        error: "Something went wrong. Please try again.",
       },
-      { status: 500 }
+      500
     );
   }
 }

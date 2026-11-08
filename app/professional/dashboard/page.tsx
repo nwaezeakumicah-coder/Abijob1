@@ -1,759 +1,968 @@
+
 "use client";
 
-import { useEffect, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import Logo from "../../../components/Logo";
 import { createClient } from "../../../lib/supabase/client";
-
 import {
-  LayoutDashboard,
-  Search,
-  BriefcaseBusiness,
-  Bookmark,
-  UserRound,
-  FileText,
+  Activity,
+  ArrowRight,
   Bell,
-  Settings,
+  Bookmark,
+  BriefcaseBusiness,
+  CheckCircle2,
+  Clock3,
+  CreditCard,
+  FileText,
+  LayoutDashboard,
   LogOut,
   Menu,
+  Search,
+  Settings,
+  ShieldCheck,
+  UserRound,
   X,
-  MapPin,
-  Clock3,
-  ArrowUpRight,
-  ArrowRight,
-  TrendingUp,
-  CheckCircle2,
-  Circle,
-  Sparkles,
-  ChevronRight,
-  Plus,
-  Eye,
-  CalendarDays,
-  MessageCircle,
-  CreditCard,
 } from "lucide-react";
-
 import "./professional-dashboard.css";
 
-const navigation = [
-  { label: "Dashboard", href: "/professional/dashboard", icon: LayoutDashboard },
-  { label: "Find Opportunities", href: "/professional/opportunities", icon: Search },
-  { label: "My Applications", href: "/professional/applications", icon: BriefcaseBusiness },
-  { label: "Saved Opportunities", href: "/professional/saved", icon: Bookmark },
-  { label: "My Profile", href: "/professional/profile", icon: UserRound },
-  { label: "AI CV Builder", href: "/cv-builder", icon: FileText },
-  { label: "Messages", href: "/professional/messages", icon: MessageCircle },
-  { label: "Notifications", href: "/professional/notifications", icon: Bell, count: 3 },
-  { label: "Subscription & Billing", href: "/professional/subscription", icon: CreditCard },
-  { label: "Settings", href: "/professional/settings", icon: Settings },
-];
+type ProfileRow = {
+  id: string;
+  role: string;
+  full_name: string | null;
+  phone: string | null;
+  location: string | null;
+  avatar_url: string | null;
+  headline: string | null;
+  about: string | null;
+  skills: string[] | null;
+};
 
-const recommendedJobs = [
-  {
-    id: 1,
-    title: "Graphics Designer",
-    company: "Creative Media House",
-    location: "Umuahia, Abia State",
-    type: "Full-time",
-    salary: "₦80,000 – ₦120,000",
-    category: "Creative",
-    posted: "2 days ago",
-    initials: "CM",
-    color: "orange",
-  },
-  {
-    id: 2,
-    title: "Fashion Designer",
-    company: "Made in Aba Studio",
-    location: "Ariaria, Aba",
-    type: "Full-time",
-    salary: "₦100,000 – ₦160,000",
-    category: "Fashion",
-    posted: "3 days ago",
-    initials: "MA",
-    color: "purple",
-  },
-  {
-    id: 3,
-    title: "Frontend Developer",
-    company: "Digital Solutions Agency",
-    location: "Aba, Abia State",
-    type: "Full-time",
-    salary: "₦150,000 – ₦200,000",
-    category: "Technology",
-    posted: "4 days ago",
-    initials: "DS",
-    color: "blue",
-  },
-];
+type ProfessionalProfileRow = {
+  category: string | null;
+  skills: string[] | null;
+  service_area: string | null;
+  profile_data: {
+    website?: string;
+    experiences?: unknown[];
+  } | null;
+  is_public: boolean | null;
+};
 
-const activities = [
-  {
-    title: "Application submitted",
-    description: "Your application for Graphics Designer was submitted.",
-    time: "Today · 10:30 AM",
-    status: "Submitted",
-  },
-  {
-    title: "Profile viewed",
-    description: "An employer viewed your professional profile.",
-    time: "Yesterday · 2:15 PM",
-    status: "Profile activity",
-  },
-  {
-    title: "New opportunity",
-    description: "A new opportunity matching your skills is available.",
-    time: "2 days ago",
-    status: "New opportunity",
-  },
-];
+type JobRow = {
+  id: string;
+  title: string;
+  category: string | null;
+  location: string | null;
+  application_deadline: string | null;
+  created_at: string;
+};
 
-export default function ProfessionalDashboard() {
+type ApplicationRow = {
+  id: string;
+  job_id: string;
+  status: string | null;
+  created_at: string;
+};
+
+type DashboardApplication = ApplicationRow & {
+  jobTitle: string;
+  jobLocation: string;
+};
+
+type DashboardData = {
+  fullName: string;
+  headline: string;
+  location: string;
+  profileCompleteness: number;
+  completedProfileItems: number;
+  totalProfileItems: number;
+  opportunities: JobRow[];
+  applications: DashboardApplication[];
+  savedCount: number;
+};
+
+const SAVED_JOBS_KEY = "abijob-professional-saved-jobs";
+
+const INITIAL_DATA: DashboardData = {
+  fullName: "Professional",
+  headline: "",
+  location: "",
+  profileCompleteness: 0,
+  completedProfileItems: 0,
+  totalProfileItems: 5,
+  opportunities: [],
+  applications: [],
+  savedCount: 0,
+};
+
+function getLocalDateString() {
+  const now = new Date();
+
+  return [
+    now.getFullYear(),
+    String(now.getMonth() + 1).padStart(2, "0"),
+    String(now.getDate()).padStart(2, "0"),
+  ].join("-");
+}
+
+function isDeadlinePassed(deadline: string | null) {
+  if (!deadline) return false;
+  return deadline.slice(0, 10) < getLocalDateString();
+}
+
+function readSavedJobIds(): string[] {
+  try {
+    const stored = window.localStorage.getItem(SAVED_JOBS_KEY);
+
+    if (!stored) return [];
+
+    const parsed: unknown = JSON.parse(stored);
+
+    if (!Array.isArray(parsed)) return [];
+
+    return parsed
+      .map((item: unknown) => {
+        if (typeof item === "string") return item;
+
+        if (
+          item &&
+          typeof item === "object" &&
+          "id" in item &&
+          typeof item.id === "string"
+        ) {
+          return item.id;
+        }
+
+        return null;
+      })
+      .filter((id): id is string => typeof id === "string");
+  } catch {
+    return [];
+  }
+}
+
+function formatDate(value: string) {
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) return "Date unavailable";
+
+  return new Intl.DateTimeFormat("en-NG", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+  }).format(date);
+}
+
+function formatRelativeDate(value: string) {
+  const timestamp = new Date(value).getTime();
+
+  if (Number.isNaN(timestamp)) return "Date unavailable";
+
+  const elapsed = Math.max(0, Date.now() - timestamp);
+  const minutes = Math.floor(elapsed / 60000);
+  const hours = Math.floor(elapsed / 3600000);
+  const days = Math.floor(elapsed / 86400000);
+
+  if (minutes < 1) return "Just now";
+  if (minutes < 60) return `${minutes} minute${minutes === 1 ? "" : "s"} ago`;
+  if (hours < 24) return `${hours} hour${hours === 1 ? "" : "s"} ago`;
+  if (days === 1) return "Yesterday";
+  if (days < 7) return `${days} days ago`;
+
+  return formatDate(value);
+}
+
+function getStatusLabel(status: string | null) {
+  switch (status?.toLowerCase()) {
+    case "submitted":
+      return "Submitted";
+    case "under_review":
+      return "Under review";
+    case "shortlisted":
+      return "Shortlisted";
+    case "rejected":
+      return "Rejected";
+    case "hired":
+      return "Hired";
+    case "withdrawn":
+      return "Withdrawn";
+    default:
+      return "Status unavailable";
+  }
+}
+
+function getStatusClass(status: string | null) {
+  switch (status?.toLowerCase()) {
+    case "submitted":
+      return "submitted";
+    case "under_review":
+      return "under-review";
+    case "shortlisted":
+      return "shortlisted";
+    case "rejected":
+      return "rejected";
+    case "hired":
+      return "hired";
+    case "withdrawn":
+      return "withdrawn";
+    default:
+      return "unknown";
+  }
+}
+
+function getInitials(name: string) {
+  const parts = name.trim().split(/\s+/).filter(Boolean);
+
+  if (parts.length === 0) return "P";
+  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+
+  return `${parts[0][0]}${parts[parts.length - 1][0]}`.toUpperCase();
+}
+
+function getRoleDestination(role: string) {
+  switch (role) {
+    case "job_seeker":
+      return "/dashboard";
+    case "employer":
+      return "/employer/dashboard";
+    case "super_admin":
+    case "admin":
+    case "moderator":
+    case "support_staff":
+      return "/admin";
+    default:
+      return "/login";
+  }
+}
+
+export default function ProfessionalDashboardPage() {
   const router = useRouter();
+  const supabase = useMemo(() => createClient(), []);
 
+  const [data, setData] = useState<DashboardData>(INITIAL_DATA);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const [logoutLoading, setLogoutLoading] = useState(false);
-  const [authLoading, setAuthLoading] = useState(true);
-  const [professionalName, setProfessionalName] = useState("Professional");
-  const [professionalInitials, setProfessionalInitials] = useState("SP");
+  const [loggingOut, setLoggingOut] = useState(false);
 
-  useEffect(() => {
-    let active = true;
+  const loadDashboard = useCallback(async () => {
+    setLoading(true);
+    setError("");
 
-    async function verifyProfessionalAccount() {
-      const supabase = createClient();
-
+    try {
       const {
         data: { user },
         error: authError,
       } = await supabase.auth.getUser();
 
-      if (!active) return;
+      if (authError) {
+        throw new Error("We could not verify your session. Please sign in again.");
+      }
 
-      if (authError || !user) {
+      if (!user) {
         router.replace("/login");
         return;
       }
 
       const { data: profile, error: profileError } = await supabase
         .from("profiles")
-        .select("role, full_name")
+        .select(
+          "id, role, full_name, phone, location, avatar_url, headline, about, skills"
+        )
         .eq("id", user.id)
         .maybeSingle();
 
-      if (!active) return;
+      if (profileError) {
+        throw new Error("Your account profile could not be loaded. Please try again.");
+      }
 
-      if (profileError || !profile) {
+      if (!profile) {
         router.replace("/login");
         return;
       }
 
-      if (profile.role !== "professional") {
-        if (profile.role === "job_seeker") {
-          router.replace("/dashboard");
-        } else if (profile.role === "employer") {
-          router.replace("/employer/dashboard");
-        } else if (profile.role === "admin") {
-          router.replace("/admin");
-        } else {
-          router.replace("/login");
-        }
+      const typedProfile = profile as ProfileRow;
+
+      if (typedProfile.role !== "professional") {
+        router.replace(getRoleDestination(typedProfile.role));
         return;
       }
 
-      const name = profile.full_name?.trim() || "Professional";
+      const [
+        { data: professionalProfile, error: professionalError },
+        { data: jobRows, error: jobsError },
+        { data: applicationRows, error: applicationsError },
+      ] = await Promise.all([
+        supabase
+          .from("professional_profiles")
+          .select("category, skills, service_area, profile_data, is_public")
+          .eq("user_id", user.id)
+          .maybeSingle(),
 
-      const initials = name
-        .split(/\s+/)
-        .filter(Boolean)
-        .slice(0, 2)
-        .map((part: string) => part[0].toUpperCase())
-        .join("");
+        supabase
+          .from("jobs")
+          .select("id, title, category, location, application_deadline, created_at")
+          .eq("status", "approved")
+          .order("created_at", { ascending: false }),
 
-      setProfessionalName(name);
-      setProfessionalInitials(initials || "SP");
-      setAuthLoading(false);
+        supabase
+          .from("job_applications")
+          .select("id, job_id, status, created_at")
+          .eq("applicant_id", user.id)
+          .order("created_at", { ascending: false }),
+      ]);
+
+      if (professionalError) {
+        throw new Error("Your professional profile details could not be loaded.");
+      }
+
+      if (jobsError) {
+        throw new Error("Approved vacancies could not be loaded. Please try again.");
+      }
+
+      if (applicationsError) {
+        throw new Error("Your application history could not be loaded. Please try again.");
+      }
+
+      const professional = (professionalProfile || null) as ProfessionalProfileRow | null;
+      const extra = professional?.profile_data || {};
+
+      const skills = Array.isArray(professional?.skills)
+        ? professional.skills
+        : Array.isArray(typedProfile.skills)
+          ? typedProfile.skills
+          : [];
+
+      const experiences = Array.isArray(extra.experiences)
+        ? extra.experiences
+        : [];
+
+      const profileChecks = [
+        Boolean(typedProfile.full_name?.trim() && typedProfile.phone?.trim() && typedProfile.location?.trim()),
+        Boolean(typedProfile.about?.trim()),
+        skills.length > 0,
+        experiences.length > 0,
+        Boolean(extra.website?.trim()),
+      ];
+
+      const completedProfileItems = profileChecks.filter(Boolean).length;
+      const profileCompleteness = Math.round(
+        (completedProfileItems / profileChecks.length) * 100
+      );
+
+      const availableJobs = ((jobRows || []) as JobRow[]).filter(
+        (job) => !isDeadlinePassed(job.application_deadline)
+      );
+
+      const jobMap = new Map(availableJobs.map((job) => [job.id, job]));
+      const applicationData = (applicationRows || []) as ApplicationRow[];
+
+      const mappedApplications: DashboardApplication[] = applicationData.map(
+        (application) => {
+          const job = jobMap.get(application.job_id);
+
+          return {
+            ...application,
+            jobTitle: job?.title || "Vacancy details unavailable",
+            jobLocation: job?.location || "Location unavailable",
+          };
+        }
+      );
+
+      const savedIds = readSavedJobIds();
+      const availableIds = new Set(availableJobs.map((job) => job.id));
+      const validSavedIds = savedIds.filter((id) => availableIds.has(id));
+
+      try {
+        window.localStorage.setItem(
+          SAVED_JOBS_KEY,
+          JSON.stringify(validSavedIds)
+        );
+      } catch {
+        // The dashboard can still work if browser storage is unavailable.
+      }
+
+      setData({
+        fullName: typedProfile.full_name?.trim() || "Professional",
+        headline:
+          professional?.category?.trim() ||
+          typedProfile.headline?.trim() ||
+          "",
+        location:
+          typedProfile.location?.trim() ||
+          professional?.service_area?.trim() ||
+          "",
+        profileCompleteness,
+        completedProfileItems,
+        totalProfileItems: profileChecks.length,
+        opportunities: availableJobs,
+        applications: mappedApplications,
+        savedCount: validSavedIds.length,
+      });
+    } catch (loadError) {
+      console.error("Professional dashboard loading error:", loadError);
+
+      setError(
+        loadError instanceof Error
+          ? loadError.message
+          : "Something went wrong while loading your dashboard."
+      );
+    } finally {
+      setLoading(false);
+    }
+  }, [router, supabase]);
+
+  useEffect(() => {
+    void loadDashboard();
+  }, [loadDashboard]);
+
+  useEffect(() => {
+    if (!mobileMenuOpen) return;
+
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === "Escape") {
+        setMobileMenuOpen(false);
+      }
     }
 
-    verifyProfessionalAccount();
+    window.addEventListener("keydown", handleKeyDown);
 
     return () => {
-      active = false;
+      window.removeEventListener("keydown", handleKeyDown);
     };
-  }, [router]);
+  }, [mobileMenuOpen]);
 
-  async function handleLogout() {
-    if (logoutLoading) return;
+  const handleLogout = async () => {
+    if (loggingOut) return;
 
-    setLogoutLoading(true);
+    setLoggingOut(true);
 
-    const supabase = createClient();
-    const { error } = await supabase.auth.signOut();
+    try {
+      const { error: logoutError } = await supabase.auth.signOut();
 
-    if (error) {
-      alert("Unable to sign out. Please try again.");
-      setLogoutLoading(false);
-      return;
+      if (logoutError) {
+        throw logoutError;
+      }
+
+      router.replace("/login");
+      router.refresh();
+    } catch (logoutError) {
+      console.error("Professional logout error:", logoutError);
+      setError("We could not sign you out. Please try again.");
+      setLoggingOut(false);
     }
+  };
 
-    router.replace("/login?logged_out=1");
-    router.refresh();
-  }
-
-  if (authLoading) {
-    return (
-      <main className="professional-dashboard">
-        <div
-          style={{
-            minHeight: "100vh",
-            width: "100%",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            background: "#f7f8f3",
-            color: "#176b45",
-            fontSize: "16px",
-            fontWeight: 700,
-          }}
-        >
-          Verifying your professional account...
-        </div>
-      </main>
+  const applicationCounts = useMemo(() => {
+    const activeApplications = data.applications.filter(
+      (application) => application.status?.toLowerCase() !== "withdrawn"
     );
-  }
+
+    return {
+      total: activeApplications.length,
+      underReview: activeApplications.filter(
+        (application) => application.status?.toLowerCase() === "under_review"
+      ).length,
+      shortlisted: activeApplications.filter(
+        (application) => application.status?.toLowerCase() === "shortlisted"
+      ).length,
+    };
+  }, [data.applications]);
+
+  const recentApplications = data.applications.slice(0, 5);
+  const recommendedOpportunities = data.opportunities.slice(0, 4);
+  const initials = getInitials(data.fullName);
+
+  const closeMobileMenu = () => setMobileMenuOpen(false);
 
   return (
     <main className="professional-dashboard">
-      <aside
-        className={`professional-sidebar ${
-          mobileMenuOpen ? "sidebar-open" : ""
-        }`}
-      >
-        <div className="professional-sidebar-top">
-          <div className="professional-sidebar-logo">
-            <Logo href="/professional/dashboard" size="medium" light />
+      {mobileMenuOpen && (
+        <button
+          type="button"
+          className="pd-mobile-overlay"
+          aria-label="Close navigation menu"
+          onClick={closeMobileMenu}
+        />
+      )}
+
+      <aside className={`pd-sidebar ${mobileMenuOpen ? "pd-sidebar-open" : ""}`}>
+        <div className="pd-brand">
+          <Logo href="/" light />
+          <button
+            type="button"
+            className="pd-mobile-close"
+            onClick={closeMobileMenu}
+            aria-label="Close navigation"
+          >
+            <X size={21} />
+          </button>
+        </div>
+
+        <div className="pd-sidebar-label">PROFESSIONAL WORKSPACE</div>
+
+        <nav className="pd-nav" aria-label="Professional navigation">
+          <Link
+            href="/professional/dashboard"
+            className="active"
+            aria-current="page"
+            onClick={closeMobileMenu}
+          >
+            <LayoutDashboard size={19} />
+            <span>Dashboard</span>
+          </Link>
+
+          <Link href="/professional/opportunities" onClick={closeMobileMenu}>
+            <Search size={19} />
+            <span>Find opportunities</span>
+          </Link>
+
+          <Link href="/professional/saved" onClick={closeMobileMenu}>
+            <Bookmark size={19} />
+            <span>Saved opportunities</span>
+            <span className="pd-nav-count">{data.savedCount}</span>
+          </Link>
+
+          <Link href="/professional/applications" onClick={closeMobileMenu}>
+            <FileText size={19} />
+            <span>My applications</span>
+          </Link>
+
+          <Link href="/professional/experience" onClick={closeMobileMenu}>
+            <BriefcaseBusiness size={19} />
+            <span>Experience</span>
+          </Link>
+
+          <Link href="/professional/profile" onClick={closeMobileMenu}>
+            <UserRound size={19} />
+            <span>My profile</span>
+          </Link>
+
+          <Link href="/professional/messages" onClick={closeMobileMenu}>
+            <Activity size={19} />
+            <span>Messages</span>
+          </Link>
+
+          <Link href="/professional/notifications" onClick={closeMobileMenu}>
+            <Bell size={19} />
+            <span>Notifications</span>
+          </Link>
+
+          <Link
+            href="/professional/subscription"
+            onClick={closeMobileMenu}
+          >
+            <CreditCard size={19} />
+            <span>Subscription & Billing</span>
+          </Link>
+
+          <Link href="/professional/settings" onClick={closeMobileMenu}>
+            <Settings size={19} />
+            <span>Settings</span>
+          </Link>
+        </nav>
+
+        <div className="pd-sidebar-bottom">
+          <div className="pd-help-card">
+            <div className="pd-help-icon">
+              <ShieldCheck size={19} />
+            </div>
+            <strong>Build a stronger profile</strong>
+            <p>Keep your professional details and skills up to date.</p>
+            <Link href="/professional/profile" onClick={closeMobileMenu}>
+              Update profile <ArrowRight size={14} />
+            </Link>
           </div>
 
           <button
             type="button"
-            className="sidebar-close"
-            aria-label="Close navigation"
-            onClick={() => setMobileMenuOpen(false)}
+            className="pd-logout"
+            onClick={handleLogout}
+            disabled={loggingOut}
           >
-            <X size={22} />
+            <LogOut size={18} />
+            {loggingOut ? "Signing out..." : "Sign out"}
           </button>
         </div>
-
-        <div className="sidebar-account">
-          <div className="sidebar-avatar">{professionalInitials}</div>
-          <div>
-            <strong>{professionalName}</strong>
-            <span>Skilled Professional</span>
-          </div>
-        </div>
-
-        <p className="sidebar-section-label">PROFESSIONAL WORKSPACE</p>
-
-        <nav className="professional-nav">
-          {navigation.map((item) => {
-            const Icon = item.icon;
-            const active = item.label === "Dashboard";
-
-            return (
-              <Link
-                key={item.label}
-                href={item.href}
-                className={`professional-nav-link ${
-                  active ? "active" : ""
-                }`}
-                onClick={() => setMobileMenuOpen(false)}
-              >
-                <Icon size={19} strokeWidth={1.9} />
-                <span>{item.label}</span>
-
-                {item.count && (
-                  <span className="nav-notification-count">
-                    {item.count}
-                  </span>
-                )}
-              </Link>
-            );
-          })}
-        </nav>
-
-        <div className="sidebar-help">
-          <div className="sidebar-help-icon">
-            <Sparkles size={20} />
-          </div>
-
-          <strong>Grow your career</strong>
-
-          <p>
-            Keep your profile updated to improve your chances of getting
-            discovered by employers.
-          </p>
-
-          <Link
-            href="/professional/profile"
-            onClick={() => setMobileMenuOpen(false)}
-          >
-            Update profile <ArrowRight size={15} />
-          </Link>
-        </div>
-
-        <button
-          type="button"
-          className="sidebar-logout"
-          onClick={handleLogout}
-          disabled={logoutLoading}
-        >
-          <LogOut size={18} />
-          <span>{logoutLoading ? "Signing out..." : "Log Out"}</span>
-        </button>
       </aside>
 
-      {mobileMenuOpen && (
-        <button
-          type="button"
-          className="sidebar-overlay"
-          aria-label="Close navigation menu"
-          onClick={() => setMobileMenuOpen(false)}
-        />
-      )}
-
-      <section className="professional-main">
-        <div className="professional-topbar">
-          <div className="professional-topbar-left">
+      <section className="pd-main">
+        <header className="pd-topbar">
+          <div className="pd-topbar-left">
             <button
               type="button"
-              className="mobile-menu-button"
-              aria-label="Open navigation"
+              className="pd-mobile-menu"
               onClick={() => setMobileMenuOpen(true)}
+              aria-label="Open navigation menu"
+              aria-expanded={mobileMenuOpen}
             >
-              <Menu size={23} />
+              <Menu size={22} />
             </button>
 
             <div>
-              <span className="topbar-eyebrow">
-                SKILLED PROFESSIONALS & ARTISANS
-              </span>
-              <h1>Dashboard</h1>
+              <span className="pd-topbar-label">PROFESSIONAL WORKSPACE</span>
+              <h2>Dashboard</h2>
             </div>
           </div>
 
-          <div className="professional-topbar-actions">
-            <Link
-              href="/professional/messages"
-              className="topbar-notification"
-              aria-label="Messages"
-            >
-              <MessageCircle size={20} />
-            </Link>
-
+          <div className="pd-topbar-actions">
             <Link
               href="/professional/notifications"
-              className="topbar-notification"
+              className="pd-top-icon"
               aria-label="Notifications"
+              title="Notifications"
             >
-              <Bell size={20} />
-              <span />
+              <Bell size={19} />
             </Link>
 
-            <Link href="/professional/profile" className="topbar-profile">
-              <div className="topbar-avatar">{professionalInitials}</div>
-              <div className="topbar-profile-text">
-                <strong>{professionalName}</strong>
-                <span>Professional</span>
-              </div>
+            <Link
+              href="/professional/profile"
+              className="pd-user"
+              aria-label="Open professional profile"
+            >
+              <span className="pd-avatar">{initials}</span>
+              <span className="pd-user-copy">
+                <strong>{data.fullName}</strong>
+                <small>Professional account</small>
+              </span>
             </Link>
           </div>
-        </div>
+        </header>
 
-        <div className="professional-content">
-          <section className="professional-welcome">
-            <div className="welcome-copy">
-              <span className="welcome-label">
-                <Sparkles size={15} /> YOUR NEXT OPPORTUNITY STARTS HERE
-              </span>
+        <div className="pd-content">
+          {error && (
+            <div className="pd-error" role="alert">
+              <div>
+                <strong>Dashboard could not be fully loaded</strong>
+                <p>{error}</p>
+              </div>
+              <button type="button" onClick={() => void loadDashboard()}>
+                Try again
+              </button>
+            </div>
+          )}
 
-              <h2>
-                Welcome back,
-                <br />
-                <span>{professionalName}!</span>
-              </h2>
-
+          <section className="pd-welcome">
+            <div className="pd-welcome-copy">
+              <span className="pd-eyebrow">YOUR NEXT STEP STARTS HERE</span>
+              <h1>Welcome back, {data.fullName.split(" ")[0] || "Professional"}.</h1>
               <p>
-                Discover opportunities, showcase your skills and connect
-                with employers looking for your expertise.
+                Keep track of your applications, discover approved vacancies
+                and make your professional profile stand out.
               </p>
-
-              <div className="welcome-actions">
-                <Link
-                  href="/professional/opportunities"
-                  className="welcome-primary-button"
-                >
-                  Explore opportunities <ArrowUpRight size={17} />
+              <div className="pd-welcome-actions">
+                <Link href="/professional/opportunities" className="pd-primary-button">
+                  Explore opportunities <ArrowRight size={17} />
                 </Link>
-
-                <Link
-                  href="/professional/profile"
-                  className="welcome-secondary-button"
-                >
-                  View my profile
+                <Link href="/professional/profile" className="pd-secondary-button">
+                  Update my profile
                 </Link>
               </div>
             </div>
 
-            <div className="welcome-decoration" aria-hidden="true">
-              <div className="welcome-ring ring-one" />
-              <div className="welcome-ring ring-two" />
-              <div className="welcome-ring ring-three" />
-              <div className="welcome-decoration-center">
-                <BriefcaseBusiness size={54} />
+            <div className="pd-welcome-art" aria-hidden="true">
+              <div className="pd-art-circle pd-art-circle-one" />
+              <div className="pd-art-circle pd-art-circle-two" />
+              <div className="pd-art-card">
+                <BriefcaseBusiness size={30} />
+                <span>Opportunity</span>
+                <strong>Starts here</strong>
               </div>
             </div>
           </section>
 
-          <section className="professional-stats">
-            <article className="professional-stat-card">
-              <div className="stat-card-top">
-                <span className="stat-icon stat-green">
-                  <BriefcaseBusiness size={21} />
-                </span>
-                <span className="stat-trend">
-                  <TrendingUp size={14} /> Active
-                </span>
+          <section className="pd-section-heading">
+            <div>
+              <span className="pd-eyebrow">YOUR ACTIVITY</span>
+              <h2>Workspace overview</h2>
+              <p>These figures are based on your current account records.</p>
+            </div>
+            <button
+              type="button"
+              className="pd-refresh-button"
+              onClick={() => void loadDashboard()}
+              disabled={loading}
+            >
+              <Activity size={16} />
+              {loading ? "Refreshing..." : "Refresh"}
+            </button>
+          </section>
+
+          <section className="pd-stats-grid" aria-label="Account statistics">
+            <article className="pd-stat-card">
+              <div className="pd-stat-icon opportunities">
+                <BriefcaseBusiness size={21} />
               </div>
-              <strong>24</strong>
-              <span>Available opportunities</span>
-              <Link href="/professional/opportunities">
-                Explore opportunities <ArrowRight size={14} />
-              </Link>
+              <div className="pd-stat-copy">
+                <span>Available opportunities</span>
+                <strong>{loading ? "—" : data.opportunities.length}</strong>
+                <small>Approved vacancies with active deadlines</small>
+              </div>
             </article>
 
-            <article className="professional-stat-card">
-              <div className="stat-card-top">
-                <span className="stat-icon stat-blue">
-                  <FileText size={21} />
-                </span>
+            <article className="pd-stat-card">
+              <div className="pd-stat-icon applications">
+                <FileText size={21} />
               </div>
-              <strong>08</strong>
-              <span>Applications submitted</span>
-              <Link href="/professional/applications">
-                View applications <ArrowRight size={14} />
-              </Link>
+              <div className="pd-stat-copy">
+                <span>Active applications</span>
+                <strong>{loading ? "—" : applicationCounts.total}</strong>
+                <small>Excludes withdrawn applications</small>
+              </div>
             </article>
 
-            <article className="professional-stat-card">
-              <div className="stat-card-top">
-                <span className="stat-icon stat-purple">
-                  <CheckCircle2 size={21} />
-                </span>
+            <article className="pd-stat-card">
+              <div className="pd-stat-icon shortlisted">
+                <CheckCircle2 size={21} />
               </div>
-              <strong>03</strong>
-              <span>Shortlisted applications</span>
-              <Link href="/professional/applications">
-                Check status <ArrowRight size={14} />
-              </Link>
+              <div className="pd-stat-copy">
+                <span>Shortlisted</span>
+                <strong>{loading ? "—" : applicationCounts.shortlisted}</strong>
+                <small>Applications marked as shortlisted</small>
+              </div>
             </article>
 
-            <article className="professional-stat-card">
-              <div className="stat-card-top">
-                <span className="stat-icon stat-orange">
-                  <Bell size={21} />
-                </span>
-                <span className="stat-unread">3 new</span>
+            <article className="pd-stat-card">
+              <div className="pd-stat-icon saved">
+                <Bookmark size={21} />
               </div>
-              <strong>05</strong>
-              <span>Notifications</span>
-              <Link href="/professional/notifications">
-                View notifications <ArrowRight size={14} />
-              </Link>
+              <div className="pd-stat-copy">
+                <span>Saved opportunities</span>
+                <strong>{loading ? "—" : data.savedCount}</strong>
+                <small>Saved in this browser</small>
+              </div>
             </article>
           </section>
 
-          <div className="professional-dashboard-grid">
-            <div className="professional-dashboard-main-column">
-              <section className="professional-panel">
-                <div className="professional-panel-heading">
+          <div className="pd-dashboard-grid">
+            <div className="pd-primary-column">
+              <section className="pd-panel">
+                <div className="pd-panel-heading">
                   <div>
-                    <span className="panel-eyebrow">HANDPICKED FOR YOU</span>
-                    <h3>Recommended opportunities</h3>
-                    <p>
-                      Opportunities that may match your professional skills.
-                    </p>
+                    <h2>Recent applications</h2>
+                    <p>Your latest submitted applications and their current statuses.</p>
                   </div>
-
-                  <Link
-                    href="/professional/opportunities"
-                    className="panel-view-all"
-                  >
-                    View all <ArrowRight size={16} />
+                  <Link href="/professional/applications">
+                    View all <ArrowRight size={15} />
                   </Link>
                 </div>
 
-                <div className="recommended-job-list">
-                  {recommendedJobs.map((job) => (
-                    <article className="recommended-job" key={job.id}>
-                      <div
-                        className={`company-initials company-${job.color}`}
-                      >
-                        {job.initials}
-                      </div>
-
-                      <div className="recommended-job-details">
-                        <div className="recommended-job-title-row">
-                          <div>
-                            <h4>{job.title}</h4>
-                            <span>{job.company}</span>
-                          </div>
-                          <span className="job-category">
-                            {job.category}
-                          </span>
+                {loading ? (
+                  <div className="pd-panel-state">
+                    <Clock3 size={24} />
+                    <strong>Loading application history</strong>
+                    <span>Please wait while your records are retrieved.</span>
+                  </div>
+                ) : recentApplications.length > 0 ? (
+                  <div className="pd-application-list">
+                    {recentApplications.map((application) => (
+                      <article className="pd-application-row" key={application.id}>
+                        <div className="pd-application-icon">
+                          <BriefcaseBusiness size={19} />
                         </div>
-
-                        <div className="recommended-job-meta">
+                        <div className="pd-application-copy">
+                          <strong>{application.jobTitle}</strong>
                           <span>
-                            <MapPin size={14} /> {job.location}
-                          </span>
-                          <span>
-                            <Clock3 size={14} /> {job.type}
+                            {application.jobLocation} · Applied{" "}
+                            {formatRelativeDate(application.created_at)}
                           </span>
                         </div>
-
-                        <div className="recommended-job-bottom">
-                          <strong>{job.salary}</strong>
-                          <span>{job.posted}</span>
-                        </div>
-                      </div>
-
-                      <Link
-                        href="/professional/opportunities"
-                        className="job-open-link"
-                        aria-label={`View ${job.title}`}
-                      >
-                        <ArrowUpRight size={19} />
-                      </Link>
-                    </article>
-                  ))}
-                </div>
+                        <span
+                          className={`pd-status ${getStatusClass(application.status)}`}
+                        >
+                          {getStatusLabel(application.status)}
+                        </span>
+                      </article>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="pd-panel-state">
+                    <FileText size={27} />
+                    <strong>No applications yet</strong>
+                    <span>
+                      When you apply for an approved vacancy, your application
+                      history will appear here.
+                    </span>
+                    <Link href="/professional/opportunities">
+                      Find opportunities <ArrowRight size={15} />
+                    </Link>
+                  </div>
+                )}
               </section>
 
-              <section className="professional-panel activity-panel">
-                <div className="professional-panel-heading">
+              <section className="pd-panel">
+                <div className="pd-panel-heading">
                   <div>
-                    <span className="panel-eyebrow">YOUR RECENT UPDATES</span>
-                    <h3>Recent activity</h3>
+                    <h2>Approved opportunities</h2>
+                    <p>Recently published vacancies currently accepting applications.</p>
                   </div>
-                  <Link
-                    href="/professional/applications"
-                    className="panel-view-all"
-                  >
-                    Applications <ArrowRight size={16} />
+                  <Link href="/professional/opportunities">
+                    Browse all <ArrowRight size={15} />
                   </Link>
                 </div>
 
-                <div className="activity-list">
-                  {activities.map((activity, index) => (
-                    <div className="activity-item" key={activity.title}>
-                      <div className={`activity-marker marker-${index}`}>
-                        {index === 0 ? (
-                          <CheckCircle2 size={17} />
-                        ) : index === 1 ? (
-                          <Eye size={17} />
-                        ) : (
-                          <Sparkles size={17} />
-                        )}
-                      </div>
-
-                      <div className="activity-content">
-                        <div className="activity-title-row">
-                          <h4>{activity.title}</h4>
-                          <span>{activity.status}</span>
+                {loading ? (
+                  <div className="pd-panel-state">
+                    <Clock3 size={24} />
+                    <strong>Loading vacancies</strong>
+                    <span>Retrieving approved opportunities.</span>
+                  </div>
+                ) : recommendedOpportunities.length > 0 ? (
+                  <div className="pd-opportunity-list">
+                    {recommendedOpportunities.map((job) => (
+                      <article className="pd-opportunity-row" key={job.id}>
+                        <div className="pd-opportunity-icon">
+                          <BriefcaseBusiness size={20} />
                         </div>
-                        <p>{activity.description}</p>
-                        <small>
-                          <CalendarDays size={13} /> {activity.time}
-                        </small>
-                      </div>
-                    </div>
-                  ))}
-                </div>
+                        <div className="pd-opportunity-copy">
+                          <strong>{job.title}</strong>
+                          <span>
+                            {job.category || "General"} · {job.location || "Location not specified"}
+                          </span>
+                          <small>
+                            {job.application_deadline
+                              ? `Deadline: ${formatDate(job.application_deadline)}`
+                              : "No application deadline specified"}
+                          </small>
+                        </div>
+                        <Link
+                          href={`/jobs/${job.id}/apply`}
+                          aria-label={`View ${job.title}`}
+                          title={`View ${job.title}`}
+                        >
+                          <ArrowRight size={18} />
+                        </Link>
+                      </article>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="pd-panel-state">
+                    <Search size={27} />
+                    <strong>No active vacancies at the moment</strong>
+                    <span>
+                      Approved vacancies will appear here when employers publish them.
+                    </span>
+                    <Link href="/professional/opportunities">
+                      Check opportunities <ArrowRight size={15} />
+                    </Link>
+                  </div>
+                )}
               </section>
             </div>
 
-            <aside className="professional-dashboard-side-column">
-              <section className="professional-panel profile-progress-panel">
-                <div className="professional-panel-heading">
+            <aside className="pd-side-column">
+              <section className="pd-panel pd-profile-panel">
+                <div className="pd-panel-heading">
                   <div>
-                    <span className="panel-eyebrow">YOUR VISIBILITY</span>
-                    <h3>Profile strength</h3>
+                    <h2>Profile progress</h2>
+                    <p>Build a clearer picture of your professional strengths.</p>
                   </div>
-                  <UserRound size={20} className="panel-heading-icon" />
                 </div>
 
-                <div className="profile-progress-content">
-                  <div className="progress-ring">
-                    <svg viewBox="0 0 120 120">
-                      <circle
-                        className="progress-ring-track"
-                        cx="60"
-                        cy="60"
-                        r="49"
-                      />
-                      <circle
-                        className="progress-ring-value"
-                        cx="60"
-                        cy="60"
-                        r="49"
-                      />
-                    </svg>
-                    <div className="progress-ring-label">
-                      <strong>75%</strong>
-                      <span>Complete</span>
+                <div className="pd-progress-summary">
+                  <div
+                    className="pd-progress-ring"
+                    style={{
+                      background: `conic-gradient(#d7f078 ${data.profileCompleteness}%, #e7eee8 ${data.profileCompleteness}% 100%)`,
+                    }}
+                  >
+                    <div>
+                      <strong>{loading ? "—" : `${data.profileCompleteness}%`}</strong>
                     </div>
                   </div>
-
-                  <div className="progress-description">
-                    <strong>Good progress!</strong>
-                    <p>
-                      Complete the remaining sections to make your profile
-                      more attractive to employers.
-                    </p>
-                  </div>
-                </div>
-
-                <div className="profile-checklist">
-                  <div className="checklist-item completed">
-                    <CheckCircle2 size={17} />
-                    <span>Personal information</span>
-                  </div>
-                  <div className="checklist-item completed">
-                    <CheckCircle2 size={17} />
-                    <span>Professional category</span>
-                  </div>
-                  <div className="checklist-item">
-                    <Circle size={17} />
-                    <span>Work experience</span>
-                  </div>
-                  <div className="checklist-item">
-                    <Circle size={17} />
-                    <span>Certificates and portfolio</span>
-                  </div>
-                </div>
-
-                <Link
-                  href="/professional/profile"
-                  className="complete-profile-button"
-                >
-                  Complete my profile <ArrowRight size={16} />
-                </Link>
-              </section>
-
-              <section className="professional-panel quick-actions-panel">
-                <div className="professional-panel-heading">
                   <div>
-                    <span className="panel-eyebrow">GET THINGS DONE</span>
-                    <h3>Quick actions</h3>
+                    <strong>
+                      {data.profileCompleteness === 100
+                        ? "Profile complete"
+                        : "Keep building your profile"}
+                    </strong>
+                    <span>
+                      {loading
+                        ? "Checking your profile..."
+                        : `${data.completedProfileItems} of ${data.totalProfileItems} sections completed`}
+                    </span>
                   </div>
-                  <Plus size={20} className="panel-heading-icon" />
                 </div>
 
-                <Link
-                  href="/professional/opportunities"
-                  className="quick-action"
-                >
-                  <span className="quick-action-icon quick-green">
-                    <Search size={18} />
-                  </span>
-                  <span>
-                    <strong>Find opportunities</strong>
-                    <small>Discover available opportunities</small>
-                  </span>
-                  <ChevronRight size={17} />
-                </Link>
+                <div className="pd-progress-track">
+                  <span
+                    style={{
+                      width: `${loading ? 0 : data.profileCompleteness}%`,
+                    }}
+                  />
+                </div>
 
-                <Link href="/professional/saved" className="quick-action">
-                  <span className="quick-action-icon quick-orange">
-                    <Bookmark size={18} />
-                  </span>
-                  <span>
-                    <strong>Saved opportunities</strong>
-                    <small>Return to saved opportunities</small>
-                  </span>
-                  <ChevronRight size={17} />
-                </Link>
-
-                <Link
-                  href="/professional/profile"
-                  className="quick-action"
-                >
-                  <span className="quick-action-icon quick-purple">
-                    <UserRound size={18} />
-                  </span>
-                  <span>
-                    <strong>Update profile</strong>
-                    <small>Showcase your professional skills</small>
-                  </span>
-                  <ChevronRight size={17} />
-                </Link>
-
-                <Link
-                  href="/professional/messages"
-                  className="quick-action"
-                >
-                  <span className="quick-action-icon quick-blue">
-                    <MessageCircle size={18} />
-                  </span>
-                  <span>
-                    <strong>Messages</strong>
-                    <small>Connect with employers</small>
-                  </span>
-                  <ChevronRight size={17} />
-                </Link>
-
-                <Link
-                  href="/professional/notifications"
-                  className="quick-action"
-                >
-                  <span className="quick-action-icon quick-blue">
-                    <Bell size={18} />
-                  </span>
-                  <span>
-                    <strong>Notifications</strong>
-                    <small>Check your latest updates</small>
-                  </span>
-                  <ChevronRight size={17} />
+                <Link href="/professional/profile" className="pd-panel-action">
+                  Complete my profile <ArrowRight size={15} />
                 </Link>
               </section>
 
-              <section className="career-tip-card">
-                <div className="career-tip-icon">
-                  <Sparkles size={21} />
+              <section className="pd-panel pd-quick-panel">
+                <div className="pd-panel-heading">
+                  <div>
+                    <h2>Quick actions</h2>
+                    <p>Go straight to the tools you use most.</p>
+                  </div>
                 </div>
-                <span>CAREER TIP</span>
-                <h3>Let your skills speak for you.</h3>
-                <p>
-                  Add examples of your previous work to help employers
-                  understand what you can deliver.
-                </p>
+
+                <Link href="/professional/opportunities">
+                  <span className="pd-quick-icon"><Search size={18} /></span>
+                  <span><strong>Find opportunities</strong><small>Explore approved vacancies</small></span>
+                  <ArrowRight size={16} />
+                </Link>
+
+                <Link href="/professional/applications">
+                  <span className="pd-quick-icon"><FileText size={18} /></span>
+                  <span><strong>Track applications</strong><small>Review application progress</small></span>
+                  <ArrowRight size={16} />
+                </Link>
+
                 <Link href="/professional/profile">
-                  Improve your profile <ArrowRight size={15} />
+                  <span className="pd-quick-icon"><UserRound size={18} /></span>
+                  <span><strong>Edit professional profile</strong><small>Update skills and experience</small></span>
+                  <ArrowRight size={16} />
                 </Link>
+
+                <Link href="/professional/subscription">
+                  <span className="pd-quick-icon"><CreditCard size={18} /></span>
+                  <span><strong>Subscription & Billing</strong><small>Manage plans and payment history</small></span>
+                  <ArrowRight size={16} />
+                </Link>
+
+                <Link href="/professional/settings">
+                  <span className="pd-quick-icon"><Settings size={18} /></span>
+                  <span><strong>Account settings</strong><small>Manage your preferences</small></span>
+                  <ArrowRight size={16} />
+                </Link>
+              </section>
+
+              <section className="pd-tip-panel">
+                <div className="pd-tip-icon"><ShieldCheck size={20} /></div>
+                <div>
+                  <strong>Make your skills count</strong>
+                  <p>
+                    Keep your professional title, skills and work experience
+                    current so employers can understand what you offer.
+                  </p>
+                  <Link href="/professional/profile">
+                    Review my profile <ArrowRight size={14} />
+                  </Link>
+                </div>
               </section>
             </aside>
           </div>
 
-          <div className="professional-dashboard-footer-note">
-            <span>
-              <CheckCircle2 size={15} /> You are viewing your professional
-              workspace.
-            </span>
-            <Link href="/professional/applications">
-              Track your applications <ArrowRight size={14} />
-            </Link>
-          </div>
+          <footer className="pd-footer">
+            <span>Abi Job · Professional workspace</span>
+            <span>Opportunity starts here.</span>
+          </footer>
         </div>
       </section>
     </main>

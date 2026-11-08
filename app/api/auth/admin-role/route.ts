@@ -1,9 +1,9 @@
 
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "../../../../lib/supabase/server";
-import { createAdminClient } from "../../../../lib/supabase/admin";
+import { authorizeAdminRoute } from "../../../../lib/admin/authorization";
 
-export async function GET() {
+export async function POST(request: NextRequest) {
   try {
     const supabase = await createClient();
 
@@ -14,33 +14,70 @@ export async function GET() {
 
     if (authError || !user) {
       return NextResponse.json(
-        { error: "Authentication required." },
-        { status: 401 }
+        { authorized: false, error: "Authentication required." },
+        {
+          status: 401,
+          headers: { "Cache-Control": "no-store" },
+        }
       );
     }
 
-    const adminClient = createAdminClient();
+    let requestedPath = "/admin";
 
-    const { data: admin, error } = await adminClient
-      .from("platform_admins")
-      .select("role, status")
-      .eq("auth_user_id", user.id)
-      .maybeSingle();
+    try {
+      const body = await request.json();
 
-    if (error || !admin || admin.status !== "active") {
+      if (
+        body &&
+        typeof body.path === "string" &&
+        body.path.startsWith("/") &&
+        !body.path.startsWith("//")
+      ) {
+        requestedPath = body.path;
+      }
+    } catch {
+      // Use the default admin dashboard path.
+    }
+
+    const result = await authorizeAdminRoute(user.id, requestedPath);
+
+    if (!result.authorized) {
       return NextResponse.json(
-        { error: "This account is not an active administrator." },
-        { status: 403 }
+        {
+          authorized: false,
+          error: result.error || "Admin access denied.",
+        },
+        {
+          status: result.status || 403,
+          headers: { "Cache-Control": "no-store" },
+        }
       );
     }
 
-    return NextResponse.json({
-      role: admin.role,
-    });
-  } catch {
     return NextResponse.json(
-      { error: "Unable to verify administrator access." },
-      { status: 500 }
+      {
+        authorized: true,
+        adminId: result.adminId,
+        role: result.role,
+        permissions: result.permissions,
+      },
+      {
+        status: 200,
+        headers: { "Cache-Control": "no-store" },
+      }
+    );
+  } catch (error) {
+    console.error("Admin authorization failed:", error);
+
+    return NextResponse.json(
+      {
+        authorized: false,
+        error: "Unable to verify admin access.",
+      },
+      {
+        status: 500,
+        headers: { "Cache-Control": "no-store" },
+      }
     );
   }
 }

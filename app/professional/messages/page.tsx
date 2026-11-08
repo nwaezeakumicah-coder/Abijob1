@@ -1,150 +1,162 @@
+
 "use client";
 
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
-import Logo from "../../../components/Logo";
-import { createClient } from "@/lib/supabase/client";
 import {
+  AlertCircle,
   ArrowLeft,
-  ArrowRight,
-  Bell,
-  Bookmark,
   BriefcaseBusiness,
   Check,
   CheckCheck,
-  FileText,
-  LayoutDashboard,
+  LoaderCircle,
+  Menu,
   MessageCircle,
-  MoreVertical,
-  Paperclip,
   Search,
   Send,
-  Smile,
   UserRound,
+  X,
 } from "lucide-react";
+import Logo from "@/components/Logo";
+import { createClient } from "@/lib/supabase/client";
 import "./messages.css";
+
+type ConversationKind = "direct" | "application";
 
 type MessageRecord = {
   id: string;
-  application_id: string;
   sender_id: string;
   recipient_id: string;
   body: string;
   read_at: string | null;
   created_at: string;
+  application_id?: string | null;
+  conversation_id?: string | null;
 };
 
-type ApplicationRecord = {
-  id: string;
-  job_id: string;
-  applicant_id: string;
-  status: string;
+type ApplicationContactRecord = {
+  application_id: string;
+  contact_id: string;
+  contact_name: string;
+  contact_role: string;
+  business_name: string | null;
+  avatar_url: string | null;
+  job_title: string | null;
+};
+
+type DirectContactRecord = {
+  conversation_id: string;
+  contact_id: string;
+  contact_name: string;
+  contact_role: string;
   created_at: string;
+  updated_at: string;
 };
 
-type JobRecord = {
+type ChatMessage = {
   id: string;
-  title: string;
-  employer_id: string;
-};
-
-type ProfileRecord = {
-  id: string;
-  full_name: string | null;
-  headline: string | null;
-};
-
-type Message = {
-  id: string;
-  text: string;
-  time: string;
-  sender: "me" | "them";
-  read: boolean;
-  sender_id: string;
-  recipient_id: string;
-  read_at: string | null;
+  senderId: string;
+  recipientId: string;
+  body: string;
+  readAt: string | null;
+  createdAt: string;
 };
 
 type Conversation = {
   id: string;
-  applicationId: string;
-  employerId: string;
-  name: string;
-  role: string;
-  initials: string;
-  color: string;
-  online: boolean;
-  unread: number;
-  time: string;
-  messages: Message[];
+  kind: ConversationKind;
+  contactId: string;
+  contactName: string;
+  contactRole: string;
+  avatarUrl: string | null;
+  jobTitle: string | null;
+  applicationId: string | null;
+  directConversationId: string | null;
+  messages: ChatMessage[];
+  lastActivity: string;
+  unreadCount: number;
 };
-
-const COLORS = ["green", "orange", "purple", "blue", "pink"];
 
 function getInitials(name: string) {
   return name
     .trim()
     .split(/\s+/)
     .slice(0, 2)
-    .map((part) => part[0])
-    .join("")
-    .toUpperCase() || "EM";
+    .map((part) => part.charAt(0).toUpperCase())
+    .join("") || "?";
 }
 
-function formatMessageTime(value: string) {
+function formatTime(value: string) {
   const date = new Date(value);
 
   if (Number.isNaN(date.getTime())) return "";
 
-  return date.toLocaleTimeString([], {
-    hour: "numeric",
-    minute: "2-digit",
-  });
-}
+  const now = new Date();
+  const sameDay = date.toDateString() === now.toDateString();
 
-function formatConversationTime(value: string) {
-  const date = new Date(value);
-
-  if (Number.isNaN(date.getTime())) return "";
-
-  const today = new Date();
-  const isToday = date.toDateString() === today.toDateString();
-
-  if (isToday) {
-    return formatMessageTime(value);
-  }
-
-  const yesterday = new Date();
-  yesterday.setDate(yesterday.getDate() - 1);
-
-  if (date.toDateString() === yesterday.toDateString()) {
-    return "Yesterday";
+  if (sameDay) {
+    return date.toLocaleTimeString([], {
+      hour: "2-digit",
+      minute: "2-digit",
+    });
   }
 
   return date.toLocaleDateString([], {
-    month: "short",
     day: "numeric",
+    month: "short",
   });
 }
 
+function formatMessageDate(value: string) {
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) return "";
+
+  const now = new Date();
+  const yesterday = new Date(now);
+  yesterday.setDate(now.getDate() - 1);
+
+  if (date.toDateString() === now.toDateString()) return "Today";
+  if (date.toDateString() === yesterday.toDateString()) return "Yesterday";
+
+  return date.toLocaleDateString([], {
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+  });
+}
+
+function sortMessages(messages: ChatMessage[]) {
+  return [...messages].sort(
+    (a, b) =>
+      new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
+  );
+}
+
 export default function ProfessionalMessagesPage() {
-  const router = useRouter();
+  const supabase = useMemo(() => createClient(), []);
 
   const [conversations, setConversations] = useState<Conversation[]>([]);
-  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [selectedId, setSelectedId] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
   const [messageInput, setMessageInput] = useState("");
+  const [userId, setUserId] = useState("");
+  const [userName, setUserName] = useState("Professional");
   const [loaded, setLoaded] = useState(false);
-  const [mobileChatOpen, setMobileChatOpen] = useState(false);
-  const [userId, setUserId] = useState<string | null>(null);
   const [sending, setSending] = useState(false);
   const [error, setError] = useState("");
+  const [mobileChatOpen, setMobileChatOpen] = useState(false);
+  const [loadingMessages, setLoadingMessages] = useState(false);
+
+  const loadingRef = useRef(false);
+  const bottomRef = useRef<HTMLDivElement | null>(null);
+  const inputRef = useRef<HTMLTextAreaElement | null>(null);
+  const initialSelectionHandled = useRef(false);
 
   const loadConversations = useCallback(async () => {
-    const supabase = createClient();
+    if (loadingRef.current) return;
 
-    setError("");
+    loadingRef.current = true;
 
     try {
       const {
@@ -152,276 +164,364 @@ export default function ProfessionalMessagesPage() {
         error: authError,
       } = await supabase.auth.getUser();
 
-      if (authError || !user) {
-        router.replace("/login");
+      if (authError) throw authError;
+
+      if (!user) {
+        window.location.href = "/login?next=%2Fprofessional%2Fmessages";
+        return;
+      }
+
+      const { data: profile, error: profileError } = await supabase
+        .from("profiles")
+        .select("role, full_name")
+        .eq("id", user.id)
+        .maybeSingle();
+
+      if (profileError) throw profileError;
+
+      if (profile?.role !== "professional") {
+        window.location.href =
+          profile?.role === "job_seeker"
+            ? "/dashboard"
+            : profile?.role === "employer"
+              ? "/employer/dashboard"
+              : "/login";
+
         return;
       }
 
       setUserId(user.id);
+      setUserName(profile.full_name || "Professional");
 
-      // Confirm that this is a Professional account.
-      const { data: profile, error: profileError } = await supabase
-        .from("profiles")
-        .select("role")
-        .eq("id", user.id)
-        .single();
+      const [
+        { data: applicationContacts, error: applicationContactsError },
+        { data: directContacts, error: directContactsError },
+      ] = await Promise.all([
+        supabase.rpc("get_message_contacts"),
+        supabase.rpc("get_direct_message_contacts"),
+      ]);
 
-      if (profileError || profile?.role !== "professional") {
-        router.replace("/dashboard");
-        return;
-      }
+      if (applicationContactsError) throw applicationContactsError;
+      if (directContactsError) throw directContactsError;
 
-      // Load applications submitted by this professional.
-      const { data: applications, error: applicationsError } =
-        await supabase
-          .from("job_applications")
-          .select("id, job_id, applicant_id, status, created_at")
-          .eq("applicant_id", user.id)
-          .order("created_at", { ascending: false });
+      const appContacts = (applicationContacts || []) as ApplicationContactRecord[];
+      const directContactRows = (directContacts || []) as DirectContactRecord[];
 
-      if (applicationsError) throw applicationsError;
-
-      const applicationRecords =
-        (applications || []) as ApplicationRecord[];
-
-      if (applicationRecords.length === 0) {
-        setConversations([]);
-        setSelectedId(null);
-        return;
-      }
-
-      const applicationIds = applicationRecords.map(
-        (application) => application.id
-      );
-
-      const jobIds = [
-        ...new Set(applicationRecords.map((application) => application.job_id)),
+      const applicationIds = [
+        ...new Set(
+          appContacts
+            .map((contact) => contact.application_id)
+            .filter(Boolean)
+        ),
       ];
 
-      // Load the jobs connected to those applications.
-      const { data: jobs, error: jobsError } = await supabase
-        .from("jobs")
-        .select("id, title, employer_id")
-        .in("id", jobIds);
-
-      if (jobsError) throw jobsError;
-
-      const jobRecords = (jobs || []) as JobRecord[];
-
-      const employerIds = [
-        ...new Set(jobRecords.map((job) => job.employer_id)),
+      const directConversationIds = [
+        ...new Set(
+          directContactRows
+            .map((contact) => contact.conversation_id)
+            .filter(Boolean)
+        ),
       ];
 
-      // Employer profile details may be restricted by privacy policies.
-      // If they are unavailable, the inbox will use a safe fallback name.
-      let profileRecords: ProfileRecord[] = [];
+      let applicationMessages: MessageRecord[] = [];
+      let directMessages: MessageRecord[] = [];
 
-      if (employerIds.length > 0) {
-        const { data: employerProfiles } = await supabase
-          .from("profiles")
-          .select("id, full_name, headline")
-          .in("id", employerIds);
+      if (applicationIds.length > 0) {
+        const { data, error: messagesError } = await supabase
+          .from("messages")
+          .select(
+            "id, application_id, sender_id, recipient_id, body, read_at, created_at"
+          )
+          .in("application_id", applicationIds)
+          .order("created_at", { ascending: true });
 
-        profileRecords = (employerProfiles || []) as ProfileRecord[];
+        if (messagesError) throw messagesError;
+
+        applicationMessages = (data || []) as MessageRecord[];
       }
 
-      // Load messages belonging to the professional's applications.
-      const { data: messages, error: messagesError } = await supabase
-        .from("messages")
-        .select(
-          "id, application_id, sender_id, recipient_id, body, read_at, created_at"
-        )
-        .in("application_id", applicationIds)
-        .order("created_at", { ascending: true });
+      if (directConversationIds.length > 0) {
+        const { data, error: directMessagesError } = await supabase
+          .from("direct_messages")
+          .select(
+            "id, conversation_id, sender_id, recipient_id, body, read_at, created_at"
+          )
+          .in("conversation_id", directConversationIds)
+          .order("created_at", { ascending: true });
 
-      if (messagesError) throw messagesError;
+        if (directMessagesError) throw directMessagesError;
 
-      const messageRecords = (messages || []) as MessageRecord[];
+        directMessages = (data || []) as MessageRecord[];
+      }
 
-      const nextConversations: Conversation[] = applicationRecords.map(
-        (application, index) => {
-          const job = jobRecords.find(
-            (record) => record.id === application.job_id
-          );
+      const nextConversations: Conversation[] = [];
 
-          const employer = profileRecords.find(
-            (record) => record.id === job?.employer_id
-          );
+      for (const contact of appContacts) {
+        const records = applicationMessages
+          .filter((message) => message.application_id === contact.application_id)
+          .map((message) => ({
+            id: message.id,
+            senderId: message.sender_id,
+            recipientId: message.recipient_id,
+            body: message.body,
+            readAt: message.read_at,
+            createdAt: message.created_at,
+          }));
 
-          const employerName = employer?.full_name || "Employer";
+        const sorted = sortMessages(records);
+        const lastMessage = sorted[sorted.length - 1];
 
-          const applicationMessages = messageRecords
-            .filter(
-              (message) => message.application_id === application.id
-            )
-            .map((message) => ({
-              id: message.id,
-              text: message.body,
-              time: formatMessageTime(message.created_at),
-              sender: message.sender_id === user.id ? "me" : "them",
-              read: message.read_at !== null,
-              sender_id: message.sender_id,
-              recipient_id: message.recipient_id,
-              read_at: message.read_at,
-            })) as Message[];
-
-          const unread = applicationMessages.filter(
+        nextConversations.push({
+          id: `application-${contact.application_id}`,
+          kind: "application",
+          contactId: contact.contact_id,
+          contactName:
+            contact.business_name ||
+            contact.contact_name ||
+            "Employer",
+          contactRole: contact.contact_role || "employer",
+          avatarUrl: contact.avatar_url || null,
+          jobTitle: contact.job_title || null,
+          applicationId: contact.application_id,
+          directConversationId: null,
+          messages: sorted,
+          lastActivity: lastMessage?.createdAt || "",
+          unreadCount: sorted.filter(
             (message) =>
-              message.recipient_id === user.id &&
-              message.read_at === null
-          ).length;
+              message.recipientId === user.id &&
+              !message.readAt
+          ).length,
+        });
+      }
 
-          const lastMessage =
-            applicationMessages[applicationMessages.length - 1];
+      for (const contact of directContactRows) {
+        const records = directMessages
+          .filter(
+            (message) => message.conversation_id === contact.conversation_id
+          )
+          .map((message) => ({
+            id: message.id,
+            senderId: message.sender_id,
+            recipientId: message.recipient_id,
+            body: message.body,
+            readAt: message.read_at,
+            createdAt: message.created_at,
+          }));
 
-          return {
-            id: application.id,
-            applicationId: application.id,
-            employerId: job?.employer_id || "",
-            name: employerName,
-            role: job?.title || "Job application",
-            initials: getInitials(employerName),
-            color: COLORS[index % COLORS.length],
-            online: false,
-            unread,
-            time: lastMessage
-              ? lastMessage.time
-              : formatConversationTime(application.created_at),
-            messages: applicationMessages,
-          };
-        }
+        const sorted = sortMessages(records);
+        const lastMessage = sorted[sorted.length - 1];
+
+        nextConversations.push({
+          id: `direct-${contact.conversation_id}`,
+          kind: "direct",
+          contactId: contact.contact_id,
+          contactName: contact.contact_name || "Job Seeker",
+          contactRole: contact.contact_role || "job_seeker",
+          avatarUrl: null,
+          jobTitle: null,
+          applicationId: null,
+          directConversationId: contact.conversation_id,
+          messages: sorted,
+          lastActivity:
+            lastMessage?.createdAt || contact.updated_at || contact.created_at,
+          unreadCount: sorted.filter(
+            (message) =>
+              message.recipientId === user.id &&
+              !message.readAt
+          ).length,
+        });
+      }
+
+      nextConversations.sort(
+        (a, b) =>
+          new Date(b.lastActivity || 0).getTime() -
+          new Date(a.lastActivity || 0).getTime()
       );
-
-      // Put conversations with the most recent messages first.
-      nextConversations.sort((a, b) => {
-        const aLast =
-          messageRecords
-            .filter((message) => message.application_id === a.applicationId)
-            .map((message) => message.created_at)
-            .pop() || "";
-
-        const bLast =
-          messageRecords
-            .filter((message) => message.application_id === b.applicationId)
-            .map((message) => message.created_at)
-            .pop() || "";
-
-        return bLast.localeCompare(aLast);
-      });
 
       setConversations(nextConversations);
 
-      setSelectedId((currentId) => {
-        if (
-          currentId &&
-          nextConversations.some(
-            (conversation) => conversation.id === currentId
-          )
-        ) {
-          return currentId;
+      if (!initialSelectionHandled.current) {
+        const requestedId = new URLSearchParams(
+          window.location.search
+        ).get("conversation");
+
+        if (requestedId) {
+          const requestedConversation = nextConversations.find(
+            (conversation) =>
+              conversation.id === requestedId ||
+              conversation.applicationId === requestedId ||
+              conversation.directConversationId === requestedId
+          );
+
+          if (requestedConversation) {
+            setSelectedId(requestedConversation.id);
+          }
         }
 
-        return nextConversations[0]?.id || null;
-      });
+        initialSelectionHandled.current = true;
+      } else {
+        setSelectedId((current) => {
+          if (current && nextConversations.some((item) => item.id === current)) {
+            return current;
+          }
+
+          return nextConversations[0]?.id || "";
+        });
+      }
+
+      setError("");
     } catch (err) {
-      console.error("Professional messages error:", err);
+      console.error("Unable to load professional conversations:", err);
 
       setError(
         err instanceof Error
           ? err.message
-          : "Unable to load your conversations."
+          : "Your conversations could not be loaded. Please try again."
       );
     } finally {
       setLoaded(true);
+      loadingRef.current = false;
     }
-  }, [router]);
+  }, [supabase]);
 
   useEffect(() => {
-    loadConversations();
+    void loadConversations();
   }, [loadConversations]);
+
+  useEffect(() => {
+    if (!userId) return;
+
+    const applicationChannel = supabase
+      .channel(`professional-application-messages-${userId}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "messages",
+        },
+        () => {
+          void loadConversations();
+        }
+      )
+      .subscribe();
+
+    const directChannel = supabase
+      .channel(`professional-direct-messages-${userId}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "direct_messages",
+        },
+        () => {
+          void loadConversations();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      void supabase.removeChannel(applicationChannel);
+      void supabase.removeChannel(directChannel);
+    };
+  }, [supabase, userId, loadConversations]);
 
   const selectedConversation = conversations.find(
     (conversation) => conversation.id === selectedId
   );
 
-  const filteredConversations = useMemo(() => {
-    const query = searchQuery.toLowerCase().trim();
+  const filteredConversations = conversations.filter((conversation) => {
+    const query = searchQuery.trim().toLowerCase();
 
-    return conversations.filter((conversation) => {
-      return (
-        conversation.name.toLowerCase().includes(query) ||
-        conversation.role.toLowerCase().includes(query) ||
-        conversation.messages.some((message) =>
-          message.text.toLowerCase().includes(query)
-        )
-      );
-    });
-  }, [conversations, searchQuery]);
+    if (!query) return true;
 
-  const unreadCount = conversations.reduce(
-    (total, conversation) => total + conversation.unread,
+    return (
+      conversation.contactName.toLowerCase().includes(query) ||
+      (conversation.jobTitle || "").toLowerCase().includes(query) ||
+      conversation.contactRole.toLowerCase().includes(query)
+    );
+  });
+
+  const totalUnread = conversations.reduce(
+    (total, conversation) => total + conversation.unreadCount,
     0
   );
 
-  async function openConversation(id: string) {
-    setSelectedId(id);
+  useEffect(() => {
+    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [selectedConversation?.messages.length, selectedId]);
+
+  const openConversation = async (conversation: Conversation) => {
+    setSelectedId(conversation.id);
     setMobileChatOpen(true);
+    setError("");
 
-    if (!userId) return;
-
-    const conversation = conversations.find((item) => item.id === id);
-
-    if (!conversation) return;
-
-    const unreadIds = conversation.messages
-      .filter(
-        (message) =>
-          message.recipient_id === userId && message.read_at === null
-      )
-      .map((message) => message.id);
-
-    if (unreadIds.length === 0) return;
-
-    const supabase = createClient();
-    const readAt = new Date().toISOString();
-
-    const { error: updateError } = await supabase
-      .from("messages")
-      .update({ read_at: readAt })
-      .in("id", unreadIds)
-      .eq("recipient_id", userId);
-
-    if (updateError) {
-      console.error("Unable to mark messages as read:", updateError);
-      setError("Unable to update message read status.");
-      return;
-    }
-
-    setConversations((current) =>
-      current.map((item) =>
-        item.id === id
-          ? {
-              ...item,
-              unread: 0,
-              messages: item.messages.map((message) =>
-                unreadIds.includes(message.id)
-                  ? { ...message, read_at: readAt, read: true }
-                  : message
-              ),
-            }
-          : item
-      )
+    const unreadMessages = conversation.messages.filter(
+      (message) =>
+        message.recipientId === userId && !message.readAt
     );
-  }
 
-  async function sendMessage() {
+    if (unreadMessages.length === 0) return;
+
+    setLoadingMessages(true);
+
+    try {
+      const unreadIds = unreadMessages.map((message) => message.id);
+
+      if (conversation.kind === "direct") {
+        const { error: updateError } = await supabase
+          .from("direct_messages")
+          .update({ read_at: new Date().toISOString() })
+          .in("id", unreadIds)
+          .eq("recipient_id", userId)
+          .is("read_at", null);
+
+        if (updateError) throw updateError;
+      } else {
+        const { error: updateError } = await supabase
+          .from("messages")
+          .update({ read_at: new Date().toISOString() })
+          .in("id", unreadIds)
+          .eq("recipient_id", userId)
+          .is("read_at", null);
+
+        if (updateError) throw updateError;
+      }
+
+      setConversations((current) =>
+        current.map((item) =>
+          item.id === conversation.id
+            ? {
+                ...item,
+                unreadCount: 0,
+                messages: item.messages.map((message) =>
+                  unreadIds.includes(message.id)
+                    ? { ...message, readAt: new Date().toISOString() }
+                    : message
+                ),
+              }
+            : item
+        )
+      );
+    } catch (err) {
+      console.error("Unable to mark messages as read:", err);
+      setError("Messages opened, but read receipts could not be updated.");
+    } finally {
+      setLoadingMessages(false);
+    }
+  };
+
+  const sendMessage = async () => {
     const text = messageInput.trim();
+    const conversation = selectedConversation;
 
     if (
       !text ||
-      !selectedConversation ||
+      text.length > 5000 ||
+      !conversation ||
       !userId ||
-      !selectedConversation.employerId ||
+      !conversation.contactId ||
       sending
     ) {
       return;
@@ -431,23 +531,41 @@ export default function ProfessionalMessagesPage() {
     setError("");
 
     try {
-      const supabase = createClient();
+      if (conversation.kind === "direct") {
+        if (!conversation.directConversationId) {
+          throw new Error("Invalid direct conversation.");
+        }
 
-      const { error: sendError } = await supabase
-        .from("messages")
-        .insert({
-          application_id: selectedConversation.applicationId,
-          sender_id: userId,
-          recipient_id: selectedConversation.employerId,
-          body: text,
-        });
+        const { error: sendError } = await supabase
+          .from("direct_messages")
+          .insert({
+            conversation_id: conversation.directConversationId,
+            sender_id: userId,
+            recipient_id: conversation.contactId,
+            body: text,
+          });
 
-      if (sendError) throw sendError;
+        if (sendError) throw sendError;
+      } else {
+        if (!conversation.applicationId) {
+          throw new Error("Invalid application conversation.");
+        }
+
+        const { error: sendError } = await supabase
+          .from("messages")
+          .insert({
+            application_id: conversation.applicationId,
+            sender_id: userId,
+            recipient_id: conversation.contactId,
+            body: text,
+          });
+
+        if (sendError) throw sendError;
+      }
 
       setMessageInput("");
-
-      // Reload the saved conversation from Supabase.
       await loadConversations();
+      inputRef.current?.focus();
     } catch (err) {
       console.error("Unable to send professional message:", err);
 
@@ -459,446 +577,409 @@ export default function ProfessionalMessagesPage() {
     } finally {
       setSending(false);
     }
-  }
+  };
 
-  function handleComposerKeyDown(
+  const handleComposerKeyDown = (
     event: React.KeyboardEvent<HTMLTextAreaElement>
-  ) {
+  ) => {
     if (event.key === "Enter" && !event.shiftKey) {
       event.preventDefault();
-      sendMessage();
+      void sendMessage();
     }
-  }
+  };
+
+  const selectedMessages = selectedConversation?.messages || [];
+
+  let previousDate = "";
 
   return (
-    <main className="professional-messages-page">
+    <div className="professional-messages-page">
       <aside className="professional-messages-sidebar">
         <div className="professional-messages-brand">
-          <Logo href="/" light />
+          <Logo />
         </div>
 
-        <p className="professional-messages-nav-label">
-          PROFESSIONAL WORKSPACE
-        </p>
+        <div className="professional-sidebar-profile">
+          <div className="professional-sidebar-avatar">
+            {getInitials(userName)}
+          </div>
+          <div>
+            <strong>{userName}</strong>
+            <span>Professional account</span>
+          </div>
+        </div>
 
         <nav className="professional-messages-nav">
           <Link href="/professional/dashboard">
-            <LayoutDashboard size={19} />
+            <BriefcaseBusiness size={19} />
             <span>Dashboard</span>
           </Link>
-
           <Link href="/professional/opportunities">
-            <BriefcaseBusiness size={19} />
+            <Search size={19} />
             <span>Opportunities</span>
           </Link>
-
           <Link href="/professional/applications">
-            <FileText size={19} />
-            <span>My applications</span>
-          </Link>
-
-          <Link href="/professional/saved">
-            <Bookmark size={19} />
-            <span>Saved opportunities</span>
-          </Link>
-
-          <Link href="/professional/experience">
             <BriefcaseBusiness size={19} />
-            <span>Experience</span>
+            <span>Applications</span>
           </Link>
-
           <Link href="/professional/messages" className="active">
             <MessageCircle size={19} />
             <span>Messages</span>
-            {unreadCount > 0 && (
-              <span className="professional-messages-nav-count">
-                {unreadCount}
+            {totalUnread > 0 && (
+              <span className="professional-nav-count">
+                {totalUnread > 99 ? "99+" : totalUnread}
               </span>
             )}
           </Link>
-
           <Link href="/professional/notifications">
-            <Bell size={19} />
+            <AlertCircle size={19} />
             <span>Notifications</span>
+          </Link>
+          <Link href="/professional/profile">
+            <UserRound size={19} />
+            <span>My Profile</span>
+          </Link>
+          <Link href="/professional/settings">
+            <UserRound size={19} />
+            <span>Settings</span>
           </Link>
         </nav>
 
-        <div className="professional-messages-sidebar-bottom">
-          <Link
-            href="/professional/profile"
-            className="professional-messages-profile-link"
-          >
-            <div className="professional-messages-profile-avatar">MN</div>
-            <div>
-              <strong>My profile</strong>
-              <span>Professional account</span>
-            </div>
-            <ArrowRight size={15} />
-          </Link>
-
-          <Link
-            href="/professional/settings"
-            className="professional-messages-settings-link"
-          >
-            <UserRound size={17} />
-            Account settings
-          </Link>
+        <div className="professional-sidebar-footer">
+          <span>Abi Job</span>
+          <small>Opportunity starts here</small>
         </div>
       </aside>
 
-      <section className="professional-messages-main">
+      <main className="professional-messages-main">
         <header className="professional-messages-topbar">
           <div>
-            <span>PROFESSIONAL WORKSPACE</span>
+            <span className="professional-topbar-eyebrow">
+              PROFESSIONAL WORKSPACE
+            </span>
             <h1>Messages</h1>
+            <p>Communicate with Job Seekers and Employers.</p>
           </div>
 
-          <div className="professional-messages-top-actions">
-            <Link
-              href="/professional/notifications"
-              aria-label="Notifications"
-            >
-              <Bell size={20} />
-            </Link>
-            <Link
-              href="/professional/profile"
-              className="professional-messages-top-avatar"
-            >
-              MN
-            </Link>
+          <div className="professional-topbar-status">
+            <span className="professional-online-dot" />
+            Messaging inbox
           </div>
         </header>
 
-        <div className="professional-messages-content">
-          <div className="professional-messages-intro">
-            <div>
-              <span>YOUR CONNECTIONS</span>
-              <h2>Stay connected. Move opportunities forward.</h2>
-              <p>
-                Communicate with employers about the opportunities you have
-                applied for.
-              </p>
-            </div>
-
-            <div className="professional-messages-intro-stat">
-              <div>
-                <MessageCircle size={21} />
-              </div>
-              <strong>{conversations.length}</strong>
-              <span>Conversations</span>
-            </div>
+        {error && (
+          <div className="professional-message-error" role="alert">
+            <AlertCircle size={18} />
+            <span>{error}</span>
+            <button
+              type="button"
+              onClick={() => setError("")}
+              aria-label="Dismiss error"
+            >
+              <X size={17} />
+            </button>
           </div>
+        )}
 
-          {error && (
-            <div
-              role="alert"
-              style={{
-                padding: "12px 16px",
-                marginBottom: "16px",
-                borderRadius: "8px",
-                background: "#fff1f0",
-                color: "#a12622",
-              }}
-            >
-              {error}
+        <section className="professional-chat-layout">
+          <aside
+            className={`professional-conversation-panel ${
+              mobileChatOpen ? "mobile-hidden" : ""
+            }`}
+          >
+            <div className="professional-conversation-heading">
+              <div>
+                <h2>Your conversations</h2>
+                <p>
+                  {conversations.length}{" "}
+                  {conversations.length === 1 ? "conversation" : "conversations"}
+                </p>
+              </div>
+              <span className="professional-conversation-total">
+                {totalUnread}
+              </span>
             </div>
-          )}
 
-          <section className="professional-messages-workspace">
-            <aside
-              className={`professional-messages-list ${
-                mobileChatOpen ? "mobile-hidden" : ""
-              }`}
-            >
-              <div className="professional-messages-list-heading">
-                <div>
-                  <h2>Inbox</h2>
-                  <span>
-                    {unreadCount} unread{" "}
-                    {unreadCount === 1 ? "message" : "messages"}
-                  </span>
+            <label className="professional-conversation-search">
+              <Search size={18} />
+              <input
+                type="search"
+                placeholder="Search conversations..."
+                value={searchQuery}
+                onChange={(event) => setSearchQuery(event.target.value)}
+              />
+            </label>
+
+            <div className="professional-conversation-list">
+              {!loaded ? (
+                <div className="professional-chat-loading">
+                  <LoaderCircle className="spin" size={25} />
+                  <span>Loading conversations...</span>
                 </div>
-                <button
-                  type="button"
-                  aria-label="Refresh conversations"
-                  title="Refresh conversations"
-                  onClick={loadConversations}
-                >
-                  <MoreVertical size={19} />
-                </button>
-              </div>
-
-              <div className="professional-messages-search">
-                <Search size={17} />
-                <input
-                  type="search"
-                  placeholder="Search conversations..."
-                  value={searchQuery}
-                  onChange={(event) => setSearchQuery(event.target.value)}
-                />
-              </div>
-
-              <div className="professional-messages-list-label">
-                ALL CONVERSATIONS
-              </div>
-
-              <div className="professional-messages-conversations">
-                {!loaded ? (
-                  <div className="professional-messages-list-empty">
-                    Loading conversations...
+              ) : filteredConversations.length === 0 ? (
+                <div className="professional-chat-empty-list">
+                  <div className="professional-empty-icon">
+                    <MessageCircle size={25} />
                   </div>
-                ) : filteredConversations.length > 0 ? (
-                  filteredConversations.map((conversation) => {
-                    const lastMessage =
-                      conversation.messages[
-                        conversation.messages.length - 1
-                      ];
+                  <strong>
+                    {searchQuery
+                      ? "No matching conversations"
+                      : "No conversations yet"}
+                  </strong>
+                  <p>
+                    {searchQuery
+                      ? "Try another name or search term."
+                      : "Messages from Job Seekers and Employers will appear here."}
+                  </p>
+                </div>
+              ) : (
+                filteredConversations.map((conversation) => {
+                  const lastMessage =
+                    conversation.messages[conversation.messages.length - 1];
 
-                    return (
-                      <button
-                        type="button"
-                        key={conversation.id}
-                        className={`professional-messages-conversation ${
-                          selectedId === conversation.id ? "selected" : ""
-                        }`}
-                        onClick={() => openConversation(conversation.id)}
-                      >
-                        <div
-                          className={`professional-messages-contact-avatar ${conversation.color}`}
-                        >
-                          {conversation.initials}
-                          {conversation.online && (
-                            <span className="professional-messages-online-dot" />
-                          )}
-                        </div>
-
-                        <div className="professional-messages-contact-details">
-                          <div className="professional-messages-contact-top">
-                            <strong>{conversation.name}</strong>
-                            <span>
-                              {lastMessage?.time || conversation.time}
-                            </span>
-                          </div>
-
-                          <p>{conversation.role}</p>
-
-                          <div className="professional-messages-contact-bottom">
-                            <span>
-                              {lastMessage?.sender === "me" && "You: "}
-                              {lastMessage?.text || "No messages yet"}
-                            </span>
-
-                            {conversation.unread > 0 && (
-                              <b>{conversation.unread}</b>
-                            )}
-                          </div>
-                        </div>
-                      </button>
-                    );
-                  })
-                ) : (
-                  <div className="professional-messages-list-empty">
-                    {conversations.length === 0 ? (
-                      <>
-                        <MessageCircle size={23} />
-                        <strong>No conversations yet</strong>
-                        <span>
-                          Conversations will appear here when you apply for
-                          opportunities and exchange messages with employers.
-                        </span>
-                      </>
-                    ) : (
-                      <>
-                        <Search size={23} />
-                        <strong>No conversations found</strong>
-                        <span>
-                          Try searching with another name or keyword.
-                        </span>
-                      </>
-                    )}
-                  </div>
-                )}
-              </div>
-
-              <div className="professional-messages-list-footer">
-                <ShieldCheckIcon />
-                <span>Your conversations are private to your account.</span>
-              </div>
-            </aside>
-
-            <section
-              className={`professional-messages-chat ${
-                mobileChatOpen ? "mobile-visible" : ""
-              }`}
-            >
-              {selectedConversation ? (
-                <>
-                  <header className="professional-messages-chat-header">
+                  return (
                     <button
                       type="button"
-                      className="professional-messages-back"
-                      onClick={() => setMobileChatOpen(false)}
-                      aria-label="Back to conversations"
+                      key={conversation.id}
+                      className={`professional-conversation-item ${
+                        selectedId === conversation.id ? "selected" : ""
+                      }`}
+                      onClick={() => void openConversation(conversation)}
                     >
-                      <ArrowLeft size={20} />
-                    </button>
-
-                    <div
-                      className={`professional-messages-contact-avatar large ${selectedConversation.color}`}
-                    >
-                      {selectedConversation.initials}
-                    </div>
-
-                    <div className="professional-messages-chat-person">
-                      <strong>{selectedConversation.name}</strong>
-                      <span>
-                        <i />
-                        Employer
-                      </span>
-                      <small>{selectedConversation.role}</small>
-                    </div>
-
-                    <button
-                      type="button"
-                      className="professional-messages-chat-menu"
-                      aria-label="Conversation options"
-                      title="Conversation options"
-                    >
-                      <MoreVertical size={20} />
-                    </button>
-                  </header>
-
-                  <div className="professional-messages-chat-date">
-                    <span>CONVERSATION</span>
-                  </div>
-
-                  <div className="professional-messages-chat-body">
-                    {selectedConversation.messages.length > 0 ? (
-                      selectedConversation.messages.map((message) => (
-                        <div
-                          key={message.id}
-                          className={`professional-message-row ${
-                            message.sender === "me" ? "sent" : "received"
-                          }`}
-                        >
-                          {message.sender === "them" && (
-                            <div
-                              className={`professional-message-mini-avatar ${selectedConversation.color}`}
-                            >
-                              {selectedConversation.initials}
-                            </div>
-                          )}
-
-                          <div className="professional-message-content">
-                            <div className="professional-message-bubble">
-                              {message.text}
-                            </div>
-                            <div className="professional-message-meta">
-                              <span>{message.time}</span>
-                              {message.sender === "me" && (
-                                <span className="professional-message-read">
-                                  {message.read ? (
-                                    <CheckCheck size={14} />
-                                  ) : (
-                                    <Check size={14} />
-                                  )}
-                                </span>
-                              )}
-                            </div>
-                          </div>
-                        </div>
-                      ))
-                    ) : (
-                      <div className="professional-messages-list-empty">
-                        <MessageCircle size={23} />
-                        <strong>Start the conversation</strong>
-                        <span>
-                          Send a message to this employer about your
-                          application.
-                        </span>
+                      <div className="professional-contact-avatar">
+                        {conversation.avatarUrl ? (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img
+                            src={conversation.avatarUrl}
+                            alt=""
+                          />
+                        ) : (
+                          getInitials(conversation.contactName)
+                        )}
                       </div>
+
+                      <div className="professional-contact-details">
+                        <div className="professional-contact-topline">
+                          <strong>{conversation.contactName}</strong>
+                          <time>
+                            {lastMessage
+                              ? formatTime(lastMessage.createdAt)
+                              : formatTime(conversation.lastActivity)}
+                          </time>
+                        </div>
+
+                        <div className="professional-contact-preview">
+                          <span>
+                            {lastMessage
+                              ? lastMessage.body
+                              : conversation.kind === "direct"
+                                ? "Direct enquiry"
+                                : "Application conversation"}
+                          </span>
+
+                          {conversation.unreadCount > 0 && (
+                            <b>{conversation.unreadCount}</b>
+                          )}
+                        </div>
+
+                        <div className="professional-contact-meta">
+                          <span
+                            className={
+                              conversation.kind === "direct"
+                                ? "direct-label"
+                                : "application-label"
+                            }
+                          >
+                            {conversation.kind === "direct"
+                              ? "Job Seeker"
+                              : "Employer"}
+                          </span>
+
+                          {conversation.jobTitle && (
+                            <span className="professional-contact-job">
+                              {conversation.jobTitle}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    </button>
+                  );
+                })
+              )}
+            </div>
+          </aside>
+
+          <section
+            className={`professional-chat-panel ${
+              mobileChatOpen ? "mobile-visible" : ""
+            }`}
+          >
+            {!selectedConversation ? (
+              <div className="professional-chat-placeholder">
+                <div className="professional-empty-icon large">
+                  <MessageCircle size={34} />
+                </div>
+                <h2>Select a conversation</h2>
+                <p>
+                  Choose a conversation to read messages and reply.
+                </p>
+              </div>
+            ) : (
+              <>
+                <div className="professional-chat-header">
+                  <button
+                    type="button"
+                    className="professional-mobile-back"
+                    onClick={() => setMobileChatOpen(false)}
+                    aria-label="Back to conversations"
+                  >
+                    <ArrowLeft size={20} />
+                  </button>
+
+                  <div className="professional-contact-avatar header-avatar">
+                    {selectedConversation.avatarUrl ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={selectedConversation.avatarUrl}
+                        alt=""
+                      />
+                    ) : (
+                      getInitials(selectedConversation.contactName)
                     )}
                   </div>
 
-                  <form
-                    className="professional-messages-composer"
-                    onSubmit={(event) => {
-                      event.preventDefault();
-                      sendMessage();
-                    }}
-                  >
-                    <div className="professional-messages-composer-tools">
-                      <button
-                        type="button"
-                        aria-label="Attach file"
-                        title="File attachments are not available yet"
-                        onClick={() =>
-                          alert("File attachments are not available yet.")
-                        }
-                      >
-                        <Paperclip size={19} />
-                      </button>
-                      <button
-                        type="button"
-                        aria-label="Emoji"
-                        title="Add a smile"
-                        onClick={() =>
-                          setMessageInput((current) => `${current} 😊`)
-                        }
-                      >
-                        <Smile size={19} />
-                      </button>
-                    </div>
+                  <div className="professional-chat-contact-info">
+                    <strong>{selectedConversation.contactName}</strong>
+                    <span>
+                      {selectedConversation.kind === "direct"
+                        ? "Job Seeker · Direct enquiry"
+                        : `Employer · ${
+                            selectedConversation.jobTitle ||
+                            "Application conversation"
+                          }`}
+                    </span>
+                  </div>
 
+                  <div className="professional-chat-header-type">
+                    {selectedConversation.kind === "direct"
+                      ? "DIRECT MESSAGE"
+                      : "JOB APPLICATION"}
+                  </div>
+                </div>
+
+                <div className="professional-chat-messages">
+                  {selectedMessages.length === 0 ? (
+                    <div className="professional-no-messages">
+                      <div className="professional-empty-icon">
+                        <MessageCircle size={25} />
+                      </div>
+                      <strong>Start the conversation</strong>
+                      <p>
+                        Send a message to{" "}
+                        {selectedConversation.contactName}.
+                      </p>
+                    </div>
+                  ) : (
+                    selectedMessages.map((message) => {
+                      const ownMessage = message.senderId === userId;
+                      const messageDate = formatMessageDate(message.createdAt);
+                      const showDate = messageDate !== previousDate;
+                      previousDate = messageDate;
+
+                      return (
+                        <div key={message.id}>
+                          {showDate && (
+                            <div className="professional-message-date">
+                              <span>{messageDate}</span>
+                            </div>
+                          )}
+
+                          <div
+                            className={`professional-message-row ${
+                              ownMessage ? "own-message" : "received-message"
+                            }`}
+                          >
+                            <div className="professional-message-bubble">
+                              <p>{message.body}</p>
+                              <div className="professional-message-time">
+                                <time>{formatTime(message.createdAt)}</time>
+                                {ownMessage &&
+                                  (message.readAt ? (
+                                    <CheckCheck
+                                      size={15}
+                                      aria-label="Read"
+                                      className="message-read"
+                                    />
+                                  ) : (
+                                    <Check
+                                      size={15}
+                                      aria-label="Sent"
+                                    />
+                                  ))}
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })
+                  )}
+
+                  <div ref={bottomRef} />
+                </div>
+
+                <div className="professional-chat-composer">
+                  {loadingMessages && (
+                    <span className="professional-read-status">
+                      Updating read receipts...
+                    </span>
+                  )}
+
+                  <div className="professional-composer-box">
                     <textarea
-                      placeholder="Write your message..."
+                      ref={inputRef}
                       value={messageInput}
                       onChange={(event) =>
-                        setMessageInput(event.target.value)
+                        setMessageInput(event.target.value.slice(0, 5000))
                       }
                       onKeyDown={handleComposerKeyDown}
-                      rows={1}
+                      placeholder={`Message ${selectedConversation.contactName}...`}
+                      rows={2}
+                      maxLength={5000}
+                      aria-label="Write a message"
                     />
 
-                    <button
-                      type="submit"
-                      className="professional-messages-send"
-                      disabled={!messageInput.trim() || sending}
-                      aria-label="Send message"
-                    >
-                      <Send size={18} />
-                    </button>
-                  </form>
-
-                  <p className="professional-messages-composer-note">
-                    {sending
-                      ? "Sending message..."
-                      : "Press Enter to send · Shift + Enter for a new line"}
-                  </p>
-                </>
-              ) : (
-                <div className="professional-messages-no-chat">
-                  <div>
-                    <MessageCircle size={34} />
+                    <div className="professional-composer-footer">
+                      <span>{messageInput.length}/5000 · Enter to send</span>
+                      <button
+                        type="button"
+                        onClick={() => void sendMessage()}
+                        disabled={
+                          !messageInput.trim() ||
+                          messageInput.trim().length > 5000 ||
+                          sending
+                        }
+                        aria-label="Send message"
+                      >
+                        {sending ? (
+                          <LoaderCircle className="spin" size={18} />
+                        ) : (
+                          <>
+                            <Send size={17} />
+                            <span>Send</span>
+                          </>
+                        )}
+                      </button>
+                    </div>
                   </div>
-                  <h2>Select a conversation</h2>
-                  <p>
-                    Choose someone from your inbox to view your conversation.
+                  <p className="professional-composer-note">
+                    Keep your communication respectful and professional.
                   </p>
                 </div>
-              )}
-            </section>
+              </>
+            )}
           </section>
-        </div>
-      </section>
-    </main>
-  );
-}
-
-function ShieldCheckIcon() {
-  return (
-    <span className="professional-messages-shield">
-      <Check size={13} />
-    </span>
+        </section>
+      </main>
+    </div>
   );
 }

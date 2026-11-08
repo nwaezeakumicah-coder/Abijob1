@@ -28,7 +28,6 @@ import {
   Search,
   Users,
   Settings,
-  Plus,
   Sparkles,
   ExternalLink,
 } from "lucide-react";
@@ -68,13 +67,6 @@ const emptyProfile: ProfileData = {
 type Notice = {
   type: "success" | "error";
   text: string;
-};
-
-type StoredProfileFiles = {
-  avatarPath: string | null;
-  cvPath: string | null;
-  avatarUrl: string;
-  cvUrl: string;
 };
 
 function getExtension(fileName: string) {
@@ -747,11 +739,15 @@ export default function ProfilePage() {
                 </p>
 
                 <div className="profile-photo-actions">
-                  <button
-                    type="button"
+                  <label
+                    htmlFor="profile-photo-input"
                     className="profile-upload-button"
-                    onClick={() => photoInputRef.current?.click()}
-                    disabled={isUploadingPhoto}
+                    aria-disabled={isUploadingPhoto}
+                    style={{
+                      cursor: isUploadingPhoto ? "not-allowed" : "pointer",
+                      opacity: isUploadingPhoto ? 0.55 : 1,
+                      pointerEvents: isUploadingPhoto ? "none" : "auto",
+                    }}
                   >
                     {isUploadingPhoto ? (
                       <LoaderCircle size={16} className="animate-spin" />
@@ -759,7 +755,7 @@ export default function ProfilePage() {
                       <Camera size={16} />
                     )}
                     {isUploadingPhoto ? "Uploading..." : "Upload photo"}
-                  </button>
+                  </label>
 
                   {photoPath && (
                     <button
@@ -779,13 +775,16 @@ export default function ProfilePage() {
                 </div>
 
                 <input
+                  id="profile-photo-input"
                   ref={photoInputRef}
                   type="file"
                   accept="image/jpeg,image/png,image/webp"
                   hidden
-                  onChange={(event) =>
-                    void uploadPhoto(event.target.files?.[0])
-                  }
+                  disabled={isUploadingPhoto}
+                  onChange={(event) => {
+                    void uploadPhoto(event.target.files?.[0]);
+                    event.currentTarget.value = "";
+                  }}
                 />
               </div>
             </div>
@@ -1023,11 +1022,15 @@ export default function ProfilePage() {
                 </div>
               )}
 
-              <button
-                type="button"
+              <label
+                htmlFor="profile-cv-input"
                 className="profile-cv-upload-button"
-                onClick={() => cvInputRef.current?.click()}
-                disabled={isUploadingCV}
+                aria-disabled={isUploadingCV}
+                style={{
+                  cursor: isUploadingCV ? "not-allowed" : "pointer",
+                  opacity: isUploadingCV ? 0.55 : 1,
+                  pointerEvents: isUploadingCV ? "none" : "auto",
+                }}
               >
                 {isUploadingCV ? (
                   <LoaderCircle size={17} className="animate-spin" />
@@ -1039,14 +1042,19 @@ export default function ProfilePage() {
                   : cvPath
                     ? "Replace CV"
                     : "Upload CV"}
-              </button>
+              </label>
 
               <input
+                id="profile-cv-input"
                 ref={cvInputRef}
                 type="file"
                 accept=".pdf,.doc,.docx,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
                 hidden
-                onChange={(event) => void uploadCV(event.target.files?.[0])}
+                disabled={isUploadingCV}
+                onChange={(event) => {
+                  void uploadCV(event.target.files?.[0]);
+                  event.currentTarget.value = "";
+                }}
               />
             </div>
           </section>
@@ -1131,7 +1139,10 @@ export default function ProfilePage() {
 
               <div className="profile-preview-block">
                 <h4>About</h4>
-                <p>{profile.about || "Your professional summary will appear here."}</p>
+                <p>
+                  {profile.about ||
+                    "Your professional summary will appear here."}
+                </p>
               </div>
 
               <div className="profile-preview-block">

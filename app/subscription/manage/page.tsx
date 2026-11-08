@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
@@ -26,27 +25,46 @@ import "./manage.css";
 
 type Subscription = {
   id: string;
-  account_role: string;
-  billing_interval: string | null;
+  accountRole: string;
+  billingInterval: string | null;
   status: string;
-  trial_started_at: string | null;
-  trial_ends_at: string | null;
-  current_period_start: string | null;
-  current_period_end: string | null;
-  cancel_at_period_end: boolean;
+  trial: {
+    startedAt: string | null;
+    endsAt: string | null;
+    isActive: boolean;
+  };
+  paidPeriod: {
+    startedAt: string | null;
+    endsAt: string | null;
+    isActive: boolean;
+    isScheduled: boolean;
+  };
+  cancelAtPeriodEnd: boolean;
 };
 
 type SubscriptionResponse = {
-  subscription: Subscription | null;
+  success?: boolean;
+  hasSubscription?: boolean;
   hasAccess?: boolean;
   hasPlatformAccess?: boolean;
-  isTrialActive?: boolean;
-  isPaidActive?: boolean;
+  subscription: Subscription | null;
   access?: {
     hasAccess?: boolean;
+    hasPlatformAccess?: boolean;
+    isTrialActive?: boolean;
+    isPaidSubscriptionActive?: boolean;
+    hasScheduledPaidPeriod?: boolean;
   };
   error?: string;
   message?: string;
+};
+
+type CancellationResponse = {
+  success?: boolean;
+  alreadyScheduled?: boolean;
+  automaticRecurringBilling?: boolean;
+  message?: string;
+  error?: string;
 };
 
 function formatDate(date: string | null | undefined) {
@@ -87,18 +105,35 @@ function getBillingLabel(interval: string | null | undefined) {
 function getStatusLabel(
   subscription: Subscription | null,
   isTrialActive: boolean,
-  isPaidActive: boolean
+  isPaidActive: boolean,
+  hasScheduledPaidPeriod: boolean,
+  hasAccess: boolean
 ) {
   if (!subscription) return "No subscription found";
 
-  if (subscription.cancel_at_period_end && isPaidActive) {
-    return "Scheduled not to renew";
+  if (
+    subscription.cancelAtPeriodEnd &&
+    (isTrialActive || isPaidActive || hasScheduledPaidPeriod)
+  ) {
+    return "Membership not renewing";
   }
 
   if (isTrialActive) return "Free trial active";
   if (isPaidActive) return "Paid membership active";
+  if (hasScheduledPaidPeriod) return "Paid membership scheduled";
+  if (hasAccess) return "Platform access active";
 
   return subscription.status.replace(/_/g, " ");
+}
+
+async function readJson<T>(response: Response): Promise<T> {
+  try {
+    return (await response.json()) as T;
+  } catch {
+    throw new Error(
+      "The server returned an invalid response. Please try again."
+    );
+  }
 }
 
 export default function ManageSubscriptionPage() {
@@ -108,6 +143,8 @@ export default function ManageSubscriptionPage() {
   const [hasAccess, setHasAccess] = useState(false);
   const [isTrialActive, setIsTrialActive] = useState(false);
   const [isPaidActive, setIsPaidActive] = useState(false);
+  const [hasScheduledPaidPeriod, setHasScheduledPaidPeriod] =
+    useState(false);
 
   const [loading, setLoading] = useState(true);
   const [cancelling, setCancelling] = useState(false);
@@ -122,9 +159,12 @@ export default function ManageSubscriptionPage() {
       const response = await fetch("/api/subscription/status", {
         method: "GET",
         cache: "no-store",
+        headers: {
+          Accept: "application/json",
+        },
       });
 
-      const data: SubscriptionResponse = await response.json();
+      const data = await readJson<SubscriptionResponse>(response);
 
       if (!response.ok) {
         throw new Error(
@@ -134,38 +174,34 @@ export default function ManageSubscriptionPage() {
 
       const currentSubscription = data.subscription ?? null;
 
-      const trialActive =
-        data.isTrialActive ??
-        Boolean(
-          currentSubscription?.trial_ends_at &&
-            new Date(currentSubscription.trial_ends_at).getTime() >
-              Date.now() &&
-            (!currentSubscription.current_period_end ||
-              new Date(currentSubscription.current_period_end).getTime() <=
-                Date.now())
-        );
+      const trialActive = Boolean(
+        currentSubscription?.trial?.isActive ??
+          data.access?.isTrialActive
+      );
 
-      const paidActive =
-        data.isPaidActive ??
-        Boolean(
-          currentSubscription?.status === "active" &&
-            currentSubscription.current_period_end &&
-            new Date(currentSubscription.current_period_end).getTime() >
-              Date.now() &&
-            !trialActive
-        );
+      const paidActive = Boolean(
+        currentSubscription?.paidPeriod?.isActive ??
+          data.access?.isPaidSubscriptionActive
+      );
 
-      // FIX: Parentheses prevent mixing ?? and || syntax incorrectly.
-      const platformAccess =
+      const scheduledPaidPeriod = Boolean(
+        currentSubscription?.paidPeriod?.isScheduled ??
+          data.access?.hasScheduledPaidPeriod
+      );
+
+      const platformAccess = Boolean(
         data.hasAccess ??
-        data.hasPlatformAccess ??
-        data.access?.hasAccess ??
-        (trialActive || paidActive);
+          data.hasPlatformAccess ??
+          data.access?.hasAccess ??
+          data.access?.hasPlatformAccess ??
+          false
+      );
 
       setSubscription(currentSubscription);
       setIsTrialActive(trialActive);
       setIsPaidActive(paidActive);
-      setHasAccess(Boolean(platformAccess));
+      setHasScheduledPaidPeriod(scheduledPaidPeriod);
+      setHasAccess(platformAccess);
     } catch (err) {
       setError(
         err instanceof Error
@@ -178,12 +214,14 @@ export default function ManageSubscriptionPage() {
   }, []);
 
   useEffect(() => {
-    loadSubscription();
+    void loadSubscription();
   }, [loadSubscription]);
 
   async function handleCancellation() {
+    if (!subscription || cancelling) return;
+
     const confirmed = window.confirm(
-      "Are you sure you want to schedule your subscription not to renew? You will keep your paid access until the current period expires."
+      "Are you sure you want to mark this membership as not renewing? Your current trial and any already-purchased paid access will continue until their applicable expiry dates. Abi Job does not automatically charge recurring subscription payments."
     );
 
     if (!confirmed) return;
@@ -193,13 +231,20 @@ export default function ManageSubscriptionPage() {
     setNotice("");
 
     try {
-      const response = await fetch("/api/subscription/cancel", {
-        method: "POST",
-      });
+      const response = await fetch(
+        "/api/subscription/status/cancel",
+        {
+          method: "POST",
+          cache: "no-store",
+          headers: {
+            Accept: "application/json",
+          },
+        }
+      );
 
-      const data = await response.json();
+      const data = await readJson<CancellationResponse>(response);
 
-      if (!response.ok) {
+      if (!response.ok || !data.success) {
         throw new Error(
           data.error || "We could not update your subscription."
         );
@@ -207,7 +252,7 @@ export default function ManageSubscriptionPage() {
 
       setNotice(
         data.message ||
-          "Your subscription has been scheduled not to renew."
+          "Your membership has been marked as not renewing."
       );
 
       await loadSubscription();
@@ -225,17 +270,38 @@ export default function ManageSubscriptionPage() {
   const statusLabel = getStatusLabel(
     subscription,
     isTrialActive,
-    isPaidActive
+    isPaidActive,
+    hasScheduledPaidPeriod,
+    hasAccess
   );
 
-  const accessEndDate = isTrialActive
-    ? subscription?.trial_ends_at
-    : subscription?.current_period_end;
+  const accessEndDate = (() => {
+    if (!subscription) return null;
+
+    if (isTrialActive && hasScheduledPaidPeriod) {
+      return subscription.paidPeriod.endsAt;
+    }
+
+    if (isTrialActive) {
+      return subscription.trial.endsAt;
+    }
+
+    if (isPaidActive || hasScheduledPaidPeriod) {
+      return subscription.paidPeriod.endsAt;
+    }
+
+    return subscription.trial.endsAt;
+  })();
 
   const canCancel =
-    isPaidActive &&
     subscription !== null &&
-    !subscription.cancel_at_period_end;
+    ["active", "trialing"].includes(subscription.status) &&
+    (isTrialActive || isPaidActive || hasScheduledPaidPeriod) &&
+    !subscription.cancelAtPeriodEnd;
+
+  const billingLabel = isTrialActive
+    ? "Trial period"
+    : getBillingLabel(subscription?.billingInterval);
 
   return (
     <main className="manage-subscription-page">
@@ -270,7 +336,6 @@ export default function ManageSubscriptionPage() {
       </section>
 
       <section className="manage-content">
-        {/* SUBSCRIPTION STATUS */}
         <div className="manage-status-card">
           <div className="manage-status-top">
             <div className="manage-status-heading">
@@ -304,7 +369,8 @@ export default function ManageSubscriptionPage() {
 
               <button
                 type="button"
-                onClick={loadSubscription}
+                onClick={() => void loadSubscription()}
+                disabled={loading}
                 className="manage-billing-button"
                 style={{ border: "none", cursor: "pointer" }}
               >
@@ -314,22 +380,30 @@ export default function ManageSubscriptionPage() {
             </div>
           ) : !subscription ? (
             <p className="manage-status-description">
-              No subscription record was found for your account. Your
-              membership information will appear here once your account
-              has been registered and your subscription has been created.
+              No subscription record was found for your account. You can
+              review the available membership plans and choose one when
+              you are ready.
             </p>
           ) : (
             <>
               <p className="manage-status-description">
-                {isTrialActive
-                  ? "Your 30-day free trial is active. You currently have access to 100% of Abi Job platform benefits."
-                  : isPaidActive && subscription.cancel_at_period_end
-                  ? "Your membership is scheduled not to renew. You will retain access until your current paid period expires."
-                  : isPaidActive
-                  ? "Your paid membership is active. You can continue using the platform until your current paid period expires."
-                  : hasAccess
-                  ? "Your account currently has platform access. Review the details below for your membership period."
-                  : "Your membership is not currently active. Choose a membership plan to continue accessing Abi Job."}
+                {subscription.cancelAtPeriodEnd
+                  ? isTrialActive && hasScheduledPaidPeriod
+                    ? "Your membership is marked not to renew. Your current trial and already-purchased paid period remain available until their applicable expiry dates."
+                    : isTrialActive
+                      ? "Your membership is marked not to renew. Your free trial remains available until its expiry date."
+                      : "Your membership is marked not to renew. Your existing paid access remains available until its expiry date."
+                  : isTrialActive && hasScheduledPaidPeriod
+                    ? "Your free trial is active. An already-purchased paid period is scheduled to begin afterward."
+                    : isTrialActive
+                      ? "Your free trial is currently active. Your access continues until the trial expiry date shown below."
+                      : isPaidActive
+                        ? "Your paid membership is active. Your current paid access continues until the displayed expiry date."
+                        : hasScheduledPaidPeriod
+                          ? "Your paid membership has been scheduled and will begin after the current trial period."
+                          : hasAccess
+                            ? "Your account currently has platform access. Review the dates and membership information below."
+                            : "Your membership is not currently active. Review the available plans to restore access."}
               </p>
 
               <div className="manage-status-divider" />
@@ -338,42 +412,40 @@ export default function ManageSubscriptionPage() {
                 <div>
                   <span>Account category</span>
                   <strong>
-                    {getRoleLabel(subscription.account_role)}
+                    {getRoleLabel(subscription.accountRole)}
                   </strong>
                 </div>
 
                 <div>
                   <span>Billing cycle</span>
-                  <strong>
-                    {isTrialActive
-                      ? "30-day free trial"
-                      : getBillingLabel(subscription.billing_interval)}
-                  </strong>
+                  <strong>{billingLabel}</strong>
                 </div>
 
                 <div>
                   <span>
-                    {subscription.cancel_at_period_end
+                    {subscription.cancelAtPeriodEnd
                       ? "Access ends"
-                      : isTrialActive
-                      ? "Trial ends"
-                      : "Current period ends"}
+                      : isTrialActive && hasScheduledPaidPeriod
+                        ? "Paid period ends"
+                        : isTrialActive
+                          ? "Trial ends"
+                          : "Current period ends"}
                   </span>
                   <strong>{formatDate(accessEndDate)}</strong>
                 </div>
               </div>
 
-              {subscription.cancel_at_period_end && (
+              {subscription.cancelAtPeriodEnd && (
                 <p className="manage-status-description">
-                  Your subscription will not renew automatically. You can
-                  choose a new plan before your access expires.
+                  Your membership is marked not to renew. You can
+                  purchase another membership plan before your current
+                  access expires.
                 </p>
               )}
             </>
           )}
         </div>
 
-        {/* NOTICES AND ERRORS */}
         {notice && (
           <div
             role="status"
@@ -412,7 +484,6 @@ export default function ManageSubscriptionPage() {
           </div>
         )}
 
-        {/* MEMBERSHIP ACTIONS */}
         <div className="manage-section-heading">
           <span className="manage-section-kicker">
             YOUR MEMBERSHIP
@@ -426,10 +497,7 @@ export default function ManageSubscriptionPage() {
         </div>
 
         <div className="manage-tools-grid">
-          <Link
-            href="/subscription"
-            className="manage-tool-card"
-          >
+          <Link href="/subscription" className="manage-tool-card">
             <div className="manage-tool-icon green">
               <CreditCard size={23} />
             </div>
@@ -476,10 +544,7 @@ export default function ManageSubscriptionPage() {
             </span>
           </Link>
 
-          <Link
-            href="/subscription/checkout"
-            className="manage-tool-card"
-          >
+          <Link href="/subscription" className="manage-tool-card">
             <div className="manage-tool-icon purple">
               <RefreshCw size={23} />
             </div>
@@ -490,13 +555,13 @@ export default function ManageSubscriptionPage() {
 
             <h3>
               {isPaidActive || isTrialActive
-                ? "Choose another plan"
-                : "Continue to checkout"}
+                ? "Review membership plans"
+                : "Choose a membership plan"}
             </h3>
 
             <p>
-              Review the available membership options and proceed
-              to secure payment when you are ready.
+              Review available membership options and proceed to
+              secure payment when you are ready.
             </p>
 
             <span className="manage-tool-link">
@@ -506,7 +571,6 @@ export default function ManageSubscriptionPage() {
           </Link>
         </div>
 
-        {/* CANCELLATION */}
         {canCancel && (
           <div className="manage-billing-card">
             <div className="manage-billing-heading">
@@ -519,14 +583,18 @@ export default function ManageSubscriptionPage() {
                   MEMBERSHIP CONTROL
                 </span>
 
-                <h2>Manage subscription renewal</h2>
+                <h2>Manage membership renewal</h2>
               </div>
             </div>
 
             <p className="manage-billing-note">
-              You can schedule your current paid membership not to
-              renew. Your platform access will remain available until{" "}
-              {formatDate(subscription?.current_period_end)}.
+              {isTrialActive && hasScheduledPaidPeriod
+                ? "You can mark your membership as not renewing. Your current free trial and already-purchased paid period will remain available until their applicable expiry dates."
+                : isTrialActive
+                  ? `You can mark your free trial membership as not renewing. Your trial access will remain available until ${formatDate(subscription?.trial?.endsAt)}.`
+                  : `You can mark your paid membership as not renewing. Your existing access will remain available until ${formatDate(subscription?.paidPeriod?.endsAt)}.`}{" "}
+              Abi Job does not automatically charge recurring
+              subscription payments.
             </p>
 
             <button
@@ -547,7 +615,7 @@ export default function ManageSubscriptionPage() {
                 </>
               ) : (
                 <>
-                  Schedule non-renewal
+                  Mark membership not to renew
                   <ArrowRight size={17} />
                 </>
               )}
@@ -555,7 +623,6 @@ export default function ManageSubscriptionPage() {
           </div>
         )}
 
-        {/* BILLING INFORMATION */}
         <div className="manage-billing-card">
           <div className="manage-billing-heading">
             <div className="manage-billing-icon">
@@ -577,7 +644,9 @@ export default function ManageSubscriptionPage() {
                 MONTHLY MEMBERSHIP
               </span>
 
-              <strong>₦2,000</strong>
+              <strong>
+                {"\u20A6"}2,000
+              </strong>
 
               <span>Every month</span>
             </div>
@@ -587,20 +656,24 @@ export default function ManageSubscriptionPage() {
                 ANNUAL MEMBERSHIP
               </span>
 
-              <strong>₦20,160</strong>
+              <strong>
+                {"\u20A6"}20,160
+              </strong>
 
               <span>Every year</span>
 
-              <small>Save 16% — ₦3,840 annually</small>
+              <small>
+                Save 16% — {"\u20A6"}3,840 annually
+              </small>
             </div>
           </div>
 
           <p className="manage-billing-note">
-            Every account category receives a 30-day free trial with
-            access to 100% of Abi Job platform benefits. After the
-            trial, a paid membership is required to continue accessing
-            the platform. Monthly membership costs ₦2,000, while annual
-            membership costs ₦20,160.
+            A 30-day free trial may be available to eligible accounts.
+            The trial is optional: you can choose a paid membership
+            immediately instead. Monthly membership costs {"\u20A6"}2,000,
+            while annual membership costs {"\u20A6"}20,160. Your selected
+            payment is processed through Paystack.
           </p>
 
           <Link
@@ -612,7 +685,6 @@ export default function ManageSubscriptionPage() {
           </Link>
         </div>
 
-        {/* SECURITY AND SUPPORT */}
         <div className="manage-support-row">
           <div className="manage-support-icon">
             <ShieldCheck size={23} />

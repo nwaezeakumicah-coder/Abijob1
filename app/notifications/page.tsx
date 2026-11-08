@@ -1,7 +1,8 @@
+
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   Bell,
@@ -20,6 +21,7 @@ import {
   X,
   XCircle,
 } from "lucide-react";
+import { createClient } from "@/lib/supabase/client";
 import Logo from "@/components/Logo";
 import "./notifications.css";
 
@@ -37,178 +39,31 @@ type NotificationItem = {
   message: string;
   date: string;
   read: boolean;
+  href: string | null;
 };
 
 type FilterType = "all" | "unread" | "read";
-type AccountRole = "job-seeker" | "professional" | "employer";
 
-const STORAGE_KEY = "abijob-notifications-job-seeker";
-const LEGACY_STORAGE_KEY = "abijob-notifications";
+const supabase = createClient();
 
-const roleStorageKeys = [
-  "abijob-user",
-  "abijob-current-user",
-  "abijob-auth-user",
-  "abijob-profile",
-  "abijob-account",
-];
-
-const initialNotifications: NotificationItem[] = [
-  {
-    id: "notification-1",
-    type: "application",
-    title: "Application received",
-    message:
-      "Your application for Frontend Developer at Digital Solutions has been recorded.",
-    date: new Date(Date.now() - 1000 * 60 * 20).toISOString(),
-    read: false,
-  },
-  {
-    id: "notification-2",
-    type: "job",
-    title: "New opportunity available",
-    message:
-      "A new Graphic Designer opportunity has been posted in Aba. Check it out.",
-    date: new Date(Date.now() - 1000 * 60 * 60 * 3).toISOString(),
-    read: false,
-  },
-  {
-    id: "notification-3",
-    type: "application",
-    title: "Application under review",
-    message:
-      "Your application for Customer Service Officer is now under review.",
-    date: new Date(Date.now() - 1000 * 60 * 60 * 24).toISOString(),
-    read: false,
-  },
-  {
-    id: "notification-4",
-    type: "profile",
-    title: "Complete your profile",
-    message:
-      "Add your work experience and skills to help employers understand what you can do.",
-    date: new Date(Date.now() - 1000 * 60 * 60 * 48).toISOString(),
-    read: true,
-  },
-  {
-    id: "notification-5",
-    type: "system",
-    title: "Welcome to Abi Job",
-    message:
-      "Welcome aboard. Your next opportunity could be closer than you think.",
-    date: new Date(Date.now() - 1000 * 60 * 60 * 24 * 4).toISOString(),
-    read: true,
-  },
-];
-
-function normalizeRole(value: unknown): AccountRole | null {
+function normalizeRole(value: unknown): string | null {
   if (typeof value !== "string") return null;
 
-  const role = value.toLowerCase().trim().replace(/[\s_]+/g, "-");
-
-  if (
-    ["employer", "company", "business", "business-owner"].includes(role)
-  ) {
-    return "employer";
-  }
-
-  if (
-    [
-      "professional",
-      "skilled-professional",
-      "artisan",
-      "skilled-professional-artisan",
-      "skilled-professionals-artisans",
-    ].includes(role)
-  ) {
-    return "professional";
-  }
-
-  if (
-    ["job-seeker", "jobseeker", "candidate", "seeker"].includes(role)
-  ) {
-    return "job-seeker";
-  }
-
-  return null;
+  return value.toLowerCase().trim().replace(/[\s-]+/g, "_");
 }
 
-function getStoredAccountRole(): AccountRole | null {
-  if (typeof window === "undefined") return null;
-
-  for (const key of roleStorageKeys) {
-    try {
-      const storedValue = window.localStorage.getItem(key);
-      if (!storedValue) continue;
-
-      const parsed = JSON.parse(storedValue);
-
-      if (typeof parsed === "string") {
-        const role = normalizeRole(parsed);
-        if (role) return role;
-      }
-
-      if (parsed && typeof parsed === "object") {
-        const candidates = [
-          parsed.role,
-          parsed.accountType,
-          parsed.account_type,
-          parsed.userType,
-          parsed.user_type,
-          parsed.type,
-          parsed.user?.role,
-          parsed.user?.accountType,
-          parsed.user?.account_type,
-          parsed.profile?.role,
-          parsed.profile?.accountType,
-          parsed.profile?.account_type,
-          parsed.account?.role,
-          parsed.user_metadata?.role,
-          parsed.user_metadata?.account_type,
-        ];
-
-        for (const candidate of candidates) {
-          const role = normalizeRole(candidate);
-          if (role) return role;
-        }
-      }
-    } catch {
-      const role = normalizeRole(window.localStorage.getItem(key));
-      if (role) return role;
-    }
+function normalizeNotificationType(value: unknown): NotificationType {
+  if (
+    value === "application" ||
+    value === "job" ||
+    value === "profile" ||
+    value === "message" ||
+    value === "system"
+  ) {
+    return value;
   }
 
-  return null;
-}
-
-function getNotificationIcon(type: NotificationType) {
-  switch (type) {
-    case "application":
-      return <FileText size={19} />;
-    case "job":
-      return <BriefcaseBusiness size={19} />;
-    case "profile":
-      return <UserRound size={19} />;
-    case "message":
-      return <MessageCircle size={19} />;
-    default:
-      return <Bell size={19} />;
-  }
-}
-
-function getNotificationLabel(type: NotificationType) {
-  switch (type) {
-    case "application":
-      return "Application";
-    case "job":
-      return "Job alert";
-    case "profile":
-      return "Profile";
-    case "message":
-      return "Message";
-    default:
-      return "Abi Job";
-  }
+  return "system";
 }
 
 function formatNotificationDate(date: string) {
@@ -241,101 +96,204 @@ function formatNotificationDate(date: string) {
   });
 }
 
-function isValidNotification(value: unknown): value is NotificationItem {
-  if (!value || typeof value !== "object") return false;
+function getNotificationIcon(type: NotificationType) {
+  switch (type) {
+    case "application":
+      return <FileText size={19} />;
+    case "job":
+      return <BriefcaseBusiness size={19} />;
+    case "profile":
+      return <UserRound size={19} />;
+    case "message":
+      return <MessageCircle size={19} />;
+    default:
+      return <Bell size={19} />;
+  }
+}
 
-  const item = value as Record<string, unknown>;
+function getNotificationLabel(type: NotificationType) {
+  switch (type) {
+    case "application":
+      return "Application";
+    case "job":
+      return "Job alert";
+    case "profile":
+      return "Profile";
+    case "message":
+      return "Message";
+    default:
+      return "Abi Job";
+  }
+}
 
-  return (
-    typeof item.id === "string" &&
-    typeof item.title === "string" &&
-    typeof item.message === "string" &&
-    typeof item.date === "string" &&
-    typeof item.read === "boolean" &&
-    ["application", "job", "profile", "message", "system"].includes(
-      String(item.type)
-    )
-  );
+function mapDatabaseNotification(row: {
+  id: string;
+  title: string;
+  description: string;
+  category: string;
+  href: string | null;
+  is_read: boolean;
+  created_at: string;
+}): NotificationItem {
+  return {
+    id: row.id,
+    type: normalizeNotificationType(row.category),
+    title: row.title,
+    message: row.description,
+    date: row.created_at,
+    read: row.is_read,
+    href: row.href,
+  };
 }
 
 export default function NotificationsPage() {
   const router = useRouter();
 
-  const [notifications, setNotifications] =
-    useState<NotificationItem[]>(initialNotifications);
+  const [notifications, setNotifications] = useState<NotificationItem[]>([]);
   const [activeFilter, setActiveFilter] = useState<FilterType>("all");
   const [searchQuery, setSearchQuery] = useState("");
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const [storageReady, setStorageReady] = useState(false);
   const [accessChecked, setAccessChecked] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [errorMessage, setErrorMessage] = useState("");
   const [showClearConfirm, setShowClearConfirm] = useState(false);
   const [selectedNotification, setSelectedNotification] =
     useState<NotificationItem | null>(null);
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+  const [actionLoading, setActionLoading] = useState(false);
 
-  // Keep this route exclusive to Job Seekers.
-  useEffect(() => {
-    const role = getStoredAccountRole();
+  const loadNotifications = useCallback(async (userId: string) => {
+    const { data, error } = await supabase
+      .from("notifications")
+      .select(
+        "id, title, description, category, href, is_read, created_at"
+      )
+      .eq("user_id", userId)
+      .order("created_at", { ascending: false });
 
-    if (role === "professional") {
-      router.replace("/professional/notifications");
+    if (error) {
+      console.error("Could not load notifications:", error);
+      setErrorMessage(
+        "We couldn't load your notifications. Please try again."
+      );
       return;
     }
 
-    if (role === "employer") {
-      router.replace("/employer/notifications");
-      return;
-    }
+    setNotifications((data ?? []).map(mapDatabaseNotification));
+    setErrorMessage("");
+  }, []);
 
-    setAccessChecked(true);
-  }, [router]);
-
-  // Load only the Job Seeker's notification storage.
-  // Migrate the previous shared key once, if necessary.
+  // Authenticate the user and verify their actual database role.
   useEffect(() => {
-    if (!accessChecked) return;
+    let active = true;
 
-    try {
-      const saved = localStorage.getItem(STORAGE_KEY);
+    async function checkAccess() {
+      try {
+        const {
+          data: { user },
+          error: authError,
+        } = await supabase.auth.getUser();
 
-      if (saved) {
-        const parsed: unknown = JSON.parse(saved);
-
-        if (Array.isArray(parsed)) {
-          setNotifications(parsed.filter(isValidNotification));
+        if (authError || !user) {
+          router.replace("/login?next=/notifications");
+          return;
         }
-      } else {
-        const legacySaved = localStorage.getItem(LEGACY_STORAGE_KEY);
 
-        if (legacySaved) {
-          const parsed: unknown = JSON.parse(legacySaved);
+        const { data: profile, error: profileError } = await supabase
+          .from("profiles")
+          .select("role")
+          .eq("id", user.id)
+          .maybeSingle();
 
-          if (Array.isArray(parsed)) {
-            const validNotifications = parsed.filter(isValidNotification);
-            setNotifications(validNotifications);
-            localStorage.setItem(
-              STORAGE_KEY,
-              JSON.stringify(validNotifications)
-            );
-          }
+        if (profileError || !profile?.role) {
+          console.error(
+            "Could not verify account role:",
+            profileError
+          );
+          router.replace("/login?error=profile_missing");
+          return;
+        }
+
+        const role = normalizeRole(profile.role);
+
+        if (!active) return;
+
+        if (role === "professional") {
+          router.replace("/professional/notifications");
+          return;
+        }
+
+        if (role === "employer") {
+          router.replace("/employer/notifications");
+          return;
+        }
+
+        if (role === "admin") {
+          router.replace("/admin");
+          return;
+        }
+
+        if (role !== "job_seeker") {
+          router.replace("/login");
+          return;
+        }
+
+        setCurrentUserId(user.id);
+        setAccessChecked(true);
+
+        await loadNotifications(user.id);
+      } catch (error) {
+        console.error("Notification access check failed:", error);
+
+        if (active) {
+          setErrorMessage(
+            "Something went wrong while loading your notifications."
+          );
+        }
+      } finally {
+        if (active) {
+          setLoading(false);
         }
       }
-    } catch {
-      console.error("Could not load saved Job Seeker notifications.");
-    } finally {
-      setStorageReady(true);
     }
-  }, [accessChecked]);
 
-  // Save changes to the Job Seeker's own storage key.
+    void checkAccess();
+
+    return () => {
+      active = false;
+    };
+  }, [router, loadNotifications]);
+
+  // Listen for new notifications and changes to existing notifications.
   useEffect(() => {
-    if (!storageReady || !accessChecked) return;
+    if (!currentUserId || !accessChecked) return;
 
-    try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(notifications));
-    } catch {
-      console.error("Could not save Job Seeker notifications.");
-    }
-  }, [notifications, storageReady, accessChecked]);
+    const channel = supabase
+      .channel(`job-seeker-notifications-${currentUserId}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "notifications",
+          filter: `user_id=eq.${currentUserId}`,
+        },
+        () => {
+          void loadNotifications(currentUserId);
+        }
+      )
+      .subscribe((status) => {
+        if (status === "CHANNEL_ERROR") {
+          console.error(
+            "Notifications Realtime subscription failed."
+          );
+        }
+      });
+
+    return () => {
+      void supabase.removeChannel(channel);
+    };
+  }, [currentUserId, accessChecked, loadNotifications]);
 
   // Allow notification dialogs to close with Escape.
   useEffect(() => {
@@ -353,8 +311,13 @@ export default function NotificationsPage() {
     };
   }, []);
 
-  const unreadCount = notifications.filter((item) => !item.read).length;
-  const readCount = notifications.filter((item) => item.read).length;
+  const unreadCount = notifications.filter(
+    (item) => !item.read
+  ).length;
+
+  const readCount = notifications.filter(
+    (item) => item.read
+  ).length;
 
   const filteredNotifications = useMemo(() => {
     return notifications.filter((item) => {
@@ -375,7 +338,30 @@ export default function NotificationsPage() {
     });
   }, [notifications, activeFilter, searchQuery]);
 
-  function markAsRead(id: string) {
+  async function markAsRead(id: string) {
+    if (!currentUserId) return;
+
+    const existing = notifications.find((item) => item.id === id);
+
+    if (!existing || existing.read) return;
+
+    const { error } = await supabase
+      .from("notifications")
+      .update({ is_read: true })
+      .eq("id", id)
+      .eq("user_id", currentUserId);
+
+    if (error) {
+      console.error(
+        "Could not mark notification as read:",
+        error
+      );
+      setErrorMessage(
+        "We couldn't update that notification. Please try again."
+      );
+      return;
+    }
+
     setNotifications((current) =>
       current.map((item) =>
         item.id === id ? { ...item, read: true } : item
@@ -385,34 +371,112 @@ export default function NotificationsPage() {
     setSelectedNotification((current) =>
       current?.id === id ? { ...current, read: true } : current
     );
+
+    setErrorMessage("");
   }
 
-  function markAllAsRead() {
+  async function markAllAsRead() {
+    if (!currentUserId || unreadCount === 0 || actionLoading) return;
+
+    setActionLoading(true);
+
+    const { error } = await supabase
+      .from("notifications")
+      .update({ is_read: true })
+      .eq("user_id", currentUserId)
+      .eq("is_read", false);
+
+    if (error) {
+      console.error(
+        "Could not mark all notifications as read:",
+        error
+      );
+      setErrorMessage(
+        "We couldn't update your notifications. Please try again."
+      );
+      setActionLoading(false);
+      return;
+    }
+
     setNotifications((current) =>
       current.map((item) => ({ ...item, read: true }))
     );
+
+    setSelectedNotification((current) =>
+      current ? { ...current, read: true } : current
+    );
+
+    setErrorMessage("");
+    setActionLoading(false);
   }
 
-  function deleteNotification(id: string) {
-    setNotifications((current) => current.filter((item) => item.id !== id));
+  async function deleteNotification(id: string) {
+    if (!currentUserId || actionLoading) return;
 
-    if (selectedNotification?.id === id) {
-      setSelectedNotification(null);
+    setActionLoading(true);
+
+    const { error } = await supabase
+      .from("notifications")
+      .delete()
+      .eq("id", id)
+      .eq("user_id", currentUserId);
+
+    if (error) {
+      console.error("Could not delete notification:", error);
+      setErrorMessage(
+        "We couldn't delete that notification. Please try again."
+      );
+      setActionLoading(false);
+      return;
     }
+
+    setNotifications((current) =>
+      current.filter((item) => item.id !== id)
+    );
+
+    setSelectedNotification((current) =>
+      current?.id === id ? null : current
+    );
+
+    setErrorMessage("");
+    setActionLoading(false);
   }
 
-  function clearAllNotifications() {
+  async function clearAllNotifications() {
+    if (!currentUserId || actionLoading) return;
+
+    setActionLoading(true);
+
+    const { error } = await supabase
+      .from("notifications")
+      .delete()
+      .eq("user_id", currentUserId);
+
+    if (error) {
+      console.error("Could not clear notifications:", error);
+      setErrorMessage(
+        "We couldn't clear your notifications. Please try again."
+      );
+      setActionLoading(false);
+      return;
+    }
+
     setNotifications([]);
     setShowClearConfirm(false);
     setSelectedNotification(null);
+    setErrorMessage("");
+    setActionLoading(false);
   }
 
-  function openNotification(item: NotificationItem) {
-    markAsRead(item.id);
+  async function openNotification(item: NotificationItem) {
+    if (!item.read) {
+      await markAsRead(item.id);
+    }
+
     setSelectedNotification({ ...item, read: true });
   }
 
-  if (!accessChecked || !storageReady) {
+  if (!accessChecked || loading) {
     return (
       <main className="notifications-page notifications-loading">
         <div className="notifications-loading-card">
@@ -458,10 +522,16 @@ export default function NotificationsPage() {
           </div>
         </div>
 
-        <nav className="notifications-nav" aria-label="Job Seeker workspace">
+        <nav
+          className="notifications-nav"
+          aria-label="Job Seeker workspace"
+        >
           <p className="notifications-nav-label">WORKSPACE</p>
 
-          <Link href="/dashboard" className="notifications-nav-link">
+          <Link
+            href="/dashboard"
+            className="notifications-nav-link"
+          >
             <BriefcaseBusiness size={19} />
             <span>Dashboard</span>
           </Link>
@@ -471,12 +541,18 @@ export default function NotificationsPage() {
             <span>Find jobs</span>
           </Link>
 
-          <Link href="/applications" className="notifications-nav-link">
+          <Link
+            href="/applications"
+            className="notifications-nav-link"
+          >
             <FileText size={19} />
             <span>My applications</span>
           </Link>
 
-          <Link href="/profile" className="notifications-nav-link">
+          <Link
+            href="/profile"
+            className="notifications-nav-link"
+          >
             <UserRound size={19} />
             <span>My profile</span>
           </Link>
@@ -493,11 +569,16 @@ export default function NotificationsPage() {
             <Bell size={19} />
             <span>Notifications</span>
             {unreadCount > 0 && (
-              <span className="notifications-nav-count">{unreadCount}</span>
+              <span className="notifications-nav-count">
+                {unreadCount}
+              </span>
             )}
           </Link>
 
-          <Link href="/settings" className="notifications-nav-link">
+          <Link
+            href="/settings"
+            className="notifications-nav-link"
+          >
             <Settings size={19} />
             <span>Settings</span>
           </Link>
@@ -550,7 +631,9 @@ export default function NotificationsPage() {
         <div className="notifications-content">
           <div className="notifications-heading">
             <div>
-              <span className="notifications-eyebrow">YOUR ACTIVITY</span>
+              <span className="notifications-eyebrow">
+                YOUR ACTIVITY
+              </span>
               <h1>Notifications</h1>
               <p>
                 Stay updated on your applications, job opportunities and
@@ -561,14 +644,43 @@ export default function NotificationsPage() {
             <div className="notifications-heading-actions">
               <button
                 className="notifications-mark-all"
-                onClick={markAllAsRead}
-                disabled={unreadCount === 0}
+                onClick={() => void markAllAsRead()}
+                disabled={unreadCount === 0 || actionLoading}
               >
                 <CheckCheck size={17} />
                 Mark all as read
               </button>
             </div>
           </div>
+
+          {errorMessage && (
+            <div
+              role="alert"
+              style={{
+                padding: "12px 16px",
+                marginBottom: "16px",
+                borderRadius: "8px",
+                background: "#fff0f0",
+                color: "#a32020",
+              }}
+            >
+              {errorMessage}
+              <button
+                onClick={() => {
+                  if (currentUserId) {
+                    void loadNotifications(currentUserId);
+                  }
+                }}
+                style={{
+                  marginLeft: "12px",
+                  textDecoration: "underline",
+                  fontWeight: 600,
+                }}
+              >
+                Retry
+              </button>
+            </div>
+          )}
 
           <div className="notifications-summary">
             <div className="notifications-summary-card">
@@ -612,7 +724,7 @@ export default function NotificationsPage() {
               <button
                 className="notifications-clear-button"
                 onClick={() => setShowClearConfirm(true)}
-                disabled={notifications.length === 0}
+                disabled={notifications.length === 0 || actionLoading}
               >
                 <Trash2 size={16} />
                 Clear all
@@ -620,7 +732,10 @@ export default function NotificationsPage() {
             </div>
 
             <div className="notifications-toolbar">
-              <div className="notifications-filter-tabs" aria-label="Filter notifications">
+              <div
+                className="notifications-filter-tabs"
+                aria-label="Filter notifications"
+              >
                 <button
                   className={activeFilter === "all" ? "selected" : ""}
                   onClick={() => setActiveFilter("all")}
@@ -653,7 +768,9 @@ export default function NotificationsPage() {
                   aria-label="Search notifications"
                   placeholder="Search notifications..."
                   value={searchQuery}
-                  onChange={(event) => setSearchQuery(event.target.value)}
+                  onChange={(event) =>
+                    setSearchQuery(event.target.value)
+                  }
                 />
                 {searchQuery && (
                   <button
@@ -677,7 +794,7 @@ export default function NotificationsPage() {
                   >
                     <button
                       className={`notification-type-icon type-${item.type}`}
-                      onClick={() => openNotification(item)}
+                      onClick={() => void openNotification(item)}
                       aria-label={`Open ${item.title}`}
                     >
                       {getNotificationIcon(item.type)}
@@ -685,7 +802,7 @@ export default function NotificationsPage() {
 
                     <button
                       className="notification-item-content"
-                      onClick={() => openNotification(item)}
+                      onClick={() => void openNotification(item)}
                     >
                       <div className="notification-item-title-row">
                         <h3>{item.title}</h3>
@@ -695,28 +812,39 @@ export default function NotificationsPage() {
                           </span>
                         )}
                       </div>
+
                       <p>{item.message}</p>
+
                       <div className="notification-item-meta">
-                        <span>{getNotificationLabel(item.type)}</span>
-                        <span className="notification-meta-dot">•</span>
-                        <span>{formatNotificationDate(item.date)}</span>
+                        <span>
+                          {getNotificationLabel(item.type)}
+                        </span>
+                        <span className="notification-meta-dot">
+                          •
+                        </span>
+                        <span>
+                          {formatNotificationDate(item.date)}
+                        </span>
                       </div>
                     </button>
 
                     <div className="notification-item-actions">
                       {!item.read && (
                         <button
-                          onClick={() => markAsRead(item.id)}
+                          onClick={() => void markAsRead(item.id)}
                           aria-label={`Mark ${item.title} as read`}
                           title="Mark as read"
+                          disabled={actionLoading}
                         >
                           <Check size={17} />
                         </button>
                       )}
+
                       <button
-                        onClick={() => deleteNotification(item.id)}
+                        onClick={() => void deleteNotification(item.id)}
                         aria-label={`Delete ${item.title}`}
                         title="Delete notification"
+                        disabled={actionLoading}
                       >
                         <Trash2 size={17} />
                       </button>
@@ -732,6 +860,7 @@ export default function NotificationsPage() {
                       <Bell size={27} />
                     )}
                   </div>
+
                   <h3>
                     {searchQuery
                       ? "No matching notifications"
@@ -741,11 +870,13 @@ export default function NotificationsPage() {
                       ? "No read notifications"
                       : "No notifications yet"}
                   </h3>
+
                   <p>
                     {searchQuery
                       ? "Try another search term."
                       : "When there is an update on your Abi Job account, it will appear here."}
                   </p>
+
                   {searchQuery && (
                     <button onClick={() => setSearchQuery("")}>
                       Clear search
@@ -760,9 +891,10 @@ export default function NotificationsPage() {
                 Showing {filteredNotifications.length} of{" "}
                 {notifications.length} notifications
               </span>
+
               <span>
                 <span className="notifications-footer-dot" />
-                Updates are stored on this device
+                Synced with your Abi Job account
               </span>
             </div>
           </section>
@@ -787,6 +919,7 @@ export default function NotificationsPage() {
               >
                 {getNotificationIcon(selectedNotification.type)}
               </div>
+
               <button
                 onClick={() => setSelectedNotification(null)}
                 aria-label="Close notification"
@@ -798,30 +931,55 @@ export default function NotificationsPage() {
             <span className="notification-modal-category">
               {getNotificationLabel(selectedNotification.type)}
             </span>
+
             <h2 id="notification-detail-title">
               {selectedNotification.title}
             </h2>
+
             <p>{selectedNotification.message}</p>
 
             <div className="notification-modal-date">
               <Clock3 size={16} />
-              {Number.isNaN(new Date(selectedNotification.date).getTime())
+              {Number.isNaN(
+                new Date(selectedNotification.date).getTime()
+              )
                 ? "Recently"
-                : new Date(selectedNotification.date).toLocaleString(
-                    "en-NG",
-                    {
-                      dateStyle: "medium",
-                      timeStyle: "short",
-                    }
-                  )}
+                : new Date(
+                    selectedNotification.date
+                  ).toLocaleString("en-NG", {
+                    dateStyle: "medium",
+                    timeStyle: "short",
+                  })}
             </div>
 
-            <button
-              className="notification-modal-done"
-              onClick={() => setSelectedNotification(null)}
-            >
-              Done
-            </button>
+            <div style={{ display: "flex", gap: "10px" }}>
+              {selectedNotification.href && (
+                <button
+                  className="notification-modal-done"
+                  onClick={() => {
+                    const href = selectedNotification.href;
+
+                    if (
+                      typeof href === "string" &&
+                      href.startsWith("/") &&
+                      !href.startsWith("//") &&
+                      !href.includes("\\")
+                    ) {
+                      router.push(href);
+                    }
+                  }}
+                >
+                  View update
+                </button>
+              )}
+
+              <button
+                className="notification-modal-done"
+                onClick={() => setSelectedNotification(null)}
+              >
+                Done
+              </button>
+            </div>
           </section>
         </div>
       )}
@@ -841,22 +999,30 @@ export default function NotificationsPage() {
             <div className="notification-confirm-icon">
               <XCircle size={25} />
             </div>
+
             <h2 id="notification-clear-title">
               Clear all notifications?
             </h2>
+
             <p>
-              This will permanently remove all notifications saved on this
-              device. This action cannot be undone.
+              This will permanently remove all notifications from your Abi
+              Job account. This action cannot be undone.
             </p>
+
             <div className="notification-confirm-actions">
-              <button onClick={() => setShowClearConfirm(false)}>
+              <button
+                onClick={() => setShowClearConfirm(false)}
+                disabled={actionLoading}
+              >
                 Cancel
               </button>
+
               <button
                 className="notification-confirm-delete"
-                onClick={clearAllNotifications}
+                onClick={() => void clearAllNotifications()}
+                disabled={actionLoading}
               >
-                Clear all
+                {actionLoading ? "Clearing..." : "Clear all"}
               </button>
             </div>
           </section>

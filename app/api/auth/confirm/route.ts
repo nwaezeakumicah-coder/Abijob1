@@ -1,5 +1,4 @@
-
-import { NextResponse } from "next/server";
+﻿import { NextResponse } from "next/server";
 import { createClient } from "../../../../lib/supabase/server";
 
 const dashboardRoutes: Record<string, string> = {
@@ -19,19 +18,16 @@ export async function GET(request: Request) {
 
   const supabase = await createClient();
 
-  // Handle Supabase PKCE confirmation links.
   if (code) {
     const { error } = await supabase.auth.exchangeCodeForSession(code);
 
     if (error) {
       console.error("Email confirmation error:", error);
-
       return NextResponse.redirect(
         new URL("/login?error=email_confirmation_failed", origin)
       );
     }
   } else if (tokenHash && (type === "signup" || type === "email")) {
-    // Handle token-hash confirmation links.
     const { error } = await supabase.auth.verifyOtp({
       token_hash: tokenHash,
       type,
@@ -39,7 +35,6 @@ export async function GET(request: Request) {
 
     if (error) {
       console.error("Email verification error:", error);
-
       return NextResponse.redirect(
         new URL("/login?error=email_confirmation_failed", origin)
       );
@@ -50,7 +45,6 @@ export async function GET(request: Request) {
     );
   }
 
-  // Confirm that Supabase established the authenticated session.
   const {
     data: { user },
     error: userError,
@@ -58,13 +52,11 @@ export async function GET(request: Request) {
 
   if (userError || !user) {
     console.error("Confirmation session error:", userError);
-
     return NextResponse.redirect(
       new URL("/login?error=confirmation_session_failed", origin)
     );
   }
 
-  // Find the profile belonging to this authenticated user.
   const { data: profile, error: profileError } = await supabase
     .from("profiles")
     .select("role")
@@ -100,7 +92,6 @@ export async function GET(request: Request) {
 
   if (!destination) {
     console.error("Confirmation invalid account role:", profile.role);
-
     return NextResponse.redirect(
       new URL("/login?error=invalid_account_role", origin)
     );

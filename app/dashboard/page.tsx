@@ -1,7 +1,9 @@
+
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import Logo from "../../components/Logo";
 import {
   Activity,
@@ -25,68 +27,144 @@ import {
   Users,
   X,
 } from "lucide-react";
+import { createClient } from "../../lib/supabase/client";
 import "./dashboard.css";
 
-const recommendedJobs = [
-  {
-    id: 1,
-    title: "Frontend Developer",
-    company: "Digital Solutions",
-    location: "Aba, Abia State",
-    type: "Full-time",
-    salary: "₦150k – ₦250k",
-    initials: "DS",
-    color: "green",
-    posted: "2 days ago",
-  },
-  {
-    id: 2,
-    title: "Customer Service Officer",
-    company: "Business Hub",
-    location: "Umuahia, Abia State",
-    type: "Full-time",
-    salary: "₦80k – ₦120k",
-    initials: "BH",
-    color: "orange",
-    posted: "1 day ago",
-  },
-  {
-    id: 3,
-    title: "Graphic Designer",
-    company: "Creative Edge Studio",
-    location: "Aba, Abia State",
-    type: "Hybrid",
-    salary: "₦100k – ₦180k",
-    initials: "CE",
-    color: "purple",
-    posted: "3 days ago",
-  },
-];
+type JobSeekerProfile = {
+  full_name: string | null;
+  role: string | null;
+  phone: string | null;
+  location: string | null;
+  avatar_url: string | null;
+  headline: string | null;
+  about: string | null;
+  skills: string[] | string | null;
+  experience: string | null;
+  education: string | null;
+  cv_path: string | null;
+};
 
-const activities = [
-  {
-    title: "Your profile is waiting for completion",
-    detail: "Add your skills and experience to improve your visibility.",
-    time: "Get started",
-    icon: UserRound,
-  },
-  {
-    title: "New opportunities are available",
-    detail: "Explore recently listed jobs across Abia State.",
-    time: "Explore jobs",
-    icon: BriefcaseBusiness,
-  },
-  {
-    title: "Build your professional profile",
-    detail: "Add a CV or portfolio to stand out to employers.",
-    time: "Update profile",
-    icon: FileText,
-  },
-];
+function hasValue(value: unknown): boolean {
+  if (Array.isArray(value)) return value.length > 0;
+
+  if (typeof value === "string") {
+    return value.trim().length > 0;
+  }
+
+  return value !== null && value !== undefined;
+}
 
 export default function DashboardPage() {
+  const router = useRouter();
+
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [savedJobs, setSavedJobs] = useState<number[]>([]);
+  const [userName, setUserName] = useState("Job seeker");
+  const [profile, setProfile] = useState<JobSeekerProfile | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState("");
+
+  useEffect(() => {
+    let active = true;
+
+    async function loadDashboard() {
+      try {
+        const supabase = createClient();
+
+        const {
+          data: { user },
+          error: authError,
+        } = await supabase.auth.getUser();
+
+        if (authError) throw authError;
+
+        if (!user) {
+          router.replace("/login?redirect=/dashboard");
+          return;
+        }
+
+        const metadataName =
+          typeof user.user_metadata?.full_name === "string"
+            ? user.user_metadata.full_name.trim()
+            : "";
+
+        const fallbackName =
+          metadataName ||
+          user.email?.split("@")[0] ||
+          "Job seeker";
+
+        if (active) setUserName(fallbackName);
+
+        const { data, error } = await supabase
+          .from("profiles")
+          .select(
+            "full_name, role, phone, location, avatar_url, headline, about, skills, experience, education, cv_path"
+          )
+          .eq("id", user.id)
+          .maybeSingle();
+
+        if (error) throw error;
+
+        if (!active) return;
+
+        const profileData = data as JobSeekerProfile | null;
+
+        if (profileData) {
+          setProfile(profileData);
+
+          if (profileData.full_name?.trim()) {
+            setUserName(profileData.full_name.trim());
+          }
+        }
+      } catch (error) {
+        console.error("Job seeker dashboard loading error:", error);
+
+        if (active) {
+          setLoadError(
+            "Some dashboard information could not be loaded. Please refresh the page and try again."
+          );
+        }
+      } finally {
+        if (active) setLoading(false);
+      }
+    }
+
+    loadDashboard();
+
+    return () => {
+      active = false;
+    };
+  }, [router]);
+
+  const profileCompletion = useMemo(() => {
+    if (!profile) return 0;
+
+    const fields = [
+      profile.full_name,
+      profile.phone,
+      profile.location,
+      profile.avatar_url,
+      profile.headline,
+      profile.about,
+      profile.skills,
+      profile.experience,
+      profile.education,
+      profile.cv_path,
+    ];
+
+    const completed = fields.filter(hasValue).length;
+
+    return Math.round((completed / fields.length) * 100);
+  }, [profile]);
+
+  const profileStatus =
+    profileCompletion === 100
+      ? "Complete"
+      : profileCompletion >= 60
+        ? "Almost there"
+        : profileCompletion > 0
+          ? "In progress"
+          : "Not started";
 
   function toggleSavedJob(id: number) {
     setSavedJobs((current) =>
@@ -100,6 +178,7 @@ export default function DashboardPage() {
     <main className="dashboard-page">
       {sidebarOpen && (
         <button
+          type="button"
           className="dashboard-overlay"
           aria-label="Close navigation"
           onClick={() => setSidebarOpen(false)}
@@ -110,6 +189,7 @@ export default function DashboardPage() {
         <div className="dashboard-brand">
           <Logo href="/" size="medium" />
           <button
+            type="button"
             className="dashboard-close-menu"
             onClick={() => setSidebarOpen(false)}
             aria-label="Close menu"
@@ -120,10 +200,11 @@ export default function DashboardPage() {
 
         <div className="dashboard-sidebar-label">WORKSPACE</div>
 
-        <nav className="dashboard-nav">
+        <nav className="dashboard-nav" aria-label="Main navigation">
           <Link
             href="/dashboard"
             className="dashboard-nav-link active"
+            aria-current="page"
             onClick={() => setSidebarOpen(false)}
           >
             <LayoutDashboard size={19} />
@@ -155,7 +236,6 @@ export default function DashboardPage() {
           >
             <Bell size={19} />
             <span>Notifications</span>
-            <span className="dashboard-nav-count">3</span>
           </Link>
 
           <Link
@@ -172,7 +252,7 @@ export default function DashboardPage() {
           PERSONAL
         </div>
 
-        <nav className="dashboard-nav">
+        <nav className="dashboard-nav" aria-label="Personal navigation">
           <Link
             href="/jobs"
             className="dashboard-nav-link"
@@ -215,19 +295,28 @@ export default function DashboardPage() {
             <div className="dashboard-support-icon">
               <Activity size={19} />
             </div>
+
             <strong>Make your profile count</strong>
-            <p>Complete your profile to help employers discover you.</p>
-            <Link href="/profile">
+
+            <p>
+              Complete your profile to help employers discover you.
+            </p>
+
+            <Link href="/profile" onClick={() => setSidebarOpen(false)}>
               Complete profile <ArrowRight size={15} />
             </Link>
           </div>
 
           <div className="dashboard-sidebar-user">
-            <div className="dashboard-avatar">M</div>
+            <div className="dashboard-avatar">
+              {userName.charAt(0).toUpperCase()}
+            </div>
+
             <div>
-              <strong>Welcome, Micah</strong>
+              <strong>{userName}</strong>
               <span>Job seeker</span>
             </div>
+
             <Link href="/settings" aria-label="Account settings">
               <Settings size={18} />
             </Link>
@@ -238,9 +327,11 @@ export default function DashboardPage() {
       <section className="dashboard-main">
         <header className="dashboard-topbar">
           <button
+            type="button"
             className="dashboard-menu-button"
             onClick={() => setSidebarOpen(true)}
             aria-label="Open navigation"
+            aria-expanded={sidebarOpen}
           >
             <Menu size={23} />
           </button>
@@ -266,11 +357,12 @@ export default function DashboardPage() {
               aria-label="Notifications"
             >
               <Bell size={20} />
-              <span />
             </Link>
 
             <Link href="/profile" className="dashboard-topbar-profile">
-              <div className="dashboard-avatar dashboard-avatar-small">M</div>
+              <div className="dashboard-avatar dashboard-avatar-small">
+                {userName.charAt(0).toUpperCase()}
+              </div>
               <span>My account</span>
             </Link>
           </div>
@@ -282,7 +374,11 @@ export default function DashboardPage() {
               <span className="dashboard-date-label">
                 YOUR CAREER WORKSPACE
               </span>
-              <h1>Good day, Micah <span>👋</span></h1>
+
+              <h1>
+                Good day, {userName} <span>👋</span>
+              </h1>
+
               <p>
                 Here's what's happening with your opportunities today.
               </p>
@@ -294,30 +390,62 @@ export default function DashboardPage() {
             </Link>
           </section>
 
+          {loadError && (
+            <div className="dashboard-save-message" role="alert">
+              {loadError}
+            </div>
+          )}
+
           <section className="dashboard-profile-progress">
             <div className="dashboard-progress-copy">
               <div className="dashboard-progress-icon">
                 <UserRound size={21} />
               </div>
+
               <div>
                 <span>YOUR PROFILE</span>
-                <h2>You're off to a good start!</h2>
+                <h2>
+                  {loading
+                    ? "Checking your profile..."
+                    : profileCompletion === 100
+                      ? "Your profile is complete!"
+                      : "Make your profile stand out."}
+                </h2>
+
                 <p>
-                  Complete your profile so employers can learn more about you.
+                  {loading
+                    ? "Loading your profile information."
+                    : "Add your details, skills and experience so employers can learn more about you."}
                 </p>
               </div>
             </div>
 
             <div className="dashboard-progress-action">
               <div className="dashboard-progress-number">
-                <strong>40%</strong>
+                <strong>{loading ? "—" : `${profileCompletion}%`}</strong>
                 <span>Completed</span>
               </div>
-              <div className="dashboard-progress-track">
-                <span />
+
+              <div
+                className="dashboard-progress-track"
+                role="progressbar"
+                aria-label="Profile completion"
+                aria-valuemin={0}
+                aria-valuemax={100}
+                aria-valuenow={loading ? 0 : profileCompletion}
+              >
+                <span
+                  style={{
+                    width: loading ? "0%" : `${profileCompletion}%`,
+                  }}
+                />
               </div>
+
               <Link href="/profile">
-                Complete your profile <ArrowRight size={16} />
+                {profileCompletion === 100
+                  ? "Review your profile"
+                  : "Complete your profile"}
+                <ArrowRight size={16} />
               </Link>
             </div>
           </section>
@@ -330,8 +458,9 @@ export default function DashboardPage() {
                   <BriefcaseBusiness size={20} />
                 </div>
               </div>
-              <strong>0</strong>
-              <p>No applications submitted yet</p>
+
+              <strong>—</strong>
+              <p>Application statistics will appear here.</p>
             </article>
 
             <article className="dashboard-stat-card">
@@ -341,8 +470,9 @@ export default function DashboardPage() {
                   <Bookmark size={20} />
                 </div>
               </div>
+
               <strong>{savedJobs.length}</strong>
-              <p>Opportunities you've bookmarked</p>
+              <p>Saved during this page session only.</p>
             </article>
 
             <article className="dashboard-stat-card">
@@ -352,8 +482,9 @@ export default function DashboardPage() {
                   <Users size={20} />
                 </div>
               </div>
-              <strong>0</strong>
-              <p>Employer profile views</p>
+
+              <strong>—</strong>
+              <p>Employer view tracking is not connected yet.</p>
             </article>
 
             <article className="dashboard-stat-card">
@@ -363,8 +494,12 @@ export default function DashboardPage() {
                   <CheckCircle2 size={20} />
                 </div>
               </div>
-              <strong className="dashboard-status-text">In progress</strong>
-              <p>Keep adding your information</p>
+
+              <strong className="dashboard-status-text">
+                {loading ? "Loading..." : profileStatus}
+              </strong>
+
+              <p>Based on your saved profile information.</p>
             </article>
           </section>
 
@@ -375,77 +510,83 @@ export default function DashboardPage() {
                   <span className="dashboard-section-eyebrow">
                     MADE FOR YOUR NEXT MOVE
                   </span>
-                  <h2>Recommended opportunities</h2>
-                  <p>Explore roles you may be interested in.</p>
+
+                  <h2>Find your next opportunity</h2>
+
+                  <p>
+                    Explore available jobs and discover opportunities that
+                    match your skills.
+                  </p>
                 </div>
 
                 <Link href="/jobs" className="dashboard-view-all">
-                  View all jobs <ArrowRight size={16} />
+                  Browse jobs <ArrowRight size={16} />
                 </Link>
               </div>
 
               <div className="dashboard-job-list">
-                {recommendedJobs.map((job) => (
-                  <article className="dashboard-job-card" key={job.id}>
-                    <div className={`dashboard-company-logo ${job.color}`}>
-                      {job.initials}
+                <article className="dashboard-job-card">
+                  <div className="dashboard-company-logo green">
+                    <BriefcaseBusiness size={24} />
+                  </div>
+
+                  <div className="dashboard-job-info">
+                    <div className="dashboard-job-title-row">
+                      <h3>Explore available jobs</h3>
                     </div>
 
-                    <div className="dashboard-job-info">
-                      <div className="dashboard-job-title-row">
-                        <h3>{job.title}</h3>
-                        <span className="dashboard-job-posted">
-                          {job.posted}
-                        </span>
-                      </div>
+                    <p className="dashboard-job-company">
+                      Find opportunities across different industries.
+                    </p>
 
-                      <p className="dashboard-job-company">
-                        {job.company}
-                      </p>
+                    <div className="dashboard-job-meta">
+                      <span>
+                        <MapPin size={14} />
+                        Explore by location
+                      </span>
 
-                      <div className="dashboard-job-meta">
-                        <span>
-                          <MapPin size={14} />
-                          {job.location}
-                        </span>
-                        <span>
-                          <Clock3 size={14} />
-                          {job.type}
-                        </span>
-                      </div>
-
-                      <strong className="dashboard-job-salary">
-                        {job.salary}
-                      </strong>
+                      <span>
+                        <Clock3 size={14} />
+                        View job types
+                      </span>
                     </div>
 
-                    <button
-                      className={`dashboard-save-job ${
-                        savedJobs.includes(job.id) ? "saved" : ""
-                      }`}
-                      onClick={() => toggleSavedJob(job.id)}
-                      aria-label={
-                        savedJobs.includes(job.id)
-                          ? "Remove saved job"
-                          : "Save job"
-                      }
-                      title={
-                        savedJobs.includes(job.id)
-                          ? "Remove saved job"
-                          : "Save job"
-                      }
+                    <Link href="/jobs" className="dashboard-job-salary">
+                      Find opportunities <ArrowUpRight size={15} />
+                    </Link>
+                  </div>
+                </article>
+
+                <article className="dashboard-job-card">
+                  <div className="dashboard-company-logo orange">
+                    <Users size={24} />
+                  </div>
+
+                  <div className="dashboard-job-info">
+                    <div className="dashboard-job-title-row">
+                      <h3>Discover skilled professionals</h3>
+                    </div>
+
+                    <p className="dashboard-job-company">
+                      Explore the professionals and services available on
+                      Abi Job.
+                    </p>
+
+                    <div className="dashboard-job-meta">
+                      <span>
+                        <Building2 size={14} />
+                        Professional directory
+                      </span>
+                    </div>
+
+                    <Link
+                      href="/professionals"
+                      className="dashboard-job-salary"
                     >
-                      <Bookmark
-                        size={19}
-                        fill={
-                          savedJobs.includes(job.id)
-                            ? "currentColor"
-                            : "none"
-                        }
-                      />
-                    </button>
-                  </article>
-                ))}
+                      Find professionals <ArrowUpRight size={15} />
+                    </Link>
+                  </div>
+                </article>
               </div>
             </section>
 
@@ -455,36 +596,69 @@ export default function DashboardPage() {
                   <span className="dashboard-section-eyebrow">
                     STAY ON TRACK
                   </span>
-                  <h2>Recent activity</h2>
+
+                  <h2>Recommended next steps</h2>
                 </div>
               </div>
 
               <div className="dashboard-activity-list">
-                {activities.map((activity, index) => {
-                  const Icon = activity.icon;
+                <div className="dashboard-activity-item">
+                  <div className="dashboard-activity-icon">
+                    <UserRound size={18} />
+                  </div>
 
-                  return (
-                    <div className="dashboard-activity-item" key={index}>
-                      <div className="dashboard-activity-icon">
-                        <Icon size={18} />
-                      </div>
+                  <div className="dashboard-activity-copy">
+                    <strong>Complete your profile</strong>
+                    <p>
+                      Add your skills, qualifications and experience.
+                    </p>
 
-                      <div className="dashboard-activity-copy">
-                        <strong>{activity.title}</strong>
-                        <p>{activity.detail}</p>
-                        <Link
-                          href={index === 1 ? "/jobs" : "/profile"}
-                        >
-                          {activity.time} <ArrowUpRight size={13} />
-                        </Link>
-                      </div>
-                    </div>
-                  );
-                })}
+                    <Link href="/profile">
+                      Update profile <ArrowUpRight size={13} />
+                    </Link>
+                  </div>
+                </div>
+
+                <div className="dashboard-activity-item">
+                  <div className="dashboard-activity-icon">
+                    <BriefcaseBusiness size={18} />
+                  </div>
+
+                  <div className="dashboard-activity-copy">
+                    <strong>Explore job opportunities</strong>
+                    <p>
+                      Search for vacancies that match your interests.
+                    </p>
+
+                    <Link href="/jobs">
+                      Explore jobs <ArrowUpRight size={13} />
+                    </Link>
+                  </div>
+                </div>
+
+                <div className="dashboard-activity-item">
+                  <div className="dashboard-activity-icon">
+                    <FileText size={18} />
+                  </div>
+
+                  <div className="dashboard-activity-copy">
+                    <strong>Prepare your CV</strong>
+                    <p>
+                      Make your experience and qualifications easy to review.
+                    </p>
+
+                    <Link href="/profile">
+                      Update profile <ArrowUpRight size={13} />
+                    </Link>
+                  </div>
+                </div>
               </div>
 
-              <Link href="/notifications" className="dashboard-activity-footer">
-                View all activity <ArrowRight size={16} />
+              <Link
+                href="/notifications"
+                className="dashboard-activity-footer"
+              >
+                View notifications <ArrowRight size={16} />
               </Link>
             </aside>
           </div>
@@ -493,13 +667,15 @@ export default function DashboardPage() {
             <div className="dashboard-bottom-banner-icon">
               <FileText size={25} />
             </div>
+
             <div>
               <span>YOUR NEXT STEP</span>
               <h2>Let employers see what you can do.</h2>
               <p>
-                Add your skills, experience, and qualifications to your profile.
+                Add your skills, experience and qualifications to your profile.
               </p>
             </div>
+
             <Link href="/profile">
               Update my profile <ArrowRight size={17} />
             </Link>

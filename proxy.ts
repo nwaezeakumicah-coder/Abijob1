@@ -1,6 +1,7 @@
 
 import { createServerClient } from "@supabase/ssr";
 import { NextRequest, NextResponse } from "next/server";
+import { authorizeAdminRoute } from "./lib/admin/authorization";
 
 type AccountRole =
   | "job_seeker"
@@ -45,6 +46,22 @@ function getRequiredRole(pathname: string): AccountRole | null {
   }
 
   return null;
+}
+
+function redirectWithCookies(
+  request: NextRequest,
+  response: NextResponse,
+  destination: string
+) {
+  const redirectResponse = NextResponse.redirect(
+    new URL(destination, request.url)
+  );
+
+  response.cookies.getAll().forEach((cookie) => {
+    redirectResponse.cookies.set(cookie);
+  });
+
+  return redirectResponse;
 }
 
 export async function proxy(request: NextRequest) {
@@ -92,6 +109,7 @@ export async function proxy(request: NextRequest) {
 
   const requiredRole = getRequiredRole(pathname);
 
+  const isAdminRoute = isWithinPath(pathname, "/admin");
   const isSettingsRoute = isWithinPath(pathname, "/settings");
   const isSubscriptionRoute = isWithinPath(pathname, "/subscription");
   const isCvBuilderRoute = isWithinPath(pathname, "/cv-builder");
@@ -109,19 +127,6 @@ export async function proxy(request: NextRequest) {
 
   if (!requiresAuthentication) return response;
 
-  function redirectWithCookies(destination: string) {
-    const redirectResponse = NextResponse.redirect(
-      new URL(destination, request.url)
-    );
-
-    response.cookies.getAll().forEach((cookie) => {
-      redirectResponse.cookies.set(cookie);
-    });
-
-    return redirectResponse;
-  }
-
-  // Protect private pages from logged-out visitors.
   if (userError || !user) {
     const loginUrl = new URL("/login", request.url);
 
@@ -131,11 +136,57 @@ export async function proxy(request: NextRequest) {
     );
 
     return redirectWithCookies(
+      request,
+      response,
       `${loginUrl.pathname}${loginUrl.search}`
     );
   }
 
-  // Get the authenticated user's actual database role.
+  // Admin access requires an active platform_admins membership
+  // and at least one permission assigned to the administrator's role.
+  if (isAdminRoute) {
+    const authorization = await authorizeAdminRoute(
+      user.id,
+      pathname
+    );
+
+    if (authorization.authorized) {
+      return response;
+    }
+
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("role")
+      .eq("id", user.id)
+      .maybeSingle();
+
+    if (
+      profile?.role &&
+      Object.prototype.hasOwnProperty.call(
+        dashboardRoutes,
+        profile.role
+      ) &&
+      profile.role !== "admin"
+    ) {
+      return redirectWithCookies(
+        request,
+        response,
+        dashboardRoutes[profile.role as AccountRole]
+      );
+    }
+
+    const destination =
+      authorization.status === 500
+        ? "/login?error=admin_verification_unavailable"
+        : "/login?error=admin_access_denied";
+
+    return redirectWithCookies(
+      request,
+      response,
+      destination
+    );
+  }
+
   const { data: profile, error: profileError } = await supabase
     .from("profiles")
     .select("role")
@@ -150,51 +201,63 @@ export async function proxy(request: NextRequest) {
       profile.role
     )
   ) {
-    return redirectWithCookies("/login?error=profile_missing");
+    return redirectWithCookies(
+      request,
+      response,
+      "/login?error=profile_missing"
+    );
   }
 
   const role = profile.role as AccountRole;
 
-  // Job Seeker settings.
-  // Other account types have their own settings routes.
   if (isSettingsRoute) {
     if (role !== "job_seeker") {
       return redirectWithCookies(
+        request,
+        response,
         role === "professional"
           ? "/professional/settings"
           : role === "employer"
             ? "/employer/settings"
-            : "/admin"
+            : "/login?error=admin_access_denied"
       );
     }
 
     return response;
   }
 
-  // Subscription pages are available to all authenticated roles.
   if (isSubscriptionRoute) return response;
 
-  // CV Builder is shared by Job Seekers and Professionals.
   if (isCvBuilderRoute) {
     if (role === "job_seeker" || role === "professional") {
       return response;
     }
 
-    return redirectWithCookies(dashboardRoutes[role]);
+    return redirectWithCookies(
+      request,
+      response,
+      dashboardRoutes[role]
+    );
   }
 
-  // Interview Practice is shared by Job Seekers and Professionals.
   if (isInterviewPracticeRoute) {
     if (role === "job_seeker" || role === "professional") {
       return response;
     }
 
-    return redirectWithCookies(dashboardRoutes[role]);
+    return redirectWithCookies(
+      request,
+      response,
+      dashboardRoutes[role]
+    );
   }
 
-  // Protect all other role-specific pages.
   if (requiredRole && role !== requiredRole) {
-    return redirectWithCookies(dashboardRoutes[role]);
+    return redirectWithCookies(
+      request,
+      response,
+      dashboardRoutes[role]
+    );
   }
 
   return response;

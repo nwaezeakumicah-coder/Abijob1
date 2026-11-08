@@ -1,3 +1,4 @@
+
 "use client";
 
 import Image from "next/image";
@@ -15,6 +16,7 @@ import {
   Eye,
   Globe,
   Lock,
+  LogOut,
   Mail,
   Save,
   Settings,
@@ -82,6 +84,7 @@ export default function EmployerSettingsPage() {
 
   const [accessChecked, setAccessChecked] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [isSigningOut, setIsSigningOut] = useState(false);
   const [saveMessage, setSaveMessage] = useState("");
   const [saveError, setSaveError] = useState(false);
 
@@ -133,7 +136,6 @@ export default function EmployerSettingsPage() {
           return;
         }
 
-        // Confirm that this account has an employer profile.
         const { data: employerProfile, error: profileError } =
           await supabase
             .from("employer_profiles")
@@ -147,7 +149,11 @@ export default function EmployerSettingsPage() {
           );
         }
 
-        if (!employerProfile && metadataRole !== "employer" && appRole !== "employer") {
+        if (
+          !employerProfile &&
+          metadataRole !== "employer" &&
+          appRole !== "employer"
+        ) {
           router.replace("/login");
           return;
         }
@@ -158,7 +164,6 @@ export default function EmployerSettingsPage() {
           setCompanyName(employerProfile.business_name);
         }
 
-        // Load the employer's saved preferences.
         const { data: savedPreferences, error: preferencesError } =
           await supabase
             .from("employer_preferences")
@@ -221,6 +226,8 @@ export default function EmployerSettingsPage() {
   );
 
   async function handleSave() {
+    if (isSaving || isSigningOut) return;
+
     setIsSaving(true);
     setSaveMessage("");
     setSaveError(false);
@@ -254,7 +261,7 @@ export default function EmployerSettingsPage() {
         marketing_emails: preferences.marketingEmails,
       };
 
-      const { error: saveError } = existingPreferences
+      const { error: preferenceSaveError } = existingPreferences
         ? await supabase
             .from("employer_preferences")
             .update({
@@ -268,11 +275,13 @@ export default function EmployerSettingsPage() {
             .from("employer_preferences")
             .insert(preferenceData);
 
-      if (saveError) {
-        throw new Error(saveError.message);
+      if (preferenceSaveError) {
+        throw new Error(preferenceSaveError.message);
       }
 
-      setSaveMessage("Your preferences have been saved to your Abi Job account.");
+      setSaveMessage(
+        "Your preferences have been saved to your Abi Job account."
+      );
     } catch (error) {
       setSaveError(true);
       setSaveMessage(
@@ -282,6 +291,38 @@ export default function EmployerSettingsPage() {
       );
     } finally {
       setIsSaving(false);
+    }
+  }
+
+  async function handleSignOut() {
+    if (isSigningOut || isSaving) return;
+
+    setIsSigningOut(true);
+    setSaveMessage("");
+    setSaveError(false);
+
+    try {
+      const { error } = await supabase.auth.signOut({
+        scope: "local",
+      });
+
+      if (error) {
+        throw new Error(
+          "We could not sign you out. Please try again."
+        );
+      }
+
+      router.replace("/login");
+      router.refresh();
+    } catch (error) {
+      setSaveError(true);
+      setSaveMessage(
+        error instanceof Error
+          ? error.message
+          : "Sign-out failed. Please try again."
+      );
+
+      setIsSigningOut(false);
     }
   }
 
@@ -299,7 +340,7 @@ export default function EmployerSettingsPage() {
       <aside className="employer-settings-sidebar">
         <Link href="/" className="employer-settings-brand">
           <Image
-            src="/image/abijob-logo-white.png"
+            src="/images/abijob-logo-white.png"
             alt="Abi Job - Opportunity Starts Here"
             width={170}
             height={65}
@@ -430,7 +471,7 @@ export default function EmployerSettingsPage() {
               type="button"
               className="employer-settings-save-top"
               onClick={handleSave}
-              disabled={isSaving}
+              disabled={isSaving || isSigningOut}
             >
               <Save size={17} />
               {isSaving ? "Saving..." : "Save changes"}
@@ -658,6 +699,30 @@ export default function EmployerSettingsPage() {
                 Coming soon
               </span>
             </div>
+
+            <div className="employer-settings-security-item">
+              <div className="employer-settings-security-icon">
+                <LogOut size={19} />
+              </div>
+
+              <div>
+                <strong>Sign out</strong>
+                <p>
+                  Securely sign out of your Abi Job employer account on
+                  this device.
+                </p>
+              </div>
+
+              <button
+                type="button"
+                className="employer-settings-save-top"
+                onClick={handleSignOut}
+                disabled={isSigningOut || isSaving}
+              >
+                <LogOut size={16} />
+                {isSigningOut ? "Signing out..." : "Sign out"}
+              </button>
+            </div>
           </section>
 
           <section className="employer-settings-danger-card">
@@ -696,7 +761,7 @@ export default function EmployerSettingsPage() {
             <button
               type="button"
               onClick={handleSave}
-              disabled={isSaving}
+              disabled={isSaving || isSigningOut}
             >
               <Save size={17} />
               {isSaving ? "Saving..." : "Save preferences"}

@@ -43,17 +43,30 @@ type Applicant = {
   jobId: string;
   applicantId: string;
   name: string;
+  email: string;
+  phone: string;
   initials: string;
   role: string;
   skills: string;
   experience: string;
   location: string;
+  professionalTitle: string;
   date: string;
   status: ApplicationStatus;
   coverLetter: string;
   cvPath: string | null;
-  cvUrl: string | null;
 };
+
+type ApplicantProfile = {
+  id: string;
+  full_name: string | null;
+  headline: string | null;
+  skills: string[] | null;
+  experience: string | null;
+  location: string | null;
+};
+
+const CV_BUCKET = "abi-job-profile-files";
 
 const statusLabels: Record<ApplicationStatus, string> = {
   submitted: "Pending",
@@ -74,6 +87,27 @@ const statusOptions: {
   { value: "rejected", label: "Rejected" },
   { value: "hired", label: "Hired" },
 ];
+
+const statusTabs = [
+  "All applicants",
+  "Pending",
+  "Under review",
+  "Shortlisted",
+  "Rejected",
+  "Hired",
+  "Withdrawn",
+];
+
+function isApplicationStatus(value: string): value is ApplicationStatus {
+  return [
+    "submitted",
+    "under_review",
+    "shortlisted",
+    "rejected",
+    "hired",
+    "withdrawn",
+  ].includes(value);
+}
 
 function getInitials(name: string) {
   return (
@@ -101,7 +135,20 @@ function formatDate(value: string) {
 }
 
 function formatExperience(value: string | null) {
-  return value || "Experience not specified";
+  return value?.trim() || "Experience not specified";
+}
+
+function normaliseSkills(
+  snapshotSkills: string | null | undefined,
+  profileSkills: string[] | null | undefined
+) {
+  if (snapshotSkills?.trim()) return snapshotSkills.trim();
+
+  if (Array.isArray(profileSkills) && profileSkills.length > 0) {
+    return profileSkills.join(", ");
+  }
+
+  return "Skills not provided";
 }
 
 export default function EmployerApplicantsPage() {
@@ -116,6 +163,7 @@ export default function EmployerApplicantsPage() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [updatingId, setUpdatingId] = useState<string | null>(null);
+  const [openingCvId, setOpeningCvId] = useState<string | null>(null);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
 
@@ -138,7 +186,7 @@ export default function EmployerApplicantsPage() {
 
         if (authError || !user) {
           window.location.href =
-            "/login?redirect=/employer/applicants";
+            "/login?redirect=%2Femployer%2Fapplicants";
           return;
         }
 
@@ -149,9 +197,7 @@ export default function EmployerApplicantsPage() {
           .single();
 
         if (profileError || !profile) {
-          throw new Error(
-            "Your account profile could not be loaded."
-          );
+          throw new Error("Your account profile could not be loaded.");
         }
 
         if (profile.role !== "employer") {
@@ -167,17 +213,26 @@ export default function EmployerApplicantsPage() {
           return;
         }
 
-        const { data: employerProfile } = await supabase
-          .from("employer_profiles")
-          .select("business_name")
-          .eq("id", user.id)
-          .maybeSingle();
+        // employer_profiles is keyed by user_id.
+        const { data: employerProfile, error: employerProfileError } =
+          await supabase
+            .from("employer_profiles")
+            .select("business_name")
+            .eq("user_id", user.id)
+            .maybeSingle();
 
-        if (employerProfile?.business_name) {
-          setCompanyName(employerProfile.business_name);
+        if (employerProfileError) {
+          console.error(
+            "Employer profile lookup:",
+            employerProfileError.message
+          );
         }
 
-        // Only load jobs belonging to the authenticated employer.
+        setCompanyName(
+          employerProfile?.business_name?.trim() || "Your Company"
+        );
+
+        // RLS ensures that this query returns only this employer's jobs.
         const { data: jobData, error: jobsError } = await supabase
           .from("jobs")
           .select("id, title")
@@ -196,12 +251,27 @@ export default function EmployerApplicantsPage() {
 
         const jobIds = employerJobs.map((job) => job.id);
 
-        // Only load applications for this employer's jobs.
+        // Applications are restricted to the employer's own job IDs.
         const { data: applicationData, error: applicationsError } =
           await supabase
             .from("job_applications")
             .select(
-              "id, job_id, applicant_id, cover_letter, cv_path, status, created_at"
+              `
+                id,
+                job_id,
+                applicant_id,
+                cover_letter,
+                cv_path,
+                status,
+                created_at,
+                applicant_name,
+                applicant_email,
+                applicant_phone,
+                applicant_location,
+                applicant_title,
+                applicant_experience,
+                applicant_skills
+              `
             )
             .in("job_id", jobIds)
             .order("created_at", { ascending: false });
@@ -215,107 +285,100 @@ export default function EmployerApplicantsPage() {
           return;
         }
 
+        // Older applications may not have snapshot values. Use the
+        // approved SECURITY DEFINER RPC as a fallback instead of querying
+        // other users' profiles directly and violating profiles RLS.
         const applicantIds = [
-          ...new Set(
-            applications.map(
-              (application) => application.applicant_id
-            )
-          ),
+          ...new Set(applications.map((item) => item.applicant_id)),
         ];
 
-        // Profile visibility depends on the profiles table RLS policies.
         const { data: applicantProfiles, error: applicantProfilesError } =
-          await supabase
-            .from("profiles")
-            .select(
-              "id, full_name, headline, skills, experience, location"
-            )
-            .in("id", applicantIds);
+          await supabase.rpc("get_employer_applicant_profiles", {
+            p_applicant_ids: applicantIds,
+          });
 
         if (applicantProfilesError) {
           console.error(
-            "Applicant profile lookup:",
+            "Secure applicant profile lookup:",
             applicantProfilesError.message
           );
         }
 
-        const profileMap = new Map(
-          (applicantProfiles || []).map((item) => [
+        const profileMap = new Map<string, ApplicantProfile>(
+          ((applicantProfiles || []) as ApplicantProfile[]).map((item) => [
             item.id,
             item,
           ])
         );
 
         const jobMap = new Map(
-          employerJobs.map((job) => [job.id, job.title])
+          employerJobs.map((item) => [item.id, item.title])
         );
 
-        // Generate short-lived links to private CV files.
-        const mappedApplicants = await Promise.all(
-          applications.map(async (application) => {
+        const mappedApplicants: Applicant[] = applications.map(
+          (application) => {
             const applicantProfile = profileMap.get(
               application.applicant_id
             );
 
-            let cvUrl: string | null = null;
-
-            if (application.cv_path) {
-              const { data: signedUrlData, error: signedUrlError } =
-                await supabase.storage
-                  .from("abi-job-profile-files")
-                  .createSignedUrl(application.cv_path, 300);
-
-              if (signedUrlError) {
-                console.error(
-                  "CV link error:",
-                  signedUrlError.message
-                );
-              } else {
-                cvUrl = signedUrlData.signedUrl;
-              }
-            }
-
             const name =
-              applicantProfile?.full_name ||
+              application.applicant_name?.trim() ||
+              applicantProfile?.full_name?.trim() ||
               "Abi Job Applicant";
 
-            const skills = Array.isArray(
-              applicantProfile?.skills
+            const statusValue = String(application.status || "submitted");
+
+            const status: ApplicationStatus = isApplicationStatus(
+              statusValue
             )
-              ? applicantProfile.skills.join(", ")
-              : "";
+              ? statusValue
+              : "submitted";
+
+            const profileSkills = applicantProfile?.skills || [];
+
+            const snapshotSkills =
+              application.applicant_skills ||
+              (Array.isArray(profileSkills)
+                ? profileSkills.join(", ")
+                : "");
 
             return {
               id: application.id,
               jobId: application.job_id,
               applicantId: application.applicant_id,
               name,
+              email: application.applicant_email || "",
+              phone: application.applicant_phone || "",
               initials: getInitials(name),
-              role:
-                jobMap.get(application.job_id) ||
-                "Job vacancy",
-              skills: skills || "Skills not provided",
+              role: jobMap.get(application.job_id) || "Job vacancy",
+              skills: normaliseSkills(
+                snapshotSkills,
+                profileSkills
+              ),
               experience: formatExperience(
-                applicantProfile?.experience || null
+                application.applicant_experience ||
+                  applicantProfile?.experience ||
+                  null
               ),
               location:
-                applicantProfile?.location ||
+                application.applicant_location?.trim() ||
+                applicantProfile?.location?.trim() ||
                 "Location not provided",
+              professionalTitle:
+                application.applicant_title?.trim() ||
+                applicantProfile?.headline?.trim() ||
+                "",
               date: formatDate(application.created_at),
-              status: application.status as ApplicationStatus,
+              status,
               coverLetter: application.cover_letter || "",
               cvPath: application.cv_path,
-              cvUrl,
             };
-          })
+          }
         );
 
         setApplicants(mappedApplicants);
       } catch (err) {
-        console.error(
-          "Employer applicants loading error:",
-          err
-        );
+        console.error("Employer applicants loading error:", err);
 
         setError(
           err instanceof Error
@@ -346,11 +409,20 @@ export default function EmployerApplicantsPage() {
 
       const search = searchTerm.trim().toLowerCase();
 
+      const searchableText = [
+        applicant.name,
+        applicant.email,
+        applicant.phone,
+        applicant.skills,
+        applicant.role,
+        applicant.location,
+        applicant.professionalTitle,
+      ]
+        .join(" ")
+        .toLowerCase();
+
       const matchesSearch =
-        applicant.name.toLowerCase().includes(search) ||
-        applicant.skills.toLowerCase().includes(search) ||
-        applicant.role.toLowerCase().includes(search) ||
-        applicant.location.toLowerCase().includes(search);
+        !search || searchableText.includes(search);
 
       return matchesStatus && matchesJob && matchesSearch;
     });
@@ -364,35 +436,50 @@ export default function EmployerApplicantsPage() {
     ).length;
 
   const updateStatus = async (
-    applicationId: string,
+    applicant: Applicant,
     nextStatus: ApplicationStatus
   ) => {
-    setUpdatingId(applicationId);
+    if (applicant.status === "withdrawn") {
+      setError("A withdrawn application cannot be changed by the employer.");
+      return;
+    }
+
+    if (applicant.status === nextStatus) return;
+
+    setUpdatingId(applicant.id);
     setError("");
     setSuccess("");
 
     try {
-      const { error: updateError } = await supabase
+      const { data, error: updateError } = await supabase
         .from("job_applications")
         .update({ status: nextStatus })
-        .eq("id", applicationId);
+        .eq("id", applicant.id)
+        .eq("job_id", applicant.jobId)
+        .select("id")
+        .maybeSingle();
 
       if (updateError) throw updateError;
 
+      if (!data) {
+        throw new Error(
+          "The application could not be updated. Confirm that this vacancy belongs to your employer account and try again."
+        );
+      }
+
       setApplicants((previous) =>
-        previous.map((applicant) =>
-          applicant.id === applicationId
-            ? { ...applicant, status: nextStatus }
-            : applicant
+        previous.map((item) =>
+          item.id === applicant.id
+            ? { ...item, status: nextStatus }
+            : item
         )
       );
 
-      setSuccess("Applicant status updated successfully.");
-    } catch (err) {
-      console.error(
-        "Applicant status update error:",
-        err
+      setSuccess(
+        `Application status changed to ${statusLabels[nextStatus]}.`
       );
+    } catch (err) {
+      console.error("Applicant status update error:", err);
 
       setError(
         err instanceof Error
@@ -404,15 +491,54 @@ export default function EmployerApplicantsPage() {
     }
   };
 
-  const statusTabs = [
-    "All applicants",
-    "Pending",
-    "Under review",
-    "Shortlisted",
-    "Rejected",
-    "Hired",
-    "Withdrawn",
-  ];
+  const openCv = async (applicant: Applicant) => {
+    if (!applicant.cvPath || openingCvId) return;
+
+    setOpeningCvId(applicant.id);
+    setError("");
+    setSuccess("");
+
+    // Open a tab synchronously during the click so the browser is less
+    // likely to block it while the signed URL is being requested.
+    const newTab = window.open("about:blank", "_blank");
+
+    if (!newTab) {
+      setError(
+        "Your browser blocked the CV window. Please allow pop-ups for Abi Job and try again."
+      );
+      setOpeningCvId(null);
+      return;
+    }
+
+    try {
+      newTab.opener = null;
+
+      const { data, error: signedUrlError } = await supabase.storage
+        .from(CV_BUCKET)
+        .createSignedUrl(applicant.cvPath, 300);
+
+      if (signedUrlError || !data?.signedUrl) {
+        throw new Error(
+          signedUrlError?.message ||
+            "A secure CV link could not be created."
+        );
+      }
+
+      newTab.location.href = data.signedUrl;
+    } catch (err) {
+      newTab.close();
+
+      console.error("Applicant CV access error:", err);
+
+      setError(
+        err instanceof Error
+          ? `Unable to open this CV: ${err.message}`
+          : "Unable to open this CV. Please try again."
+      );
+    } finally {
+      setOpeningCvId(null);
+    }
+  };
 
   if (loading) {
     return (
@@ -730,6 +856,12 @@ export default function EmployerApplicantsPage() {
                       </span>
                     </div>
 
+                    {applicant.professionalTitle && (
+                      <strong className="applicant-job-title">
+                        {applicant.professionalTitle}
+                      </strong>
+                    )}
+
                     <strong className="applicant-job-title">
                       Applied for: {applicant.role}
                     </strong>
@@ -750,6 +882,17 @@ export default function EmployerApplicantsPage() {
                       </span>
                     </div>
 
+                    {(applicant.email || applicant.phone) && (
+                      <div className="applicant-meta">
+                        {applicant.email && (
+                          <span>{applicant.email}</span>
+                        )}
+                        {applicant.phone && (
+                          <span>{applicant.phone}</span>
+                        )}
+                      </div>
+                    )}
+
                     {applicant.coverLetter && (
                       <details className="applicant-cover-letter">
                         <summary>Read cover letter</summary>
@@ -767,17 +910,26 @@ export default function EmployerApplicantsPage() {
                       View details
                     </Link>
 
-                    {applicant.cvUrl && (
-                      <a
-                        href={applicant.cvUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
+                    {applicant.cvPath && (
+                      <button
+                        type="button"
                         className="applicant-view-button"
+                        onClick={() => openCv(applicant)}
+                        disabled={openingCvId === applicant.id}
                       >
-                        <FileText size={15} />
-                        View CV
+                        {openingCvId === applicant.id ? (
+                          <LoaderCircle
+                            size={15}
+                            className="animate-spin"
+                          />
+                        ) : (
+                          <FileText size={15} />
+                        )}
+                        {openingCvId === applicant.id
+                          ? "Opening..."
+                          : "View CV"}
                         <ExternalLink size={13} />
-                      </a>
+                      </button>
                     )}
 
                     <label className="applicant-status-select">
@@ -791,14 +943,19 @@ export default function EmployerApplicantsPage() {
                           updatingId === applicant.id ||
                           applicant.status === "withdrawn"
                         }
-                        onChange={(event) =>
-                          updateStatus(
-                            applicant.id,
-                            event.target.value as ApplicationStatus
-                          )
-                        }
+                        onChange={(event) => {
+                          const nextStatus = event.target.value;
+
+                          if (isApplicationStatus(nextStatus)) {
+                            updateStatus(applicant, nextStatus);
+                          }
+                        }}
                         aria-label={`Change status for ${applicant.name}`}
                       >
+                        {applicant.status === "withdrawn" && (
+                          <option value="withdrawn">Withdrawn</option>
+                        )}
+
                         {statusOptions.map((option) => (
                           <option
                             key={option.value}
@@ -832,7 +989,7 @@ export default function EmployerApplicantsPage() {
                   </strong>
                   <p>
                     {applicants.length === 0
-                      ? "Applications received for your approved job posts will appear here."
+                      ? "Applications received for your job posts will appear here."
                       : "Try changing your search or filter settings."}
                   </p>
 

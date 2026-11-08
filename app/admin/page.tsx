@@ -181,7 +181,7 @@ export default function AdminDashboardPage() {
       <aside className="admin-sidebar">
         <Link href="/" className="admin-brand">
           <Image
-            src="/images/abijob-logo-white.png"
+            src="/image/abijob-logo-white.png"
             alt="Abi Job — Opportunity Starts Here"
             width={170}
             height={65}

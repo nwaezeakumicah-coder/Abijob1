@@ -1,6 +1,7 @@
+
 /* =========================================
    ABI JOB — SETTINGS PAGE
-   LIGHT + DARK THEME SUPPORT
+   FIXED WEBSITE APPEARANCE
 ========================================= */
 
 /* PAGE */
@@ -10,7 +11,6 @@
   display: flex;
   background: var(--background);
   color: var(--text-primary);
-  transition: background var(--transition), color var(--transition);
 }
 
 /* SIDEBAR */
@@ -26,7 +26,6 @@
   padding: 25px 17px 18px;
   background: var(--surface);
   border-right: 1px solid var(--border);
-  transition: background var(--transition), border-color var(--transition);
 }
 
 .settings-sidebar-top {
@@ -117,7 +116,7 @@
   text-decoration: none;
   font-size: 13px;
   font-weight: 600;
-  transition: background var(--transition), color var(--transition);
+  transition: background 180ms ease, color 180ms ease;
 }
 
 .settings-nav-link:hover {
@@ -337,7 +336,7 @@
   color: var(--text-secondary);
   text-align: left;
   cursor: pointer;
-  transition: background var(--transition), color var(--transition);
+  transition: background 180ms ease, color 180ms ease;
 }
 
 .settings-tab:hover {
@@ -554,7 +553,7 @@
   border-radius: 30px;
   background: var(--border-strong);
   cursor: pointer;
-  transition: background var(--transition);
+  transition: background 180ms ease;
 }
 
 .settings-switch span {
@@ -566,7 +565,7 @@
   border-radius: 50%;
   background: #ffffff;
   box-shadow: var(--shadow-sm);
-  transition: transform var(--transition);
+  transition: transform 180ms ease;
 }
 
 .settings-switch.on {
@@ -671,7 +670,7 @@
   font-size: 11px;
   font-weight: 750;
   cursor: pointer;
-  transition: background var(--transition), border-color var(--transition);
+  transition: background 180ms ease, border-color 180ms ease;
 }
 
 .settings-reset-button {
@@ -828,42 +827,7 @@
   background: var(--green-dark);
 }
 
-/* WEBSITE APPEARANCE */
-
-.settings-appearance-section {
-  padding-bottom: 25px;
-}
-
-.settings-theme-control {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  flex-wrap: wrap;
-  gap: 18px;
-  margin-top: 20px;
-  padding: 18px;
-  background: var(--surface-soft);
-  border: 1px solid var(--border);
-  border-radius: 14px;
-}
-
-.settings-theme-description {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
-.settings-theme-description strong {
-  color: var(--text-primary);
-  font-size: 14px;
-}
-
-.settings-theme-description span {
-  color: var(--text-secondary);
-  font-size: 13px;
-}
-
-/* MOBILE */
+/* MOBILE NAVIGATION */
 
 .settings-overlay {
   display: none;
@@ -981,13 +945,6 @@
   }
 }
 
-@media (max-width: 600px) {
-  .settings-theme-control {
-    align-items: flex-start;
-    flex-direction: column;
-  }
-}
-
 @media (max-width: 430px) {
   .settings-content {
     width: calc(100% - 26px);
@@ -1044,124 +1001,4 @@
   .settings-danger-button {
     margin-left: 0;
   }
-}
-/* =========================================
-   DARK MODE — SETTINGS TEXT VISIBILITY
-========================================= */
-
-:root[data-theme="dark"] .settings-page {
-  background: var(--background);
-  color: var(--text-primary);
-}
-
-:root[data-theme="dark"] .settings-sidebar,
-:root[data-theme="dark"] .settings-topbar,
-:root[data-theme="dark"] .settings-tab-sidebar,
-:root[data-theme="dark"] .settings-panel,
-:root[data-theme="dark"] .settings-confirm-modal,
-:root[data-theme="dark"] .settings-account-danger {
-  background: var(--surface);
-  border-color: var(--border);
-}
-
-:root[data-theme="dark"] .settings-user-card,
-:root[data-theme="dark"] .settings-info-note,
-:root[data-theme="dark"] .settings-theme-control,
-:root[data-theme="dark"] .settings-help-card {
-  background: var(--surface-soft);
-  border-color: var(--border);
-}
-
-:root[data-theme="dark"] .settings-page h1,
-:root[data-theme="dark"] .settings-page h2,
-:root[data-theme="dark"] .settings-page h3,
-:root[data-theme="dark"] .settings-page strong,
-:root[data-theme="dark"] .settings-breadcrumb span,
-:root[data-theme="dark"] .settings-tab-text strong,
-:root[data-theme="dark"] .settings-panel-heading h2,
-:root[data-theme="dark"] .settings-section h3,
-:root[data-theme="dark"] .settings-security-card h3,
-:root[data-theme="dark"] .settings-confirm-modal h2 {
-  color: var(--text-primary);
-}
-
-:root[data-theme="dark"] .settings-page p,
-:root[data-theme="dark"] .settings-page span,
-:root[data-theme="dark"] .settings-page small,
-:root[data-theme="dark"] .settings-page label,
-:root[data-theme="dark"] .settings-page .settings-breadcrumb,
-:root[data-theme="dark"] .settings-page .settings-nav-link,
-:root[data-theme="dark"] .settings-page .settings-tab-text small,
-:root[data-theme="dark"] .settings-page .settings-field-note {
-  color: var(--text-secondary);
-}
-
-:root[data-theme="dark"] .settings-nav-link:hover,
-:root[data-theme="dark"] .settings-tab:hover {
-  background: var(--surface-hover);
-}
-
-:root[data-theme="dark"] .settings-nav-link.active,
-:root[data-theme="dark"] .settings-tab.active {
-  background: var(--green-soft);
-  color: var(--green);
-}
-
-:root[data-theme="dark"] .settings-tab.active .settings-tab-text strong {
-  color: var(--green);
-}
-
-:root[data-theme="dark"] .settings-section select {
-  background: var(--surface-raised);
-  color: var(--text-primary);
-  border-color: var(--border);
-}
-
-:root[data-theme="dark"] .settings-reset-button,
-:root[data-theme="dark"] .settings-danger-button {
-  background: var(--surface-raised);
-  color: var(--text-primary);
-  border-color: var(--border);
-}
-
-:root[data-theme="dark"] .settings-tab-icon,
-:root[data-theme="dark"] .settings-panel-heading-icon,
-:root[data-theme="dark"] .settings-security-icon {
-  background: var(--surface-raised);
-  color: var(--green);
-}
-
-:root[data-theme="dark"] .settings-danger-content h3 {
-  color: #ff9999;
-}
-
-:root[data-theme="dark"] .settings-danger-content p {
-  color: var(--text-secondary);
-}
-
-:root[data-theme="dark"] .settings-coming-soon {
-  background: var(--surface-raised);
-  color: var(--text-secondary);
-}
-
-:root[data-theme="dark"] .settings-switch {
-  background: #536257;
-}
-
-:root[data-theme="dark"] .settings-switch.on {
-  background: var(--green);
-}
-
-:root[data-theme="dark"] .settings-theme-description strong {
-  color: var(--text-primary);
-}
-
-:root[data-theme="dark"] .settings-theme-description span {
-  color: var(--text-secondary);
-}
-
-:root[data-theme="dark"] .settings-panel-heading,
-:root[data-theme="dark"] .settings-section,
-:root[data-theme="dark"] .settings-security-card {
-  border-color: var(--border);
 }

@@ -33,6 +33,26 @@ import { createClient } from "@/lib/supabase/client";
 
 import "./application.css";
 
+const MAX_CV_SIZE = 5 * 1024 * 1024;
+const MAX_NAME_LENGTH = 150;
+const MAX_PHONE_LENGTH = 40;
+const MAX_LOCATION_LENGTH = 150;
+const MAX_TITLE_LENGTH = 150;
+const MAX_EXPERIENCE_LENGTH = 100;
+const MAX_SKILLS_LENGTH = 2000;
+const MAX_COVER_LETTER_LENGTH = 5000;
+
+const CV_BUCKET = "abi-job-profile-files";
+
+const CV_TYPES: Record<string, string> = {
+  ".pdf": "application/pdf",
+  ".doc": "application/msword",
+  ".docx":
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+};
+
+type ApplicantRole = "job_seeker" | "professional";
+
 type Job = {
   id: string;
   employer_id: string;
@@ -42,7 +62,7 @@ type Job = {
   employment_type: string | null;
   salary_min: number | null;
   salary_max: number | null;
-  currency: string | null;
+  salary_currency: string | null;
   description: string | null;
   requirements: string | null;
   responsibilities: string | null;
@@ -61,12 +81,34 @@ type ApplicationForm = {
   coverLetter: string;
 };
 
+function getLocalDateString() {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, "0");
+  const day = String(now.getDate()).padStart(2, "0");
+
+  return `${year}-${month}-${day}`;
+}
+
+function isDeadlinePassed(deadline: string | null) {
+  if (!deadline) return false;
+
+  // PostgreSQL DATE values are compared as date strings to avoid
+  // timezone shifts caused by parsing YYYY-MM-DD as UTC.
+  return deadline.slice(0, 10) < getLocalDateString();
+}
+
+function getFileExtension(fileName: string) {
+  const lastDot = fileName.lastIndexOf(".");
+  return lastDot >= 0 ? fileName.slice(lastDot).toLowerCase() : "";
+}
+
 function formatSalary(job: Job) {
   if (job.salary_min === null && job.salary_max === null) {
     return "Salary not specified";
   }
 
-  const currency = job.currency || "NGN";
+  const currency = job.salary_currency || "NGN";
 
   const formatAmount = (amount: number) => {
     const formatted = new Intl.NumberFormat("en-NG", {
@@ -75,7 +117,7 @@ function formatSalary(job: Job) {
 
     return currency.toUpperCase() === "NGN"
       ? `₦${formatted}`
-      : `${currency} ${formatted}`;
+      : `${currency.toUpperCase()} ${formatted}`;
   };
 
   if (job.salary_min !== null && job.salary_max !== null) {
@@ -97,6 +139,72 @@ function formatJobType(value: string | null) {
     .replace(/\b\w/g, (character) => character.toUpperCase());
 }
 
+function getSafeFileName() {
+  const randomId =
+    typeof crypto !== "undefined" && "randomUUID" in crypto
+      ? crypto.randomUUID()
+      : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+
+  return randomId;
+}
+
+function getFriendlyApplicationError(
+  message: string,
+  code?: string
+): string {
+  const normalized = message.toLowerCase();
+
+  if (
+    code === "23505" ||
+    normalized.includes("unique_job_application") ||
+    normalized.includes("duplicate key") ||
+    normalized.includes("already applied")
+  ) {
+    return "You have already applied for this job. You cannot submit another application.";
+  }
+
+  if (
+    normalized.includes("email") &&
+    (normalized.includes("confirm") || normalized.includes("verified"))
+  ) {
+    return "Please verify your email address before submitting an application.";
+  }
+
+  if (
+    normalized.includes("subscription") ||
+    normalized.includes("trial") ||
+    normalized.includes("platform access")
+  ) {
+    return "Your Abi Job access is not currently active. Please check your subscription to continue.";
+  }
+
+  if (
+    normalized.includes("deadline") ||
+    normalized.includes("no longer accepting") ||
+    normalized.includes("not accepting")
+  ) {
+    return "This vacancy is no longer accepting applications.";
+  }
+
+  if (
+    normalized.includes("approved") ||
+    normalized.includes("job not found") ||
+    normalized.includes("vacancy")
+  ) {
+    return "This vacancy is unavailable or is no longer accepting applications.";
+  }
+
+  if (
+    normalized.includes("cv") ||
+    normalized.includes("file") ||
+    normalized.includes("storage")
+  ) {
+    return "We could not attach your CV. Please check the file and try again.";
+  }
+
+  return "Your application could not be submitted. Please try again.";
+}
+
 export default function JobApplicationClient() {
   const params = useParams<{ id: string }>();
   const router = useRouter();
@@ -106,6 +214,8 @@ export default function JobApplicationClient() {
 
   const [job, setJob] = useState<Job | null>(null);
   const [companyName, setCompanyName] = useState("Abi Job Employer");
+  const [accountRole, setAccountRole] = useState<ApplicantRole | null>(null);
+  const [emailVerified, setEmailVerified] = useState(false);
 
   const [step, setStep] = useState(1);
   const [submitted, setSubmitted] = useState(false);
@@ -151,13 +261,16 @@ export default function JobApplicationClient() {
         .single();
 
       if (profileError || !profile) {
-        throw new Error("Your profile could not be loaded. Please try again.");
+        throw new Error(
+          "Your profile could not be loaded. Please try again."
+        );
       }
 
-      if (profile.role !== "job_seeker") {
-        if (profile.role === "professional") {
-          router.replace("/professional/dashboard");
-        } else if (profile.role === "employer") {
+      if (
+        profile.role !== "job_seeker" &&
+        profile.role !== "professional"
+      ) {
+        if (profile.role === "employer") {
           router.replace("/employer/dashboard");
         } else {
           router.replace("/login");
@@ -166,31 +279,37 @@ export default function JobApplicationClient() {
         return;
       }
 
+      const applicantRole = profile.role as ApplicantRole;
+      setAccountRole(applicantRole);
+
+      const verified = Boolean(user.email_confirmed_at);
+      setEmailVerified(verified);
+
       const { data: jobData, error: jobError } = await supabase
         .from("jobs")
-        .select(`
-          id,
-          employer_id,
-          title,
-          category,
-          location,
-          employment_type,
-          salary_min,
-          salary_max,
-          currency,
-          description,
-          requirements,
-          responsibilities,
-          application_deadline,
-          status
-        `)
+        .select(
+          `
+            id,
+            employer_id,
+            title,
+            category,
+            location,
+            employment_type,
+            salary_min,
+            salary_max,
+            salary_currency,
+            description,
+            requirements,
+            responsibilities,
+            application_deadline,
+            status
+          `
+        )
         .eq("id", jobId)
         .eq("status", "approved")
         .maybeSingle();
 
-      if (jobError) {
-        throw jobError;
-      }
+      if (jobError) throw jobError;
 
       if (!jobData) {
         throw new Error(
@@ -198,24 +317,28 @@ export default function JobApplicationClient() {
         );
       }
 
-      if (
-        jobData.application_deadline &&
-        new Date(jobData.application_deadline).getTime() <
-          new Date().setHours(0, 0, 0, 0)
-      ) {
-        throw new Error("The application deadline for this vacancy has passed.");
+      if (isDeadlinePassed(jobData.application_deadline)) {
+        throw new Error(
+          "The application deadline for this vacancy has passed."
+        );
       }
 
       setJob(jobData as Job);
 
-      const { data: employerProfile } = await supabase
-        .from("employer_profiles")
-        .select("business_name")
-        .eq("id", jobData.employer_id)
-        .maybeSingle();
+      // employer_profiles is keyed by user_id, not id.
+      // Its RLS may prevent applicants from reading employer details,
+      // so failure here must not prevent an otherwise valid application.
+      const { data: employerProfile, error: employerProfileError } =
+        await supabase
+          .from("employer_profiles")
+          .select("business_name")
+          .eq("user_id", jobData.employer_id)
+          .maybeSingle();
 
-      if (employerProfile?.business_name) {
+      if (!employerProfileError && employerProfile?.business_name) {
         setCompanyName(employerProfile.business_name);
+      } else {
+        setCompanyName("Abi Job Employer");
       }
 
       setForm({
@@ -230,6 +353,12 @@ export default function JobApplicationClient() {
           : "",
         coverLetter: "",
       });
+
+      if (!verified) {
+        setError(
+          "Please verify your email address before submitting an application. Check your inbox for the verification link."
+        );
+      }
     } catch (err) {
       console.error("Application page loading error:", err);
 
@@ -247,10 +376,7 @@ export default function JobApplicationClient() {
     loadApplicationData();
   }, [loadApplicationData]);
 
-  const updateField = (
-    field: keyof ApplicationForm,
-    value: string
-  ) => {
+  const updateField = (field: keyof ApplicationForm, value: string) => {
     setForm((previous) => ({ ...previous, [field]: value }));
     setError("");
   };
@@ -260,28 +386,31 @@ export default function JobApplicationClient() {
 
     if (!file) return;
 
-    const allowedTypes = [
-      "application/pdf",
-      "application/msword",
-      "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-    ];
+    const extension = getFileExtension(file.name);
+    const expectedMimeType = CV_TYPES[extension];
 
-    const allowedExtensions = [".pdf", ".doc", ".docx"];
-
-    const extension = file.name
-      .substring(file.name.lastIndexOf("."))
-      .toLowerCase();
-
-    if (
-      !allowedTypes.includes(file.type) ||
-      !allowedExtensions.includes(extension)
-    ) {
+    if (!expectedMimeType) {
       setError("Please upload your CV as a PDF or Word document.");
       event.target.value = "";
       return;
     }
 
-    if (file.size > 5 * 1024 * 1024) {
+    // Some browsers or operating systems report an empty MIME type.
+    // The extension is checked independently, and the expected MIME
+    // type is supplied when uploading in that situation.
+    if (file.type && file.type !== expectedMimeType) {
+      setError("The selected file type does not match its file extension.");
+      event.target.value = "";
+      return;
+    }
+
+    if (file.size === 0) {
+      setError("The selected CV file is empty. Please choose another file.");
+      event.target.value = "";
+      return;
+    }
+
+    if (file.size > MAX_CV_SIZE) {
       setError("Your CV must not be larger than 5MB.");
       event.target.value = "";
       return;
@@ -291,36 +420,105 @@ export default function JobApplicationClient() {
     setError("");
   };
 
+  const validatePersonalInformation = () => {
+    const fullName = form.fullName.trim();
+    const email = form.email.trim();
+    const phone = form.phone.trim();
+    const location = form.location.trim();
+
+    if (!fullName || !email || !phone || !location) {
+      setError("Please complete all required personal information.");
+      return false;
+    }
+
+    if (fullName.length > MAX_NAME_LENGTH) {
+      setError(`Your name must not exceed ${MAX_NAME_LENGTH} characters.`);
+      return false;
+    }
+
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      setError("Please enter a valid email address.");
+      return false;
+    }
+
+    if (phone.length > MAX_PHONE_LENGTH) {
+      setError("Please enter a shorter phone number.");
+      return false;
+    }
+
+    if (location.length > MAX_LOCATION_LENGTH) {
+      setError("Your location is too long.");
+      return false;
+    }
+
+    return true;
+  };
+
+  const validateProfessionalInformation = () => {
+    const title = form.professionalTitle.trim();
+    const skills = form.skills.trim();
+
+    if (!title || !skills) {
+      setError("Please provide your professional title and key skills.");
+      return false;
+    }
+
+    if (title.length > MAX_TITLE_LENGTH) {
+      setError(
+        `Your professional title must not exceed ${MAX_TITLE_LENGTH} characters.`
+      );
+      return false;
+    }
+
+    if (skills.length > MAX_SKILLS_LENGTH) {
+      setError(
+        `Your skills must not exceed ${MAX_SKILLS_LENGTH} characters.`
+      );
+      return false;
+    }
+
+    if (form.experience.trim().length > MAX_EXPERIENCE_LENGTH) {
+      setError("Your experience information is too long.");
+      return false;
+    }
+
+    if (form.coverLetter.trim().length > MAX_COVER_LETTER_LENGTH) {
+      setError(
+        `Your cover letter must not exceed ${MAX_COVER_LETTER_LENGTH} characters.`
+      );
+      return false;
+    }
+
+    if (!cv) {
+      setError("Please attach your CV before continuing.");
+      return false;
+    }
+
+    const extension = getFileExtension(cv.name);
+
+    if (!CV_TYPES[extension] || cv.size === 0 || cv.size > MAX_CV_SIZE) {
+      setError("Please select a valid PDF or Word CV no larger than 5MB.");
+      return false;
+    }
+
+    return true;
+  };
+
+  const validateAllFields = () => {
+    if (!validatePersonalInformation()) return false;
+    if (!validateProfessionalInformation()) return false;
+
+    setError("");
+    return true;
+  };
+
   const validateStep = () => {
     if (step === 1) {
-      if (
-        !form.fullName.trim() ||
-        !form.email.trim() ||
-        !form.phone.trim() ||
-        !form.location.trim()
-      ) {
-        setError("Please complete all required personal information.");
-        return false;
-      }
-
-      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) {
-        setError("Please enter a valid email address.");
-        return false;
-      }
+      if (!validatePersonalInformation()) return false;
     }
 
     if (step === 2) {
-      if (!cv) {
-        setError("Please attach your CV before continuing.");
-        return false;
-      }
-
-      if (!form.professionalTitle.trim() || !form.skills.trim()) {
-        setError(
-          "Please provide your professional title and key skills."
-        );
-        return false;
-      }
+      if (!validateProfessionalInformation()) return false;
     }
 
     setError("");
@@ -335,20 +533,47 @@ export default function JobApplicationClient() {
   };
 
   const handleBack = () => {
+    if (submitting) return;
+
     setError("");
     setStep((current) => Math.max(current - 1, 1));
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
+  const removeUploadedCv = async (path: string | null) => {
+    if (!path) return;
+
+    const { error: removeError } = await supabase.storage
+      .from(CV_BUCKET)
+      .remove([path]);
+
+    if (removeError) {
+      console.error("Unable to remove an unlinked CV upload:", removeError);
+    }
+  };
+
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
 
-    if (!validateStep() || !job || !cv) return;
+    if (submitting) return;
+
+    if (!job) {
+      setError("This vacancy is unavailable. Please return to the jobs page.");
+      return;
+    }
+
+    if (!accountRole) {
+      setError("Your account role could not be verified. Please reload.");
+      return;
+    }
+
+    if (!validateAllFields()) return;
 
     setSubmitting(true);
     setError("");
 
     let uploadedFilePath: string | null = null;
+    let applicationSaved = false;
 
     try {
       const {
@@ -360,17 +585,85 @@ export default function JobApplicationClient() {
         throw new Error("Your session has expired. Please sign in again.");
       }
 
+      if (!user.email) {
+        throw new Error(
+          "Your account does not have an email address. Please update your account before applying."
+        );
+      }
+
+      // The client check improves the user experience.
+      // The database RPC independently enforces email confirmation.
+      if (!user.email_confirmed_at || !emailVerified) {
+        throw new Error(
+          "Please verify your email address before submitting an application."
+        );
+      }
+
+      // Recheck the profile role so a stale page cannot submit using
+      // a role that has since changed.
+      const { data: currentProfile, error: currentProfileError } =
+        await supabase
+          .from("profiles")
+          .select("role")
+          .eq("id", user.id)
+          .single();
+
+      if (currentProfileError || !currentProfile) {
+        throw new Error("Your account profile could not be verified.");
+      }
+
+      if (
+        currentProfile.role !== "job_seeker" &&
+        currentProfile.role !== "professional"
+      ) {
+        throw new Error(
+          "Only Job Seekers and Skilled Professionals can apply for vacancies."
+        );
+      }
+
+      const currentRole = currentProfile.role as ApplicantRole;
+
+      if (currentRole !== accountRole) {
+        throw new Error(
+          "Your account role has changed. Please reload the application page."
+        );
+      }
+
+      // Recheck the vacancy immediately before submission.
+      // The database RPC also checks approval and deadline.
+      const { data: currentJob, error: currentJobError } = await supabase
+        .from("jobs")
+        .select("id, status, application_deadline")
+        .eq("id", job.id)
+        .eq("status", "approved")
+        .maybeSingle();
+
+      if (currentJobError) throw currentJobError;
+
+      if (!currentJob) {
+        throw new Error(
+          "This vacancy is no longer accepting applications."
+        );
+      }
+
+      if (isDeadlinePassed(currentJob.application_deadline)) {
+        throw new Error(
+          "The application deadline for this vacancy has passed."
+        );
+      }
+
+      // This is an early duplicate check for a better user experience.
+      // The database unique constraint remains the final protection
+      // against simultaneous duplicate submissions.
       const { data: existingApplication, error: existingError } =
         await supabase
           .from("job_applications")
-          .select("job_id")
+          .select("id")
           .eq("job_id", job.id)
           .eq("applicant_id", user.id)
           .maybeSingle();
 
-      if (existingError) {
-        throw existingError;
-      }
+      if (existingError) throw existingError;
 
       if (existingApplication) {
         throw new Error(
@@ -378,52 +671,75 @@ export default function JobApplicationClient() {
         );
       }
 
-      const extension = cv.name
-        .substring(cv.name.lastIndexOf("."))
-        .toLowerCase();
+      const extension = getFileExtension(cv!.name);
+      const contentType = CV_TYPES[extension];
 
-      const safeFileName = `${Date.now()}-${crypto.randomUUID()}${extension}`;
+      if (!contentType) {
+        throw new Error("Your CV must be a PDF or Word document.");
+      }
 
-      uploadedFilePath = `${user.id}/job_seeker/applications/${safeFileName}`;
+      const safeFileName = `${Date.now()}-${getSafeFileName()}${extension}`;
+
+      // The storage path must match the account role.
+      // The database RPC checks this exact folder structure.
+      uploadedFilePath =
+        `${user.id}/${currentRole}/applications/${safeFileName}`;
 
       const { error: uploadError } = await supabase.storage
-        .from("abi-job-profile-files")
-        .upload(uploadedFilePath, cv, {
+        .from(CV_BUCKET)
+        .upload(uploadedFilePath, cv!, {
           cacheControl: "3600",
           upsert: false,
-          contentType: cv.type,
+          contentType,
         });
 
       if (uploadError) {
         throw new Error(
-          `CV upload failed: ${uploadError.message}. Please check your CV storage permissions.`
+          `CV upload failed: ${uploadError.message}. Please try again.`
         );
       }
 
-      const { error: applicationError } = await supabase
-        .from("job_applications")
-        .insert({
-          job_id: job.id,
-          cover_letter: form.coverLetter.trim() || null,
-          cv_path: uploadedFilePath,
-        });
+      const applicantName = form.fullName.trim();
+      const applicantPhone = form.phone.trim();
+      const applicantLocation = form.location.trim();
+      const applicantTitle = form.professionalTitle.trim();
+      const applicantExperience = form.experience.trim();
+      const applicantSkills = form.skills.trim();
+      const coverLetter = form.coverLetter.trim();
+
+      // Do not insert directly into job_applications.
+      // Direct authenticated INSERT privileges have been revoked.
+      // This RPC validates the authenticated user, role, subscription,
+      // verified email, approved vacancy, deadline and uploaded CV.
+      //
+      // The RPC obtains applicant_id and applicant_email from the
+      // authenticated account. Editable applicant details are passed
+      // as snapshot values so the employer sees what was submitted.
+      const { error: applicationError } = await supabase.rpc(
+        "submit_job_application",
+        {
+          p_job_id: job.id,
+          p_cover_letter: coverLetter || null,
+          p_cv_path: uploadedFilePath,
+          p_applicant_name: applicantName,
+          p_applicant_phone: applicantPhone,
+          p_applicant_location: applicantLocation,
+          p_applicant_title: applicantTitle,
+          p_applicant_experience: applicantExperience || null,
+          p_applicant_skills: applicantSkills,
+        }
+      );
 
       if (applicationError) {
-        await supabase.storage
-          .from("abi-job-profile-files")
-          .remove([uploadedFilePath]);
-
-        uploadedFilePath = null;
-
-        if (applicationError.code === "23505") {
-          throw new Error(
-            "You have already applied for this job."
-          );
-        }
-
-        throw applicationError;
+        throw new Error(
+          getFriendlyApplicationError(
+            applicationError.message,
+            applicationError.code
+          )
+        );
       }
 
+      applicationSaved = true;
       setSubmitted(true);
       window.scrollTo({ top: 0, behavior: "smooth" });
     } catch (err) {
@@ -435,6 +751,12 @@ export default function JobApplicationClient() {
           : "Your application could not be submitted. Please try again."
       );
     } finally {
+      // If the RPC failed after the CV upload, remove the unlinked file.
+      // Never remove a CV after a successful application.
+      if (!applicationSaved && uploadedFilePath) {
+        await removeUploadedCv(uploadedFilePath);
+      }
+
       setSubmitting(false);
     }
   };
@@ -498,9 +820,7 @@ export default function JobApplicationClient() {
               <CheckCircle2 size={42} />
             </div>
 
-            <span className="success-eyebrow">
-              APPLICATION SUBMITTED
-            </span>
+            <span className="success-eyebrow">APPLICATION SUBMITTED</span>
 
             <h1>Your application has been received!</h1>
 
@@ -512,8 +832,8 @@ export default function JobApplicationClient() {
             <div className="success-notice">
               <ShieldCheck size={21} />
               <span>
-                Your application is now marked as Submitted. You can
-                follow its progress from your applications dashboard.
+                Your application is now marked as Submitted. You can follow
+                its progress from your applications dashboard.
               </span>
             </div>
 
@@ -603,7 +923,9 @@ export default function JobApplicationClient() {
               </div>
 
               <div className="application-steps">
-                <div className={`application-step ${step >= 1 ? "active" : ""}`}>
+                <div
+                  className={`application-step ${step >= 1 ? "active" : ""}`}
+                >
                   <div className="step-number">
                     {step > 1 ? <Check size={17} /> : "01"}
                   </div>
@@ -615,7 +937,9 @@ export default function JobApplicationClient() {
 
                 <div className="step-connector" />
 
-                <div className={`application-step ${step >= 2 ? "active" : ""}`}>
+                <div
+                  className={`application-step ${step >= 2 ? "active" : ""}`}
+                >
                   <div className="step-number">
                     {step > 2 ? <Check size={17} /> : "02"}
                   </div>
@@ -627,7 +951,9 @@ export default function JobApplicationClient() {
 
                 <div className="step-connector" />
 
-                <div className={`application-step ${step >= 3 ? "active" : ""}`}>
+                <div
+                  className={`application-step ${step >= 3 ? "active" : ""}`}
+                >
                   <div className="step-number">03</div>
                   <div>
                     <strong>Review</strong>
@@ -668,6 +994,7 @@ export default function JobApplicationClient() {
                         <input
                           id="fullName"
                           type="text"
+                          maxLength={MAX_NAME_LENGTH}
                           value={form.fullName}
                           onChange={(event) =>
                             updateField("fullName", event.target.value)
@@ -692,6 +1019,7 @@ export default function JobApplicationClient() {
                         <input
                           id="phone"
                           type="tel"
+                          maxLength={MAX_PHONE_LENGTH}
                           placeholder="+234 800 000 0000"
                           value={form.phone}
                           onChange={(event) =>
@@ -706,6 +1034,7 @@ export default function JobApplicationClient() {
                         <input
                           id="location"
                           type="text"
+                          maxLength={MAX_LOCATION_LENGTH}
                           placeholder="e.g. Aba, Abia State"
                           value={form.location}
                           onChange={(event) =>
@@ -726,7 +1055,9 @@ export default function JobApplicationClient() {
                       </div>
                       <div>
                         <h2>Your professional profile</h2>
-                        <p>Help the employer understand what you can offer.</p>
+                        <p>
+                          Help the employer understand what you can offer.
+                        </p>
                       </div>
                     </div>
 
@@ -738,17 +1069,23 @@ export default function JobApplicationClient() {
                         <input
                           id="professionalTitle"
                           type="text"
+                          maxLength={MAX_TITLE_LENGTH}
                           placeholder="e.g. Frontend Developer"
                           value={form.professionalTitle}
                           onChange={(event) =>
-                            updateField("professionalTitle", event.target.value)
+                            updateField(
+                              "professionalTitle",
+                              event.target.value
+                            )
                           }
                           required
                         />
                       </div>
 
                       <div className="application-field">
-                        <label htmlFor="experience">Years of experience</label>
+                        <label htmlFor="experience">
+                          Years of experience
+                        </label>
                         <select
                           id="experience"
                           value={form.experience}
@@ -757,8 +1094,12 @@ export default function JobApplicationClient() {
                           }
                         >
                           <option value="">Select experience</option>
-                          <option value="No experience yet">No experience yet</option>
-                          <option value="Less than 1 year">Less than 1 year</option>
+                          <option value="No experience yet">
+                            No experience yet
+                          </option>
+                          <option value="Less than 1 year">
+                            Less than 1 year
+                          </option>
                           <option value="1–2 years">1–2 years</option>
                           <option value="3–5 years">3–5 years</option>
                           <option value="6–10 years">6–10 years</option>
@@ -773,6 +1114,7 @@ export default function JobApplicationClient() {
                         <textarea
                           id="skills"
                           rows={3}
+                          maxLength={MAX_SKILLS_LENGTH}
                           placeholder="List your relevant skills, separated by commas."
                           value={form.skills}
                           onChange={(event) =>
@@ -789,14 +1131,16 @@ export default function JobApplicationClient() {
                           <label className="cv-upload-area">
                             <input
                               type="file"
-                              accept=".pdf,.doc,.docx"
+                              accept=".pdf,.doc,.docx,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
                               onChange={handleCvUpload}
                             />
                             <div className="cv-upload-icon">
                               <CloudUpload size={27} />
                             </div>
                             <strong>Choose a file or drag it here</strong>
-                            <span>PDF or Word document · Maximum 5MB</span>
+                            <span>
+                              PDF or Word document · Maximum 5MB
+                            </span>
                           </label>
                         ) : (
                           <div className="uploaded-cv">
@@ -810,7 +1154,10 @@ export default function JobApplicationClient() {
                             <button
                               type="button"
                               className="remove-cv-btn"
-                              onClick={() => setCv(null)}
+                              onClick={() => {
+                                setCv(null);
+                                setError("");
+                              }}
                               aria-label="Remove CV"
                             >
                               <Trash2 size={18} />
@@ -827,6 +1174,7 @@ export default function JobApplicationClient() {
                         <textarea
                           id="coverLetter"
                           rows={6}
+                          maxLength={MAX_COVER_LETTER_LENGTH}
                           placeholder="Introduce yourself and explain why you are a good fit for this opportunity..."
                           value={form.coverLetter}
                           onChange={(event) =>
@@ -846,7 +1194,9 @@ export default function JobApplicationClient() {
                       </div>
                       <div>
                         <h2>Review your application</h2>
-                        <p>Make sure everything is correct before submitting.</p>
+                        <p>
+                          Make sure everything is correct before submitting.
+                        </p>
                       </div>
                     </div>
 
@@ -962,7 +1312,10 @@ export default function JobApplicationClient() {
                     >
                       {submitting ? (
                         <>
-                          <LoaderCircle size={18} className="animate-spin" />
+                          <LoaderCircle
+                            size={18}
+                            className="animate-spin"
+                          />
                           Submitting...
                         </>
                       ) : (

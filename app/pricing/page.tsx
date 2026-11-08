@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import Header from "../../components/Header";
 import Footer from "../../components/Footer";
 import {
@@ -24,124 +24,63 @@ type Plan = {
   monthlyPrice: number;
   yearlyPrice: number;
   features: string[];
-  popular?: boolean;
-  premium?: boolean;
 };
 
-const plans: Record<Audience, Plan[]> = {
-  "job-seekers": [
-    {
-      name: "Basic",
-      description: "Everything you need to start finding opportunities.",
-      monthlyPrice: 0,
-      yearlyPrice: 0,
-      features: [
-        "Create your professional profile",
-        "Browse available job opportunities",
-        "Apply for jobs",
-        "Save interesting opportunities",
-        "Receive job alerts",
-        "Track application updates",
-      ],
-    },
-    {
-      name: "Career Plus",
-      description: "Extra career tools to help you stand out.",
-      monthlyPrice: 1500,
-      yearlyPrice: 15000,
-      premium: true,
-      popular: true,
-      features: [
-        "Everything in Basic",
-        "AI-assisted CV builder",
-        "AI interview practice",
-        "Advanced job matching",
-        "Enhanced career guidance",
-        "Priority career resources",
-      ],
-    },
-  ],
+const MONTHLY_PRICE = 2000;
+const YEARLY_PRICE = 22800;
 
-  professionals: [
-    {
-      name: "Professional Basic",
-      description: "Build your presence and get discovered.",
-      monthlyPrice: 0,
-      yearlyPrice: 0,
-      features: [
-        "Create a professional profile",
-        "Display your skills and services",
-        "Add work samples to your portfolio",
-        "Receive customer enquiries",
-        "Appear in professional searches",
-        "Manage your profile",
-      ],
-    },
-    {
-      name: "Professional Plus",
-      description: "Grow your visibility and attract more customers.",
-      monthlyPrice: 2000,
-      yearlyPrice: 20000,
-      premium: true,
-      popular: true,
-      features: [
-        "Everything in Professional Basic",
-        "Featured professional profile",
-        "Increased search visibility",
-        "Portfolio promotion opportunities",
-        "Additional profile insights",
-        "Priority promotional opportunities",
-      ],
-    },
-  ],
+const plans: Record<Audience, Plan> = {
+  "job-seekers": {
+    name: "Abi Job Membership",
+    description: "Find opportunities and build your career with Abi Job.",
+    monthlyPrice: MONTHLY_PRICE,
+    yearlyPrice: YEARLY_PRICE,
+    features: [
+      "Create and manage your professional profile",
+      "Browse available job opportunities",
+      "Apply for jobs",
+      "Save interesting opportunities",
+      "Receive job alerts",
+      "Track application updates",
+      "AI-assisted CV builder",
+      "AI interview practice",
+      "Personalised job recommendations",
+    ],
+  },
 
-  employers: [
-    {
-      name: "Starter",
-      description: "For small businesses hiring occasionally.",
-      monthlyPrice: 5000,
-      yearlyPrice: 50000,
-      features: [
-        "Business profile",
-        "Publish up to 2 active job listings",
-        "Receive applications",
-        "View applicant profiles",
-        "Basic recruitment dashboard",
-        "Standard job visibility",
-      ],
-    },
-    {
-      name: "Growth",
-      description: "For growing businesses hiring regularly.",
-      monthlyPrice: 12000,
-      yearlyPrice: 120000,
-      premium: true,
-      popular: true,
-      features: [
-        "Everything in Starter",
-        "Publish up to 8 active job listings",
-        "Advanced applicant filtering",
-        "Featured job opportunities",
-        "Recruitment performance insights",
-        "Enhanced applicant management",
-      ],
-    },
-    {
-      name: "Business",
-      description: "For organisations with larger hiring needs.",
-      monthlyPrice: 25000,
-      yearlyPrice: 250000,
-      premium: true,
-      features: [
-        "Everything in Growth",
-        "Publish up to 20 active job listings",
-        "Priority job promotion",
-        "Advanced recruitment analytics",
-        "Expanded hiring tools",
-        "Priority support",
-      ],
-    },
-  ],
+  professionals: {
+    name: "Abi Job Membership",
+    description: "Showcase your skills and connect with customers.",
+    monthlyPrice: MONTHLY_PRICE,
+    yearlyPrice: YEARLY_PRICE,
+    features: [
+      "Create and manage your professional profile",
+      "Display your skills and services",
+      "Add work samples to your portfolio",
+      "Receive customer enquiries",
+      "Appear in professional searches",
+      "Showcase your experience",
+      "Discover relevant opportunities",
+      "Manage your professional presence",
+    ],
+  },
+
+  employers: {
+    name: "Abi Job Membership",
+    description: "Find skilled people and manage your recruitment.",
+    monthlyPrice: MONTHLY_PRICE,
+    yearlyPrice: YEARLY_PRICE,
+    features: [
+      "Create and manage your business profile",
+      "Publish job opportunities",
+      "Receive applications",
+      "View applicant profiles",
+      "Manage recruitment activities",
+      "Review applicants",
+      "Connect with skilled professionals",
+      "Access recruitment tools",
+    ],
+  },
 };
 
 const audiences: {
@@ -171,28 +110,20 @@ const audiences: {
 ];
 
 function formatPrice(price: number) {
-  if (price === 0) return "Free";
   return `₦${price.toLocaleString("en-NG")}`;
 }
 
 export default function PricingPage() {
   const [audience, setAudience] = useState<Audience>("job-seekers");
   const [yearly, setYearly] = useState(false);
-  const [darkMode, setDarkMode] = useState(false);
 
-  useEffect(() => {
-    const savedTheme = localStorage.getItem("abijob-theme");
-    setDarkMode(savedTheme === "dark");
-  }, []);
-
-  useEffect(() => {
-    document.documentElement.dataset.theme = darkMode ? "dark" : "light";
-  }, [darkMode]);
-
-  const selectedPlans = plans[audience];
+  const selectedPlan = plans[audience];
+  const price = yearly
+    ? selectedPlan.yearlyPrice
+    : selectedPlan.monthlyPrice;
 
   return (
-    <main className={`pricing-page ${darkMode ? "dark-mode" : ""}`}>
+    <main className="pricing-page">
       <Header />
 
       <section className="pricing-hero">
@@ -211,16 +142,17 @@ export default function PricingPage() {
           </h1>
 
           <p>
-            Start with the essentials for free. Upgrade when you need more
-            tools, visibility or recruitment power.
+            Start with a 30-day free trial. Explore Abi Job and discover
+            opportunities, connect with talent and grow your career or
+            business.
           </p>
 
           <div className="pricing-hero-points">
             <span>
-              <Check size={16} /> Free basic access
+              <Check size={16} /> 30-day free trial
             </span>
             <span>
-              <Check size={16} /> Flexible plans
+              <Check size={16} /> One simple membership
             </span>
             <span>
               <Check size={16} /> Built for Abia businesses and talent
@@ -232,11 +164,11 @@ export default function PricingPage() {
       <section className="pricing-section">
         <div className="pricing-container">
           <div className="pricing-section-heading">
-            <span className="pricing-eyebrow">CHOOSE YOUR PLAN</span>
-            <h2>A plan for every kind of ambition.</h2>
+            <span className="pricing-eyebrow">OUR MEMBERSHIP</span>
+            <h2>One membership. Real opportunities.</h2>
             <p>
-              Select the account type that describes you to see the available
-              plans.
+              Choose your account type to see the features available to you.
+              The membership price is the same for everyone.
             </p>
           </div>
 
@@ -254,6 +186,7 @@ export default function PricingPage() {
                       : "pricing-audience-tab"
                   }
                   onClick={() => setAudience(item.id)}
+                  aria-pressed={audience === item.id}
                 >
                   <span className="pricing-audience-icon">
                     <Icon size={20} />
@@ -278,7 +211,7 @@ export default function PricingPage() {
           <div className="pricing-billing-row">
             <div>
               <strong>Choose your billing period</strong>
-              <p>Change your billing preference at any time.</p>
+              <p>Every new verified account gets one 30-day free trial.</p>
             </div>
 
             <div className="pricing-billing-switch">
@@ -286,6 +219,7 @@ export default function PricingPage() {
                 type="button"
                 className={!yearly ? "active" : ""}
                 onClick={() => setYearly(false)}
+                aria-pressed={!yearly}
               >
                 Monthly
               </button>
@@ -294,105 +228,86 @@ export default function PricingPage() {
                 type="button"
                 className={yearly ? "active" : ""}
                 onClick={() => setYearly(true)}
+                aria-pressed={yearly}
               >
-                Yearly <span>Save</span>
+                Yearly <span>Save 5%</span>
               </button>
             </div>
           </div>
 
-          <div
-            className={`pricing-cards pricing-cards-${selectedPlans.length}`}
-          >
-            {selectedPlans.map((plan) => {
-              const price = yearly
-                ? plan.yearlyPrice
-                : plan.monthlyPrice;
+          <div className="pricing-cards pricing-cards-1">
+            <article className="pricing-card pricing-card-popular">
+              <div className="pricing-popular-label">
+                <Gem size={14} />
+                ABI JOB MEMBERSHIP
+              </div>
 
-              const isFree = price === 0;
+              <div className="pricing-card-top">
+                <div className="pricing-plan-icon premium">
+                  <Crown size={22} />
+                </div>
 
-              return (
-                <article
-                  key={plan.name}
-                  className={`pricing-card ${
-                    plan.popular ? "pricing-card-popular" : ""
-                  }`}
-                >
-                  {plan.popular && (
-                    <div className="pricing-popular-label">
-                      <Gem size={14} />
-                      MOST POPULAR
-                    </div>
-                  )}
+                <h3>{selectedPlan.name}</h3>
+                <p>{selectedPlan.description}</p>
+              </div>
 
-                  <div className="pricing-card-top">
-                    <div
-                      className={`pricing-plan-icon ${
-                        plan.premium ? "premium" : ""
-                      }`}
-                    >
-                      {plan.premium ? (
-                        <Crown size={22} />
-                      ) : (
-                        <Zap size={22} />
-                      )}
-                    </div>
+              <div className="pricing-trial-highlight">
+                <ShieldCheck size={20} />
+                <div>
+                  <strong>First 30 days free</strong>
+                  <span>
+                    Your free trial starts after successful account
+                    verification.
+                  </span>
+                </div>
+              </div>
 
-                    <h3>{plan.name}</h3>
-                    <p>{plan.description}</p>
-                  </div>
+              <div className="pricing-price">
+                <strong>{formatPrice(price)}</strong>
+                <span> / {yearly ? "year" : "month"}</span>
+              </div>
 
-                  <div className="pricing-price">
-                    <strong>{formatPrice(price)}</strong>
+              {yearly && (
+                <div className="pricing-yearly-note">
+                  Equivalent to {formatPrice(Math.round(price / 12))} per
+                  month. Billed annually.
+                </div>
+              )}
 
-                    {!isFree && (
-                      <span> / {yearly ? "year" : "month"}</span>
-                    )}
-                  </div>
+              <Link
+                href="/register"
+                className="pricing-cta pricing-cta-primary"
+              >
+                Start your free trial
+                <ArrowRight size={17} />
+              </Link>
 
-                  {yearly && !isFree && (
-                    <div className="pricing-yearly-note">
-                      Equivalent to{" "}
-                      {formatPrice(Math.round(price / 12))} per month
-                    </div>
-                  )}
+              <div className="pricing-features-heading">
+                What's included
+              </div>
 
-                  <Link
-                    href="/register"
-                    className={
-                      plan.popular
-                        ? "pricing-cta pricing-cta-primary"
-                        : "pricing-cta pricing-cta-secondary"
-                    }
-                  >
-                    {isFree ? "Get started for free" : "Choose this plan"}
-                    <ArrowRight size={17} />
-                  </Link>
-
-                  <div className="pricing-features-heading">
-                    What's included
-                  </div>
-
-                  <ul className="pricing-features">
-                    {plan.features.map((feature) => (
-                      <li key={feature}>
-                        <span>
-                          <Check size={14} />
-                        </span>
-                        {feature}
-                      </li>
-                    ))}
-                  </ul>
-                </article>
-              );
-            })}
+              <ul className="pricing-features">
+                {selectedPlan.features.map((feature) => (
+                  <li key={feature}>
+                    <span>
+                      <Check size={14} />
+                    </span>
+                    {feature}
+                  </li>
+                ))}
+              </ul>
+            </article>
           </div>
 
           <div className="pricing-note">
             <ShieldCheck size={20} />
             <p>
-              <strong>Fair access is part of our promise.</strong>
-              Job seekers can continue browsing and applying for opportunities
-              with a free Abi Job account. Premium features are optional.
+              <strong>Clear and consistent pricing.</strong>
+              All account types receive one 30-day free trial per verified
+              account. After the trial, membership costs ₦2,000 monthly or
+              ₦22,800 annually. Your profile remains yours if your trial or
+              subscription expires; subscription-protected features may
+              require an active membership.
             </p>
           </div>
         </div>
@@ -402,41 +317,42 @@ export default function PricingPage() {
         <div className="pricing-container">
           <div className="pricing-section-heading">
             <span className="pricing-eyebrow">GOOD TO KNOW</span>
-            <h2>Questions about our plans?</h2>
+            <h2>Questions about our membership?</h2>
           </div>
 
           <div className="pricing-faq-grid">
             <article>
-              <h3>Can I use Abi Job for free?</h3>
+              <h3>How long is the free trial?</h3>
               <p>
-                Yes. Job seekers and skilled professionals can start with
-                free accounts. Employers can choose a recruitment plan that
-                suits their hiring needs.
+                Every new verified account receives one 30-day free trial.
+                The trial is available to job seekers, skilled professionals
+                and employers.
               </p>
             </article>
 
             <article>
-              <h3>Do I need Premium to apply for jobs?</h3>
+              <h3>How much does membership cost?</h3>
               <p>
-                No. Applying for jobs remains free. Premium plans offer
-                additional career tools, not access to basic applications.
+                Membership costs ₦2,000 per month or ₦22,800 per year after
+                the free trial.
               </p>
             </article>
 
             <article>
-              <h3>Can I change my plan later?</h3>
+              <h3>What happens when my trial expires?</h3>
               <p>
-                Our planned subscription system will allow users to upgrade,
-                downgrade or cancel according to the terms of their plan.
+                You can subscribe to continue using subscription-protected
+                features. Your profile is retained even if your trial or
+                subscription expires.
               </p>
             </article>
 
             <article>
               <h3>How will payments work?</h3>
               <p>
-                We plan to support trusted Nigerian payment methods. Payments
-                will be verified securely before premium features are
-                activated.
+                Payments will be processed through supported payment
+                providers. Subscription access should only be activated
+                after successful payment verification.
               </p>
             </article>
           </div>

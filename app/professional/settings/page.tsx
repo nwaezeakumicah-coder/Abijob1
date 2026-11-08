@@ -2,9 +2,10 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import Logo from "../../../components/Logo";
+import { createClient } from "@/lib/supabase/client";
 import {
   Activity,
   Bell,
@@ -12,7 +13,6 @@ import {
   BriefcaseBusiness,
   Check,
   ChevronRight,
-  Eye,
   FileText,
   Globe,
   LayoutDashboard,
@@ -38,11 +38,13 @@ type Preferences = {
   jobAlertFrequency: string;
 };
 
-type AccountRole = "job-seeker" | "professional" | "employer" | "";
+type SettingsSection =
+  | "notifications"
+  | "privacy"
+  | "preferences"
+  | "security";
 
-const STORAGE_KEY = "abijob-professional-settings";
-
-const defaultPreferences: Preferences = {
+const DEFAULT_PREFERENCES: Preferences = {
   emailNotifications: true,
   applicationUpdates: true,
   opportunityAlerts: true,
@@ -53,126 +55,234 @@ const defaultPreferences: Preferences = {
   jobAlertFrequency: "Daily",
 };
 
-const AUTH_STORAGE_KEYS = [
-  "abijob-user",
-  "abijob-current-user",
-  "abijob-auth-user",
-  "abijob-profile",
-  "abijob-account",
-];
+const STORAGE_KEY = "abijob-professional-settings";
 
-function normalizeRole(value: unknown): AccountRole {
-  if (typeof value !== "string") return "";
-
-  const role = value.toLowerCase().trim().replace(/_/g, "-");
-
-  if (
-    ["professional", "artisan", "skilled-worker", "skilled-professional",
-      "skilled-professionals", "skilled-professionals-artisans"].includes(role)
-  ) {
-    return "professional";
+function isValidPreferences(value: unknown): value is Partial<Preferences> {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return false;
   }
 
-  if (
-    ["employer", "company", "business"].includes(role)
-  ) {
-    return "employer";
-  }
+  const data = value as Record<string, unknown>;
 
-  if (
-    ["job-seeker", "jobseeker", "seeker", "candidate"].includes(role)
-  ) {
-    return "job-seeker";
-  }
+  const booleanFields = [
+    "emailNotifications",
+    "applicationUpdates",
+    "opportunityAlerts",
+    "messageNotifications",
+    "profileVisibility",
+    "showAvailability",
+  ];
 
-  return "";
-}
-
-function getRoleFromStorage(): AccountRole {
-  for (const key of AUTH_STORAGE_KEYS) {
-    try {
-      const stored = localStorage.getItem(key);
-
-      if (!stored) continue;
-
-      const parsed = JSON.parse(stored);
-
-      if (!parsed || typeof parsed !== "object") continue;
-
-      const candidates = [
-        parsed.role,
-        parsed.accountType,
-        parsed.account_type,
-        parsed.userType,
-        parsed.user_type,
-        parsed.type,
-        parsed.user?.role,
-        parsed.user?.accountType,
-        parsed.user?.account_type,
-        parsed.profile?.role,
-        parsed.profile?.accountType,
-        parsed.profile?.account_type,
-        parsed.account?.role,
-        parsed.account?.accountType,
-        parsed.user_metadata?.role,
-      ];
-
-      for (const candidate of candidates) {
-        const role = normalizeRole(candidate);
-
-        if (role) return role;
-      }
-    } catch {
-      // Ignore invalid or unavailable local storage entries.
+  for (const field of booleanFields) {
+    if (
+      data[field] !== undefined &&
+      typeof data[field] !== "boolean"
+    ) {
+      return false;
     }
   }
 
-  return "";
+  if (
+    data.language !== undefined &&
+    data.language !== "English"
+  ) {
+    return false;
+  }
+
+  if (
+    data.jobAlertFrequency !== undefined &&
+    !["Immediately", "Daily", "Weekly", "Never"].includes(
+      String(data.jobAlertFrequency)
+    )
+  ) {
+    return false;
+  }
+
+  return true;
+}
+
+type SettingToggleProps = {
+  title: string;
+  description: string;
+  checked: boolean;
+  onChange: (checked: boolean) => void;
+};
+
+function SettingToggle({
+  title,
+  description,
+  checked,
+  onChange,
+}: SettingToggleProps) {
+  return (
+    <div className="ps-toggle-row">
+      <div>
+        <h4>{title}</h4>
+        <p>{description}</p>
+      </div>
+
+      <button
+        type="button"
+        role="switch"
+        aria-checked={checked}
+        aria-label={title}
+        className={`ps-switch ${checked ? "on" : ""}`}
+        onClick={() => onChange(!checked)}
+      >
+        <span />
+      </button>
+    </div>
+  );
 }
 
 export default function ProfessionalSettingsPage() {
   const router = useRouter();
+  const supabase = useMemo(() => createClient(), []);
 
   const [preferences, setPreferences] =
-    useState<Preferences>(defaultPreferences);
-  const [activeSection, setActiveSection] = useState("notifications");
+    useState<Preferences>(DEFAULT_PREFERENCES);
+
+  const [activeSection, setActiveSection] =
+    useState<SettingsSection>("notifications");
+
   const [saved, setSaved] = useState(false);
   const [loaded, setLoaded] = useState(false);
   const [accessChecked, setAccessChecked] = useState(false);
+  const [accessError, setAccessError] = useState("");
+  const [retryCount, setRetryCount] = useState(0);
+  const [accountName, setAccountName] = useState("Professional");
+  const [accountStorageKey, setAccountStorageKey] = useState("");
+  const [logoutLoading, setLogoutLoading] = useState(false);
+  const [logoutError, setLogoutError] = useState("");
 
   useEffect(() => {
-    const role = getRoleFromStorage();
+    let active = true;
 
-    if (role === "job-seeker") {
-      router.replace("/settings");
-      return;
-    }
+    async function verifyProfessionalAccount() {
+      setAccessChecked(false);
+      setAccessError("");
+      setLoaded(false);
 
-    if (role === "employer") {
-      router.replace("/employer/settings");
-      return;
-    }
+      try {
+        const {
+          data: { user },
+          error: authError,
+        } = await supabase.auth.getUser();
 
-    if (role !== "professional") {
-      router.replace("/login");
-      return;
-    }
+        if (!active) return;
 
-    setAccessChecked(true);
+        if (authError) {
+          throw new Error(
+            `Authentication verification failed: ${authError.message}`
+          );
+        }
 
-    try {
-      const stored = localStorage.getItem(STORAGE_KEY);
+        if (!user) {
+          router.replace(
+            `/login?next=${encodeURIComponent(
+              "/professional/settings"
+            )}`
+          );
+          return;
+        }
 
-      if (stored) {
-        const parsed = JSON.parse(stored);
-        setPreferences({ ...defaultPreferences, ...parsed });
+        const {
+          data: profile,
+          error: profileError,
+        } = await supabase
+          .from("profiles")
+          .select("id, role, full_name")
+          .eq("id", user.id)
+          .maybeSingle();
+
+        if (!active) return;
+
+        if (profileError) {
+          throw new Error(
+            `Could not verify your database profile: ${profileError.message}`
+          );
+        }
+
+        if (!profile) {
+          throw new Error(
+            "Your authenticated account has no matching profile record. Please contact support."
+          );
+        }
+
+        if (profile.role !== "professional") {
+          const destinations: Record<string, string> = {
+            job_seeker: "/dashboard",
+            employer: "/employer/dashboard",
+            admin: "/admin",
+            super_admin: "/admin",
+            moderator: "/admin",
+            support_staff: "/admin",
+          };
+
+          const destination = destinations[profile.role];
+
+          if (destination) {
+            router.replace(destination);
+            return;
+          }
+
+          throw new Error(
+            `Your account role (${profile.role || "unknown"}) is not recognised.`
+          );
+        }
+
+        const displayName =
+          profile.full_name?.trim() ||
+          user.user_metadata?.full_name?.trim() ||
+          user.email?.split("@")[0] ||
+          "Professional";
+
+        const userStorageKey = `${STORAGE_KEY}:${user.id}`;
+
+        let loadedPreferences = DEFAULT_PREFERENCES;
+
+        try {
+          const stored = localStorage.getItem(userStorageKey);
+
+          if (stored) {
+            const parsed: unknown = JSON.parse(stored);
+
+            if (isValidPreferences(parsed)) {
+              loadedPreferences = {
+                ...DEFAULT_PREFERENCES,
+                ...parsed,
+              };
+            }
+          }
+        } catch {
+          console.warn("Could not read saved professional preferences.");
+        }
+
+        if (!active) return;
+
+        setAccountName(displayName);
+        setPreferences(loadedPreferences);
+        setAccountStorageKey(userStorageKey);
+        setAccessChecked(true);
+        setLoaded(true);
+      } catch (error) {
+        if (!active) return;
+
+        setAccessError(
+          error instanceof Error
+            ? error.message
+            : "We could not verify your account. Please try again."
+        );
+        setAccessChecked(true);
       }
-    } catch {
-      setPreferences(defaultPreferences);
-    } finally {
-      setLoaded(true);
     }
-  }, [router]);
+
+    void verifyProfessionalAccount();
+
+    return () => {
+      active = false;
+    };
+  }, [router, supabase, retryCount]);
 
   function updatePreference<K extends keyof Preferences>(
     key: K,
@@ -182,19 +292,58 @@ export default function ProfessionalSettingsPage() {
       ...current,
       [key]: value,
     }));
+
     setSaved(false);
   }
 
   function saveSettings() {
+    if (!accountStorageKey || !loaded) return;
+
     try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(preferences));
+      localStorage.setItem(
+        accountStorageKey,
+        JSON.stringify(preferences)
+      );
+
       setSaved(true);
     } catch {
-      alert("Unable to save your settings. Please try again.");
+      setSaved(false);
+      setAccessError(
+        "Your browser could not save these preferences. Check available storage and try again."
+      );
     }
   }
 
-  const sections = [
+  async function handleLogout() {
+    if (logoutLoading) return;
+
+    setLogoutLoading(true);
+    setLogoutError("");
+
+    try {
+      const { error } = await supabase.auth.signOut();
+
+      if (error) {
+        throw new Error(error.message);
+      }
+
+      router.replace("/login?logged_out=1");
+      router.refresh();
+    } catch (error) {
+      setLogoutError(
+        error instanceof Error
+          ? error.message
+          : "We could not sign you out. Please try again."
+      );
+      setLogoutLoading(false);
+    }
+  }
+
+  const sections: {
+    id: SettingsSection;
+    label: string;
+    icon: typeof Bell;
+  }[] = [
     { id: "notifications", label: "Notifications", icon: Bell },
     { id: "privacy", label: "Privacy & visibility", icon: ShieldCheck },
     { id: "preferences", label: "Preferences", icon: Globe },
@@ -205,7 +354,35 @@ export default function ProfessionalSettingsPage() {
     return (
       <main className="ps-page">
         <div className="ps-loading">
-          Checking your account access...
+          Checking your professional account...
+        </div>
+      </main>
+    );
+  }
+
+  if (accessError) {
+    return (
+      <main className="ps-page">
+        <div className="ps-loading">
+          <h2>Unable to open Professional Settings</h2>
+          <p>{accessError}</p>
+
+          <button
+            type="button"
+            className="ps-save-button"
+            onClick={() => {
+              setAccessError("");
+              setRetryCount((count) => count + 1);
+            }}
+          >
+            Try again
+          </button>
+
+          <p>
+            <Link href="/professional/dashboard">
+              Return to Professional Dashboard
+            </Link>
+          </p>
         </div>
       </main>
     );
@@ -269,17 +446,36 @@ export default function ProfessionalSettingsPage() {
 
         <div className="ps-sidebar-bottom">
           <div className="ps-account-card">
-            <div className="ps-account-avatar">MN</div>
+            <div className="ps-account-avatar">
+              {accountName
+                .split(/\s+/)
+                .filter(Boolean)
+                .slice(0, 2)
+                .map((part) => part[0]?.toUpperCase())
+                .join("") || "SP"}
+            </div>
+
             <div className="ps-account-info">
-              <strong>Micah Nwaezeaku</strong>
+              <strong>{accountName}</strong>
               <span>Professional account</span>
             </div>
           </div>
 
-          <Link href="/login" className="ps-logout">
+          <button
+            type="button"
+            className="ps-logout"
+            onClick={handleLogout}
+            disabled={logoutLoading}
+          >
             <LogOut size={17} />
-            Log out
-          </Link>
+            {logoutLoading ? "Signing out..." : "Log out"}
+          </button>
+
+          {logoutError && (
+            <p role="alert" className="ps-logout-error">
+              {logoutError}
+            </p>
+          )}
         </div>
       </aside>
 
@@ -291,7 +487,7 @@ export default function ProfessionalSettingsPage() {
           </div>
 
           <Link href="/professional/profile" className="ps-view-profile">
-            <Eye size={16} />
+            <UserRound size={16} />
             View profile
           </Link>
         </header>
@@ -350,7 +546,9 @@ export default function ProfessionalSettingsPage() {
 
             <section className="ps-settings-panel">
               {!loaded ? (
-                <div className="ps-loading">Loading your settings...</div>
+                <div className="ps-loading">
+                  Loading your settings...
+                </div>
               ) : (
                 <>
                   {activeSection === "notifications" && (
@@ -461,8 +659,9 @@ export default function ProfessionalSettingsPage() {
                       <div className="ps-info-note">
                         <ShieldCheck size={18} />
                         <p>
-                          Your private account information should only be
-                          shared through secure, authorized platform features.
+                          These are currently saved preferences. They do not
+                          yet enforce profile visibility or availability in
+                          public employer searches.
                         </p>
                       </div>
                     </div>
@@ -570,8 +769,9 @@ export default function ProfessionalSettingsPage() {
                         <div>
                           <h3>Account protection</h3>
                           <p>
-                            Keep your login details private and sign out when
-                            using a shared device.
+                            Supabase manages your authenticated session.
+                            Workspace access is checked against your database
+                            account role.
                           </p>
                         </div>
                       </div>
@@ -579,20 +779,19 @@ export default function ProfessionalSettingsPage() {
                       <div className="ps-info-note">
                         <LockKeyhole size={18} />
                         <p>
-                          Password changes and account security verification
-                          will be connected to the authentication system when
-                          backend integration is implemented.
+                          Always keep your login details private and sign out
+                          when using a shared device.
                         </p>
                       </div>
                     </div>
                   )}
 
                   <div className="ps-save-row">
-                    <div className="ps-save-status">
+                    <div className="ps-save-status" aria-live="polite">
                       {saved && (
                         <span>
                           <Check size={15} />
-                          Settings saved successfully
+                          Settings saved successfully on this device
                         </span>
                       )}
                     </div>
@@ -613,39 +812,5 @@ export default function ProfessionalSettingsPage() {
         </div>
       </section>
     </main>
-  );
-}
-
-type SettingToggleProps = {
-  title: string;
-  description: string;
-  checked: boolean;
-  onChange: (checked: boolean) => void;
-};
-
-function SettingToggle({
-  title,
-  description,
-  checked,
-  onChange,
-}: SettingToggleProps) {
-  return (
-    <div className="ps-toggle-row">
-      <div>
-        <h4>{title}</h4>
-        <p>{description}</p>
-      </div>
-
-      <button
-        type="button"
-        role="switch"
-        aria-checked={checked}
-        aria-label={title}
-        className={`ps-switch ${checked ? "on" : ""}`}
-        onClick={() => onChange(!checked)}
-      >
-        <span />
-      </button>
-    </div>
   );
 }

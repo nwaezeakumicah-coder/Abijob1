@@ -2,7 +2,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ChangeEvent } from "react";
 import { useRouter } from "next/navigation";
 import {
   ArrowLeft,
@@ -44,6 +44,22 @@ type CompanyProfile = {
   linkedin: string;
 };
 
+type EmployerProfileRecord = {
+  user_id: string;
+  business_name: string | null;
+  business_type: string | null;
+  company_size: string | null;
+  address: string | null;
+  website: string | null;
+  business_email: string | null;
+  phone: string | null;
+  founded_year: number | null;
+  description: string | null;
+  facebook_url: string | null;
+  instagram_url: string | null;
+  linkedin_url: string | null;
+};
+
 const defaultProfile: CompanyProfile = {
   companyName: "",
   industry: "Technology",
@@ -72,6 +88,7 @@ export default function EmployerProfilePage() {
   const [currentYear, setCurrentYear] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [companyLogoPreview, setCompanyLogoPreview] = useState("");
 
   useEffect(() => {
     let active = true;
@@ -99,21 +116,7 @@ export default function EmployerProfilePage() {
         const { data, error } = await supabase
           .from("employer_profiles")
           .select(
-            [
-              "user_id",
-              "business_name",
-              "business_type",
-              "company_size",
-              "address",
-              "website",
-              "business_email",
-              "phone",
-              "founded_year",
-              "description",
-              "facebook_url",
-              "instagram_url",
-              "linkedin_url",
-            ].join(", ")
+            "user_id, business_name, business_type, company_size, address, website, business_email, phone, founded_year, description, facebook_url, instagram_url, linkedin_url"
           )
           .eq("user_id", user.id)
           .maybeSingle();
@@ -124,20 +127,22 @@ export default function EmployerProfilePage() {
 
         if (!active) return;
 
-        if (data) {
+        const company = data as EmployerProfileRecord | null;
+
+        if (company) {
           setProfile({
-            companyName: data.business_name ?? "",
-            industry: data.business_type ?? "Technology",
-            companySize: data.company_size ?? "1–10 employees",
-            location: data.address ?? "",
-            website: data.website ?? "",
-            email: data.business_email ?? "",
-            phone: data.phone ?? "",
-            founded: data.founded_year?.toString() ?? "",
-            description: data.description ?? "",
-            facebook: data.facebook_url ?? "",
-            instagram: data.instagram_url ?? "",
-            linkedin: data.linkedin_url ?? "",
+            companyName: company.business_name ?? "",
+            industry: company.business_type ?? "Technology",
+            companySize: company.company_size ?? "1–10 employees",
+            location: company.address ?? "",
+            website: company.website ?? "",
+            email: company.business_email ?? "",
+            phone: company.phone ?? "",
+            founded: company.founded_year?.toString() ?? "",
+            description: company.description ?? "",
+            facebook: company.facebook_url ?? "",
+            instagram: company.instagram_url ?? "",
+            linkedin: company.linkedin_url ?? "",
           });
         }
       } catch (error) {
@@ -161,6 +166,41 @@ export default function EmployerProfilePage() {
       active = false;
     };
   }, [router]);
+
+  function handleCompanyLogoChange(event: ChangeEvent<HTMLInputElement>) {
+    const file = event.currentTarget.files?.[0];
+
+    if (!file) return;
+
+    if (!["image/jpeg", "image/png", "image/webp"].includes(file.type)) {
+      setSaveError("Please select a JPG, PNG or WEBP image.");
+      event.currentTarget.value = "";
+      return;
+    }
+
+    if (file.size > 5 * 1024 * 1024) {
+      setSaveError("Your company logo must be 5MB or smaller.");
+      event.currentTarget.value = "";
+      return;
+    }
+
+    const reader = new FileReader();
+
+    reader.onload = () => {
+      if (typeof reader.result === "string") {
+        setCompanyLogoPreview(reader.result);
+        setSaveError("");
+        setSaved(false);
+      }
+    };
+
+    reader.onerror = () => {
+      setSaveError("We couldn't preview that image. Please try another file.");
+    };
+
+    reader.readAsDataURL(file);
+    event.currentTarget.value = "";
+  }
 
   function updateField<K extends keyof CompanyProfile>(
     field: K,
@@ -232,7 +272,6 @@ export default function EmployerProfilePage() {
         linkedin_url: nullableText(profile.linkedin),
       };
 
-      // Check whether this employer already has a company profile.
       const { data: existingProfile, error: lookupError } = await supabase
         .from("employer_profiles")
         .select("user_id")
@@ -242,7 +281,6 @@ export default function EmployerProfilePage() {
       if (lookupError) throw lookupError;
 
       if (existingProfile) {
-        // Update the existing company profile.
         const { error: updateError } = await supabase
           .from("employer_profiles")
           .update({
@@ -263,8 +301,6 @@ export default function EmployerProfilePage() {
 
         if (updateError) throw updateError;
       } else {
-        // Create the employer's company profile.
-        // Verification fields are deliberately left to the database/admin.
         const { error: insertError } = await supabase
           .from("employer_profiles")
           .insert(profileData);
@@ -443,16 +479,45 @@ export default function EmployerProfilePage() {
 
             <div className="employer-profile-logo-area">
               <div className="employer-profile-company-logo">
-                <Building2 size={34} />
+                {companyLogoPreview ? (
+                  <div
+                    role="img"
+                    aria-label="Selected company logo preview"
+                    style={{
+                      width: "100%",
+                      height: "100%",
+                      borderRadius: "inherit",
+                      backgroundImage: `url("${companyLogoPreview}")`,
+                      backgroundPosition: "center",
+                      backgroundSize: "cover",
+                      backgroundRepeat: "no-repeat",
+                    }}
+                  />
+                ) : (
+                  <Building2 size={34} />
+                )}
 
-                <button
-                  type="button"
-                  aria-label="Company logo upload coming soon"
-                  title="Company logo upload will be available with backend storage"
-                  disabled
+                <input
+                  id="employer-company-logo-input"
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp"
+                  onChange={handleCompanyLogoChange}
+                  hidden
+                />
+
+                <label
+                  htmlFor="employer-company-logo-input"
+                  aria-label="Choose company logo"
+                  title="Choose company logo"
+                  style={{
+                    cursor: "pointer",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                  }}
                 >
                   <Camera size={15} />
-                </button>
+                </label>
               </div>
 
               <div className="employer-profile-company-summary">
@@ -686,13 +751,16 @@ export default function EmployerProfilePage() {
             <div>
               <h3>Company branding</h3>
               <p>
-                A company logo and cover image help your profile look
-                more professional. Image uploads will be connected
-                when backend storage is implemented.
+                Choose a company logo using the camera icon above.
+                Your selected image is currently previewed on this page.
+                Permanent logo storage will be connected when the company
+                logo storage integration is implemented.
               </p>
             </div>
 
-            <span>Backend integration pending</span>
+            <span>
+              {companyLogoPreview ? "Logo selected" : "Storage integration pending"}
+            </span>
           </section>
 
           <div className="employer-profile-bottom-actions">

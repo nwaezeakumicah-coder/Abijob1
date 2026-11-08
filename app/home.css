@@ -1,6 +1,6 @@
 
 /* =========================================
-   ABI JOB — BALANCED HOMEPAGE COLORS
+   ABI JOB — FIXED HOMEPAGE COLORS
 ========================================= */
 
 .home-page {
@@ -399,33 +399,6 @@
   font-size: 14px;
   font-weight: 800;
   text-decoration: none;
-}
-
-/* =========================================
-   DARK MODE PROTECTION
-========================================= */
-
-:root[data-theme="dark"] .home-page {
-  background: #f7f8f5 !important;
-  color: #26332b !important;
-}
-
-:root[data-theme="dark"] .home-page .home-hero h1,
-:root[data-theme="dark"] .home-page .home-section-heading h2,
-:root[data-theme="dark"] .home-page .audience-card h3,
-:root[data-theme="dark"] .home-page .hero-visual-card h2 {
-  color: #26332b !important;
-}
-
-:root[data-theme="dark"] .home-page .home-hero-content > p,
-:root[data-theme="dark"] .home-page .home-section-heading p,
-:root[data-theme="dark"] .home-page .audience-card p,
-:root[data-theme="dark"] .home-page .hero-visual-card > p {
-  color: #58645b !important;
-}
-
-:root[data-theme="dark"] .home-page .home-cta h2 {
-  color: #ffffff !important;
 }
 
 /* =========================================

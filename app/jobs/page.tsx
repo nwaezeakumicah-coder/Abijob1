@@ -33,7 +33,7 @@ type DatabaseJob = {
   employment_type: string | null;
   salary_min: number | null;
   salary_max: number | null;
-  currency: string | null;
+  salary_currency: string | null;
   description: string | null;
   requirements: string | null;
   responsibilities: string | null;
@@ -135,6 +135,11 @@ function formatSalary(
 
 function formatPostedDate(date: string) {
   const created = new Date(date);
+
+  if (Number.isNaN(created.getTime())) {
+    return "Recently posted";
+  }
+
   const now = new Date();
 
   const difference = Math.max(
@@ -157,13 +162,32 @@ function formatPostedDate(date: string) {
 }
 
 function getDaysAgo(date: string) {
+  const timestamp = new Date(date).getTime();
+
+  if (Number.isNaN(timestamp)) return 0;
+
   return Math.max(
     0,
     Math.floor(
-      (Date.now() - new Date(date).getTime()) /
-        (1000 * 60 * 60 * 24)
+      (Date.now() - timestamp) / (1000 * 60 * 60 * 24)
     )
   );
+}
+
+function getLocalDateString() {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, "0");
+  const day = String(now.getDate()).padStart(2, "0");
+
+  return `${year}-${month}-${day}`;
+}
+
+function isDeadlineExpired(deadline: string | null) {
+  if (!deadline) return false;
+
+  // Database deadline is a date-only value.
+  return deadline < getLocalDateString();
 }
 
 export default function JobsPage() {
@@ -218,6 +242,7 @@ export default function JobsPage() {
     setError("");
 
     try {
+      // Use the actual database column: salary_currency.
       const { data, error: jobsError } = await supabase
         .from("jobs")
         .select(`
@@ -229,7 +254,7 @@ export default function JobsPage() {
           employment_type,
           salary_min,
           salary_max,
-          currency,
+          salary_currency,
           description,
           requirements,
           responsibilities,
@@ -246,9 +271,13 @@ export default function JobsPage() {
         throw jobsError;
       }
 
-      const databaseJobs = (data || []) as DatabaseJob[];
+      const databaseJobs = ((data || []) as DatabaseJob[]).filter(
+        (job) => !isDeadlineExpired(job.application_deadline)
+      );
 
-      // Retrieve employer business names where public profile access allows it.
+      // jobs.employer_id references profiles.id.
+      // Use the confirmed relationship rather than assuming an
+      // unverified employer_profiles table structure.
       const employerIds = [
         ...new Set(databaseJobs.map((job) => job.employer_id)),
       ];
@@ -258,15 +287,20 @@ export default function JobsPage() {
       if (employerIds.length > 0) {
         const { data: employerProfiles, error: employerError } =
           await supabase
-            .from("employer_profiles")
-            .select("id, business_name")
+            .from("profiles")
+            .select("id, full_name")
             .in("id", employerIds);
 
-        if (!employerError && employerProfiles) {
+        if (employerError) {
+          console.warn(
+            "Employer names could not be loaded:",
+            employerError.message
+          );
+        } else if (employerProfiles) {
           companyNames = Object.fromEntries(
             employerProfiles.map((profile) => [
               profile.id,
-              profile.business_name || "Abi Job Employer",
+              profile.full_name || "Abi Job Employer",
             ])
           );
         }
@@ -282,7 +316,7 @@ export default function JobsPage() {
         salary: formatSalary(
           job.salary_min,
           job.salary_max,
-          job.currency
+          job.salary_currency
         ),
         posted: formatPostedDate(job.created_at),
         daysAgo: getDaysAgo(job.created_at),
@@ -303,6 +337,8 @@ export default function JobsPage() {
           ? err.message
           : "We could not load job opportunities. Please try again."
       );
+
+      setJobs([]);
     } finally {
       setLoading(false);
     }
@@ -594,7 +630,9 @@ export default function JobsPage() {
               </div>
 
               <p>
-                {loading ? "Loading..." : `${filteredJobs.length} opportunities`}
+                {loading
+                  ? "Loading..."
+                  : `${filteredJobs.length} opportunities`}
               </p>
             </div>
 
@@ -614,6 +652,18 @@ export default function JobsPage() {
                 <RefreshCw size={27} />
                 <h3>Loading opportunities...</h3>
                 <p>We're retrieving approved vacancies from Abi Job.</p>
+              </div>
+            ) : error ? (
+              <div className="jobs-feed-empty">
+                <AlertCircle size={27} />
+                <h3>We couldn't load job opportunities</h3>
+                <p>
+                  Please try again. If the problem continues, the
+                  database request needs to be checked.
+                </p>
+                <button type="button" onClick={loadJobs}>
+                  Try again
+                </button>
               </div>
             ) : filteredJobs.length > 0 ? (
               <div className="jobs-feed-list">
@@ -883,7 +933,7 @@ export default function JobsPage() {
               <div className="jobs-details-section">
                 <h3>Application deadline</h3>
                 <p>
-                  {new Date(selectedJob.deadline).toLocaleDateString(
+                  {new Date(`${selectedJob.deadline}T00:00:00`).toLocaleDateString(
                     "en-NG",
                     {
                       day: "numeric",
@@ -904,7 +954,8 @@ export default function JobsPage() {
             </Link>
 
             <p className="jobs-details-note">
-              You need a Job Seeker account to submit an application.
+              You need an eligible Job Seeker or Skilled Professional
+              account to submit an application.
             </p>
           </section>
         </div>

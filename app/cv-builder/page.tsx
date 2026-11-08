@@ -1,10 +1,15 @@
-
 "use client";
 
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ChangeEvent, useEffect, useMemo, useState } from "react";
+import {
+  ChangeEvent,
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
 import {
   ArrowLeft,
   ArrowRight,
@@ -17,6 +22,7 @@ import {
   FileText,
   GraduationCap,
   Lightbulb,
+  Plus,
   Sparkles,
   UserRound,
   WandSparkles,
@@ -29,6 +35,26 @@ import "./cv-builder.css";
 type Template = "classic" | "modern" | "minimal";
 type AccountType = "job-seeker" | "professional";
 
+type ExperienceEntry = {
+  id: string;
+  jobTitle: string;
+  company: string;
+  location: string;
+  startDate: string;
+  endDate: string;
+  description: string;
+};
+
+type EducationEntry = {
+  id: string;
+  qualification: string;
+  institution: string;
+  location: string;
+  startDate: string;
+  endDate: string;
+  description: string;
+};
+
 type CVData = {
   fullName: string;
   professionalTitle: string;
@@ -37,12 +63,21 @@ type CVData = {
   location: string;
   website: string;
   summary: string;
-  experience: string;
-  education: string;
+  experience: ExperienceEntry[];
+  education: EducationEntry[];
   skills: string;
   certifications: string;
   passportPhoto: string;
 };
+
+type LegacyCVData = Partial<CVData> & {
+  experience?: unknown;
+  education?: unknown;
+};
+
+const STORAGE_PREFIX = "abijob-cv-draft";
+const MAX_PHOTO_SIZE = 2 * 1024 * 1024;
+const MAX_PHOTO_DATA_LENGTH = 3 * 1024 * 1024;
 
 const initialData: CVData = {
   fullName: "",
@@ -52,8 +87,8 @@ const initialData: CVData = {
   location: "",
   website: "",
   summary: "",
-  experience: "",
-  education: "",
+  experience: [],
+  education: [],
   skills: "",
   certifications: "",
   passportPhoto: "",
@@ -67,9 +102,6 @@ const sections = [
   { id: "skills", label: "Skills", icon: Award },
 ];
 
-const STORAGE_PREFIX = "abijob-cv-draft";
-const MAX_PHOTO_SIZE = 2 * 1024 * 1024;
-
 function getDashboardPath(accountType: AccountType) {
   return accountType === "professional"
     ? "/professional/dashboard"
@@ -82,6 +114,142 @@ function isValidTemplate(value: unknown): value is Template {
     value === "classic" ||
     value === "minimal"
   );
+}
+
+function asText(value: unknown): string {
+  return typeof value === "string" ? value : "";
+}
+
+function createId(): string {
+  return `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
+}
+
+function createExperienceEntry(
+  values: Partial<ExperienceEntry> = {}
+): ExperienceEntry {
+  return {
+    id: asText(values.id) || createId(),
+    jobTitle: asText(values.jobTitle),
+    company: asText(values.company),
+    location: asText(values.location),
+    startDate: asText(values.startDate),
+    endDate: asText(values.endDate),
+    description: asText(values.description),
+  };
+}
+
+function createEducationEntry(
+  values: Partial<EducationEntry> = {}
+): EducationEntry {
+  return {
+    id: asText(values.id) || createId(),
+    qualification: asText(values.qualification),
+    institution: asText(values.institution),
+    location: asText(values.location),
+    startDate: asText(values.startDate),
+    endDate: asText(values.endDate),
+    description: asText(values.description),
+  };
+}
+
+function migrateLegacyExperience(value: unknown): ExperienceEntry[] {
+  if (Array.isArray(value)) {
+    return value
+      .filter(
+        (item): item is Record<string, unknown> =>
+          Boolean(item) && typeof item === "object"
+      )
+      .map((item) =>
+        createExperienceEntry({
+          id: asText(item.id),
+          jobTitle: asText(item.jobTitle),
+          company: asText(item.company),
+          location: asText(item.location),
+          startDate: asText(item.startDate),
+          endDate: asText(item.endDate),
+          description: asText(item.description),
+        })
+      );
+  }
+
+  const legacyText = asText(value).trim();
+
+  // Preserve old free-text experience instead of discarding it.
+  return legacyText
+    ? [
+        createExperienceEntry({
+          jobTitle: "Previous experience",
+          description: legacyText,
+        }),
+      ]
+    : [];
+}
+
+function migrateLegacyEducation(value: unknown): EducationEntry[] {
+  if (Array.isArray(value)) {
+    return value
+      .filter(
+        (item): item is Record<string, unknown> =>
+          Boolean(item) && typeof item === "object"
+      )
+      .map((item) =>
+        createEducationEntry({
+          id: asText(item.id),
+          qualification: asText(item.qualification),
+          institution: asText(item.institution),
+          location: asText(item.location),
+          startDate: asText(item.startDate),
+          endDate: asText(item.endDate),
+          description: asText(item.description),
+        })
+      );
+  }
+
+  const legacyText = asText(value).trim();
+
+  // Preserve old free-text education as one editable qualification.
+  return legacyText
+    ? [
+        createEducationEntry({
+          qualification: "Previous education or training",
+          description: legacyText,
+        }),
+      ]
+    : [];
+}
+
+function sanitizeCVData(value: unknown): CVData {
+  if (!value || typeof value !== "object") {
+    return { ...initialData };
+  }
+
+  const raw = value as LegacyCVData;
+  const photo = asText(raw.passportPhoto);
+
+  return {
+    fullName: asText(raw.fullName),
+    professionalTitle: asText(raw.professionalTitle),
+    email: asText(raw.email),
+    phone: asText(raw.phone),
+    location: asText(raw.location),
+    website: asText(raw.website),
+    summary: asText(raw.summary),
+    experience: migrateLegacyExperience(raw.experience),
+    education: migrateLegacyEducation(raw.education),
+    skills: asText(raw.skills),
+    certifications: asText(raw.certifications),
+    passportPhoto:
+      photo.length <= MAX_PHOTO_DATA_LENGTH &&
+      /^data:image\/(jpeg|png|webp);base64,/i.test(photo)
+        ? photo
+        : "",
+  };
+}
+
+function formatDateRange(start: string, end: string): string {
+  if (start && end) return `${start} – ${end}`;
+  if (start) return `${start} – Present`;
+  return end;
 }
 
 export default function CVBuilderPage() {
@@ -98,12 +266,12 @@ export default function CVBuilderPage() {
   const [isHydrated, setIsHydrated] = useState(false);
   const [lastSaved, setLastSaved] = useState("");
   const [isLoadingAccount, setIsLoadingAccount] = useState(true);
+  const [loadError, setLoadError] = useState("");
   const [photoError, setPhotoError] = useState("");
+  const [isSaving, setIsSaving] = useState(false);
 
   const dashboardHref = getDashboardPath(accountType);
 
-  // Confirm the real Supabase user and account role.
-  // Browser storage is used only for CV drafts, never for authentication.
   useEffect(() => {
     let active = true;
 
@@ -127,9 +295,23 @@ export default function CVBuilderPage() {
           .eq("id", user.id)
           .maybeSingle();
 
-        if (profileError || !profile) {
-          await supabase.auth.signOut();
-          router.replace("/login");
+        if (profileError) {
+          console.error("CV Builder profile lookup failed:", profileError);
+
+          if (active) {
+            setLoadError(
+              "We could not verify your account details. Please refresh and try again."
+            );
+          }
+          return;
+        }
+
+        if (!profile) {
+          if (active) {
+            setLoadError(
+              "Your account profile could not be found. Please contact support."
+            );
+          }
           return;
         }
 
@@ -156,80 +338,82 @@ export default function CVBuilderPage() {
 
         setAccountType(detectedAccount);
 
-        // Drafts are separated by the authenticated user's unique ID.
         const userStorageKey = `${STORAGE_PREFIX}-${user.id}`;
         setStorageKey(userStorageKey);
 
-        let savedData: Partial<CVData> = {};
-        let savedTemplate: Template = "modern";
-        let savedAt = "";
+        let savedDraft: string | null = null;
+        let cameFromLegacyKey = false;
 
         try {
-          let savedDraft = window.localStorage.getItem(userStorageKey);
+          savedDraft = window.localStorage.getItem(userStorageKey);
 
-          // Migrate an older role-based draft if a user has one.
           if (!savedDraft) {
             const oldKey = `${STORAGE_PREFIX}-${detectedAccount}`;
             savedDraft = window.localStorage.getItem(oldKey);
+            cameFromLegacyKey = Boolean(savedDraft);
           }
+        } catch (storageError) {
+          console.error("CV Builder storage read failed:", storageError);
+        }
 
-          if (savedDraft) {
-            const parsed = JSON.parse(savedDraft);
+        let savedData: CVData = { ...initialData };
+        let savedTemplate: Template = "modern";
+        let savedAt = "";
+
+        if (savedDraft) {
+          try {
+            const parsed: unknown = JSON.parse(savedDraft);
 
             if (parsed && typeof parsed === "object") {
-              if (parsed.data && typeof parsed.data === "object") {
-                savedData = parsed.data;
+              const draft = parsed as {
+                data?: unknown;
+                template?: unknown;
+                savedAt?: unknown;
+              };
+
+              savedData = sanitizeCVData(draft.data);
+
+              if (isValidTemplate(draft.template)) {
+                savedTemplate = draft.template;
               }
 
-              if (isValidTemplate(parsed.template)) {
-                savedTemplate = parsed.template;
-              }
-
-              savedAt =
-                typeof parsed.savedAt === "string"
-                  ? parsed.savedAt
-                  : "";
+              savedAt = asText(draft.savedAt);
             }
+          } catch {
+            setSummaryMessage(
+              "An older saved draft could not be read. You can start a new CV."
+            );
           }
-        } catch {
-          savedData = {};
-          savedTemplate = "modern";
-          savedAt = "";
         }
 
         if (!active) return;
 
-        // Prefill profile details only when the CV draft has no value.
         setData({
-          ...initialData,
           ...savedData,
           fullName:
-            savedData.fullName?.trim() ||
-            profile.full_name ||
-            "",
-          email:
-            savedData.email?.trim() ||
-            user.email ||
-            "",
-          phone:
-            savedData.phone?.trim() ||
-            profile.phone ||
-            "",
-          location:
-            savedData.location?.trim() ||
-            profile.location ||
-            "",
+            savedData.fullName.trim() ||
+            asText(profile.full_name),
+          email: savedData.email.trim() || asText(user.email),
+          phone: savedData.phone.trim() || asText(profile.phone),
+          location: savedData.location.trim() || asText(profile.location),
         });
 
         setTemplate(savedTemplate);
         setLastSaved(savedAt);
         setIsHydrated(true);
+
+        // The next autosave stores migrated drafts under the user's ID.
+        if (cameFromLegacyKey) {
+          setSummaryMessage(
+            "Your previous CV draft has been restored and migrated to your account's browser storage."
+          );
+        }
       } catch (error) {
         console.error("CV Builder account loading error:", error);
 
         if (active) {
-          setSummaryMessage(
-            "We could not load your account. Please refresh the page or sign in again."
+          setLoadError(
+            "We could not load the CV Builder. Please refresh the page and try again."
           );
         }
       } finally {
@@ -246,32 +430,104 @@ export default function CVBuilderPage() {
     };
   }, [router]);
 
-  // Save the CV draft separately for each authenticated user.
+  // Debounced local browser autosave.
   useEffect(() => {
     if (!isHydrated || !storageKey) return;
 
-    const savedAt = new Date().toISOString();
+    setIsSaving(true);
 
-    try {
-      window.localStorage.setItem(
-        storageKey,
-        JSON.stringify({
-          data,
-          template,
-          savedAt,
-        })
-      );
+    const timeout = window.setTimeout(() => {
+      const savedAt = new Date().toISOString();
 
-      setLastSaved(savedAt);
-    } catch {
-      setSummaryMessage(
-        "Your browser could not save this draft. The photograph may be too large, or browser storage may be full. Try using a smaller photo."
-      );
-    }
+      try {
+        window.localStorage.setItem(
+          storageKey,
+          JSON.stringify({
+            version: 2,
+            data,
+            template,
+            savedAt,
+          })
+        );
+
+        setLastSaved(savedAt);
+        setSummaryMessage((current) =>
+          current.startsWith("Your browser could not save")
+            ? ""
+            : current
+        );
+      } catch (error) {
+        console.error("CV Builder autosave failed:", error);
+        setSummaryMessage(
+          "Your browser could not save this draft. Remove or replace the photograph, or free some browser storage, then try again."
+        );
+      } finally {
+        setIsSaving(false);
+      }
+    }, 500);
+
+    return () => window.clearTimeout(timeout);
   }, [data, template, storageKey, isHydrated]);
 
-  const updateField = (field: keyof CVData, value: string) => {
-    setData((current) => ({ ...current, [field]: value }));
+  const updateField = useCallback(
+    (field: keyof Omit<CVData, "experience" | "education">, value: string) => {
+      setData((current) => ({ ...current, [field]: value }));
+    },
+    []
+  );
+
+  const updateExperience = (
+    id: string,
+    field: keyof Omit<ExperienceEntry, "id">,
+    value: string
+  ) => {
+    setData((current) => ({
+      ...current,
+      experience: current.experience.map((entry) =>
+        entry.id === id ? { ...entry, [field]: value } : entry
+      ),
+    }));
+  };
+
+  const addExperience = () => {
+    setData((current) => ({
+      ...current,
+      experience: [...current.experience, createExperienceEntry()],
+    }));
+  };
+
+  const removeExperience = (id: string) => {
+    setData((current) => ({
+      ...current,
+      experience: current.experience.filter((entry) => entry.id !== id),
+    }));
+  };
+
+  const updateEducation = (
+    id: string,
+    field: keyof Omit<EducationEntry, "id">,
+    value: string
+  ) => {
+    setData((current) => ({
+      ...current,
+      education: current.education.map((entry) =>
+        entry.id === id ? { ...entry, [field]: value } : entry
+      ),
+    }));
+  };
+
+  const addEducation = () => {
+    setData((current) => ({
+      ...current,
+      education: [...current.education, createEducationEntry()],
+    }));
+  };
+
+  const removeEducation = (id: string) => {
+    setData((current) => ({
+      ...current,
+      education: current.education.filter((entry) => entry.id !== id),
+    }));
   };
 
   const handlePhotoUpload = (event: ChangeEvent<HTMLInputElement>) => {
@@ -296,10 +552,20 @@ export default function CVBuilderPage() {
     const reader = new FileReader();
 
     reader.onload = () => {
-      if (typeof reader.result === "string") {
-        updateField("passportPhoto", reader.result);
-        setSummaryMessage("Your passport photograph has been added.");
+      if (typeof reader.result !== "string") {
+        setPhotoError("We could not read that photograph. Please try again.");
+        return;
       }
+
+      if (reader.result.length > MAX_PHOTO_DATA_LENGTH) {
+        setPhotoError(
+          "This photograph is too large to store reliably in your browser. Please choose a smaller image."
+        );
+        return;
+      }
+
+      updateField("passportPhoto", reader.result);
+      setSummaryMessage("Your passport photograph has been added.");
     };
 
     reader.onerror = () => {
@@ -315,26 +581,6 @@ export default function CVBuilderPage() {
     setPhotoError("");
   };
 
-  const completion = useMemo(() => {
-    const fields = [
-      data.fullName,
-      data.professionalTitle,
-      data.email,
-      data.phone,
-      data.location,
-      data.summary,
-      data.experience,
-      data.education,
-      data.skills,
-    ];
-
-    const completed = fields.filter(
-      (field) => field.trim().length > 0
-    ).length;
-
-    return Math.round((completed / fields.length) * 100);
-  }, [data]);
-
   const skillList = useMemo(
     () =>
       data.skills
@@ -343,6 +589,40 @@ export default function CVBuilderPage() {
         .filter(Boolean),
     [data.skills]
   );
+
+  const completion = useMemo(() => {
+    const fields = [
+      data.fullName,
+      data.professionalTitle,
+      data.email,
+      data.phone,
+      data.location,
+      data.summary,
+      data.skills,
+    ];
+
+    const completed = fields.filter(
+      (field) => field.trim().length > 0
+    ).length;
+
+    const hasExperience = data.experience.some(
+      (entry) =>
+        entry.jobTitle.trim() ||
+        entry.company.trim() ||
+        entry.description.trim()
+    );
+
+    const hasEducation = data.education.some(
+      (entry) =>
+        entry.qualification.trim() ||
+        entry.institution.trim() ||
+        entry.description.trim()
+    );
+
+    return Math.round(
+      ((completed + Number(hasExperience) + Number(hasEducation)) / 9) * 100
+    );
+  }, [data]);
 
   const generateSummary = () => {
     if (!data.professionalTitle.trim() && !data.skills.trim()) {
@@ -360,17 +640,17 @@ export default function CVBuilderPage() {
 
     const skillText =
       skills.length > 0
-        ? ` My key skills include ${skills.join(", ")}.`
+        ? ` Key skills include ${skills.join(", ")}.`
         : "";
 
     const suggestion = `Motivated ${
-      data.professionalTitle || "professional"
-    } with a strong interest in delivering quality work and contributing to team success. I bring a practical approach to problem-solving, a willingness to learn, and a commitment to continuous improvement.${skillText}`;
+      data.professionalTitle.trim() || "professional"
+    } committed to delivering quality work and contributing to team success. Brings a practical approach to problem-solving, a willingness to learn, and a commitment to continuous improvement.${skillText}`;
 
     updateField("summary", suggestion);
 
     setSummaryMessage(
-      "A draft suggestion has been added. Review and edit it to reflect your actual experience."
+      "A writing suggestion has been added. Review it and make sure it accurately represents your experience."
     );
   };
 
@@ -384,10 +664,35 @@ export default function CVBuilderPage() {
       website: "portfolio.example.com",
       summary:
         "Creative graphic designer with experience developing visual identities, marketing materials and digital designs. Passionate about clear communication, thoughtful design and helping businesses build memorable brands.",
-      experience:
-        "Graphic Designer | Creative Studio, Aba\nJanuary 2024 – Present\n• Designed brand identities and marketing materials for small businesses.\n• Created social media graphics and promotional artwork.\n• Worked with clients to understand project requirements and deliver designs on schedule.\n\nDesign Assistant | Print House, Aba\nJune 2022 – December 2023\n• Prepared print-ready artwork and edited customer designs.\n• Assisted with layout, typography and production checks.",
-      education:
-        "Higher National Diploma in Graphic Design\nAbia State Polytechnic | 2020 – 2022",
+      experience: [
+        createExperienceEntry({
+          jobTitle: "Graphic Designer",
+          company: "Creative Studio",
+          location: "Aba",
+          startDate: "January 2024",
+          endDate: "Present",
+          description:
+            "Designed brand identities and marketing materials for small businesses.\nCreated social media graphics and promotional artwork.\nWorked with clients to understand requirements and deliver designs on schedule.",
+        }),
+        createExperienceEntry({
+          jobTitle: "Design Assistant",
+          company: "Print House",
+          location: "Aba",
+          startDate: "June 2022",
+          endDate: "December 2023",
+          description:
+            "Prepared print-ready artwork and edited customer designs.\nAssisted with layout, typography and production checks.",
+        }),
+      ],
+      education: [
+        createEducationEntry({
+          qualification: "Higher National Diploma in Graphic Design",
+          institution: "Abia State Polytechnic",
+          location: "Aba",
+          startDate: "2020",
+          endDate: "2022",
+        }),
+      ],
       skills:
         "CorelDRAW\nAdobe Photoshop\nBrand Identity Design\nTypography\nSocial Media Design\nCommunication",
       certifications:
@@ -395,9 +700,10 @@ export default function CVBuilderPage() {
       passportPhoto: "",
     });
 
+    setTemplate("modern");
     setActiveSection("personal");
     setSummaryMessage(
-      "Sample CV information loaded. Replace it with your own details."
+      "Sample CV information loaded. Replace it with your own accurate details."
     );
   };
 
@@ -408,7 +714,7 @@ export default function CVBuilderPage() {
 
     if (!confirmed) return;
 
-    setData(initialData);
+    setData({ ...initialData });
     setTemplate("modern");
     setPhotoError("");
     setSummaryMessage("Your CV has been cleared.");
@@ -434,7 +740,7 @@ export default function CVBuilderPage() {
       })
     : "";
 
-  if (isLoadingAccount || !isHydrated) {
+  if (isLoadingAccount) {
     return (
       <main className="cv-builder-page cv-loading-page">
         <div className="cv-loading-card">
@@ -448,6 +754,30 @@ export default function CVBuilderPage() {
           <div className="cv-loading-spinner" />
           <h2>Preparing your CV Builder</h2>
           <p>Checking your account and loading your saved CV draft...</p>
+        </div>
+      </main>
+    );
+  }
+
+  if (loadError || !isHydrated) {
+    return (
+      <main className="cv-builder-page cv-loading-page">
+        <div className="cv-loading-card">
+          <Image
+            src="/images/abijob-logo-green.png"
+            alt="Abi Job"
+            width={142}
+            height={48}
+            priority
+          />
+          <h2>CV Builder unavailable</h2>
+          <p role="alert">
+            {loadError || "Your account could not be verified."}
+          </p>
+          <button type="button" onClick={() => router.refresh()}>
+            Try again
+          </button>
+          <Link href="/login">Return to login</Link>
         </div>
       </main>
     );
@@ -473,12 +803,14 @@ export default function CVBuilderPage() {
           </Link>
 
           <div className="cv-topbar-right">
-            <span className="cv-save-indicator">
+            <span className="cv-save-indicator" aria-live="polite">
               <Check size={14} />
               <span>
-                {formattedSavedTime
-                  ? `Saved ${formattedSavedTime}`
-                  : "Auto-save ready"}
+                {isSaving
+                  ? "Saving..."
+                  : formattedSavedTime
+                    ? `Saved ${formattedSavedTime}`
+                    : "Auto-save ready"}
               </span>
             </span>
 
@@ -519,9 +851,7 @@ export default function CVBuilderPage() {
             <span style={{ width: `${completion}%` }} />
           </div>
 
-          <small>
-            Complete each section to strengthen your CV.
-          </small>
+          <small>Complete each section to strengthen your CV.</small>
         </div>
       </section>
 
@@ -540,9 +870,7 @@ export default function CVBuilderPage() {
                 <button
                   key={section.id}
                   type="button"
-                  className={
-                    activeSection === section.id ? "active" : ""
-                  }
+                  className={activeSection === section.id ? "active" : ""}
                   onClick={() => scrollToSection(section.id)}
                 >
                   <span className="cv-section-number">{index + 1}</span>
@@ -558,9 +886,7 @@ export default function CVBuilderPage() {
             <span className="cv-tip-icon">
               <Lightbulb size={19} />
             </span>
-
             <strong>Make your CV stand out</strong>
-
             <p>
               Use clear language, include relevant skills and focus on
               achievements you can explain.
@@ -611,7 +937,6 @@ export default function CVBuilderPage() {
               <span className="cv-form-icon">
                 <UserRound size={19} />
               </span>
-
               <div>
                 <h3>Personal details</h3>
                 <p>How employers can identify and contact you.</p>
@@ -680,6 +1005,7 @@ export default function CVBuilderPage() {
               <label className="cv-field cv-field-full">
                 <span>Full name</span>
                 <input
+                  maxLength={120}
                   value={data.fullName}
                   onChange={(event) =>
                     updateField("fullName", event.target.value)
@@ -691,6 +1017,7 @@ export default function CVBuilderPage() {
               <label className="cv-field cv-field-full">
                 <span>Professional title</span>
                 <input
+                  maxLength={120}
                   value={data.professionalTitle}
                   onChange={(event) =>
                     updateField("professionalTitle", event.target.value)
@@ -703,6 +1030,7 @@ export default function CVBuilderPage() {
                 <span>Email address</span>
                 <input
                   type="email"
+                  maxLength={254}
                   value={data.email}
                   onChange={(event) =>
                     updateField("email", event.target.value)
@@ -714,6 +1042,8 @@ export default function CVBuilderPage() {
               <label className="cv-field">
                 <span>Phone number</span>
                 <input
+                  type="tel"
+                  maxLength={40}
                   value={data.phone}
                   onChange={(event) =>
                     updateField("phone", event.target.value)
@@ -725,6 +1055,7 @@ export default function CVBuilderPage() {
               <label className="cv-field">
                 <span>Location</span>
                 <input
+                  maxLength={160}
                   value={data.location}
                   onChange={(event) =>
                     updateField("location", event.target.value)
@@ -738,6 +1069,7 @@ export default function CVBuilderPage() {
                   Portfolio or website <small>Optional</small>
                 </span>
                 <input
+                  maxLength={300}
                   value={data.website}
                   onChange={(event) =>
                     updateField("website", event.target.value)
@@ -753,7 +1085,6 @@ export default function CVBuilderPage() {
               <span className="cv-form-icon">
                 <FileText size={19} />
               </span>
-
               <div>
                 <h3>Professional summary</h3>
                 <p>
@@ -766,15 +1097,16 @@ export default function CVBuilderPage() {
               <span>Your summary</span>
               <textarea
                 rows={5}
+                maxLength={1800}
                 value={data.summary}
                 onChange={(event) =>
                   updateField("summary", event.target.value)
                 }
                 placeholder="Write a short introduction about your experience, strengths and career goals..."
               />
-
               <small className="cv-field-hint">
                 Aim for 3–5 sentences that are relevant to the jobs you want.
+                {` ${data.summary.length}/1800`}
               </small>
             </label>
 
@@ -794,8 +1126,8 @@ export default function CVBuilderPage() {
             )}
 
             <p className="cv-feature-note">
-              This is a basic writing suggestion. AI-powered CV assistance
-              will be connected in a future update.
+              This is a basic writing suggestion, not an AI-generated or
+              independently verified CV. Review it before using it.
             </p>
           </div>
 
@@ -804,33 +1136,140 @@ export default function CVBuilderPage() {
               <span className="cv-form-icon">
                 <BriefcaseBusiness size={19} />
               </span>
-
               <div>
                 <h3>Work experience</h3>
                 <p>
-                  Include previous jobs, internships, freelance work or
-                  projects.
+                  Add jobs, internships, freelance work, apprenticeships or
+                  projects. If you are new to work, you can leave this section
+                  empty.
                 </p>
               </div>
             </div>
 
-            <label className="cv-field">
-              <span>Experience details</span>
-              <textarea
-                rows={8}
-                value={data.experience}
-                onChange={(event) =>
-                  updateField("experience", event.target.value)
-                }
-                placeholder={
-                  "Job title | Company name\nMonth Year – Month Year\nDescribe your responsibilities and achievements..."
-                }
-              />
+            {data.experience.map((entry, index) => (
+              <div className="cv-entry-card" key={entry.id}>
+                <div className="cv-entry-card-heading">
+                  <strong>Experience {index + 1}</strong>
+                  <button
+                    className="cv-entry-remove"
+                    type="button"
+                    onClick={() => removeExperience(entry.id)}
+                    aria-label={`Remove experience ${index + 1}`}
+                  >
+                    <Trash2 size={15} />
+                    Remove
+                  </button>
+                </div>
 
-              <small className="cv-field-hint">
-                Include your job title, employer, dates and key achievements.
-              </small>
-            </label>
+                <div className="cv-fields-grid">
+                  <label className="cv-field">
+                    <span>Job title / Role</span>
+                    <input
+                      maxLength={120}
+                      value={entry.jobTitle}
+                      onChange={(event) =>
+                        updateExperience(
+                          entry.id,
+                          "jobTitle",
+                          event.target.value
+                        )
+                      }
+                      placeholder="e.g. Graphic Designer"
+                    />
+                  </label>
+
+                  <label className="cv-field">
+                    <span>Company / Organisation</span>
+                    <input
+                      maxLength={160}
+                      value={entry.company}
+                      onChange={(event) =>
+                        updateExperience(
+                          entry.id,
+                          "company",
+                          event.target.value
+                        )
+                      }
+                      placeholder="e.g. SIRMIC Creativities"
+                    />
+                  </label>
+
+                  <label className="cv-field">
+                    <span>Location</span>
+                    <input
+                      maxLength={120}
+                      value={entry.location}
+                      onChange={(event) =>
+                        updateExperience(
+                          entry.id,
+                          "location",
+                          event.target.value
+                        )
+                      }
+                      placeholder="e.g. Aba, Abia State"
+                    />
+                  </label>
+
+                  <label className="cv-field">
+                    <span>Start date</span>
+                    <input
+                      maxLength={40}
+                      value={entry.startDate}
+                      onChange={(event) =>
+                        updateExperience(
+                          entry.id,
+                          "startDate",
+                          event.target.value
+                        )
+                      }
+                      placeholder="e.g. January 2024"
+                    />
+                  </label>
+
+                  <label className="cv-field">
+                    <span>End date</span>
+                    <input
+                      maxLength={40}
+                      value={entry.endDate}
+                      onChange={(event) =>
+                        updateExperience(
+                          entry.id,
+                          "endDate",
+                          event.target.value
+                        )
+                      }
+                      placeholder="e.g. Present"
+                    />
+                  </label>
+
+                  <label className="cv-field cv-field-full">
+                    <span>Responsibilities and achievements</span>
+                    <textarea
+                      rows={5}
+                      maxLength={2500}
+                      value={entry.description}
+                      onChange={(event) =>
+                        updateExperience(
+                          entry.id,
+                          "description",
+                          event.target.value
+                        )
+                      }
+                      placeholder="Describe what you did, tools you used and results you achieved. Use a new line for each point."
+                    />
+                  </label>
+                </div>
+              </div>
+            ))}
+
+            <button
+              className="cv-add-entry-button"
+              type="button"
+              onClick={addExperience}
+            >
+              <Plus size={17} />
+              Add work experience
+            </button>
           </div>
 
           <div className="cv-form-section" id="education">
@@ -838,28 +1277,139 @@ export default function CVBuilderPage() {
               <span className="cv-form-icon">
                 <GraduationCap size={20} />
               </span>
-
               <div>
-                <h3>Education</h3>
+                <h3>Education and training</h3>
                 <p>
-                  Add your academic qualifications and relevant training.
+                  Add degrees, school qualifications, vocational training,
+                  apprenticeships or professional courses.
                 </p>
               </div>
             </div>
 
-            <label className="cv-field">
-              <span>Education details</span>
-              <textarea
-                rows={4}
-                value={data.education}
-                onChange={(event) =>
-                  updateField("education", event.target.value)
-                }
-                placeholder={
-                  "Qualification or degree\nInstitution name | Year\nRelevant course or achievement..."
-                }
-              />
-            </label>
+            {data.education.map((entry, index) => (
+              <div className="cv-entry-card" key={entry.id}>
+                <div className="cv-entry-card-heading">
+                  <strong>Education {index + 1}</strong>
+                  <button
+                    className="cv-entry-remove"
+                    type="button"
+                    onClick={() => removeEducation(entry.id)}
+                    aria-label={`Remove education ${index + 1}`}
+                  >
+                    <Trash2 size={15} />
+                    Remove
+                  </button>
+                </div>
+
+                <div className="cv-fields-grid">
+                  <label className="cv-field cv-field-full">
+                    <span>Qualification / Course</span>
+                    <input
+                      maxLength={180}
+                      value={entry.qualification}
+                      onChange={(event) =>
+                        updateEducation(
+                          entry.id,
+                          "qualification",
+                          event.target.value
+                        )
+                      }
+                      placeholder="e.g. Higher National Diploma in Computer Science"
+                    />
+                  </label>
+
+                  <label className="cv-field">
+                    <span>Institution</span>
+                    <input
+                      maxLength={180}
+                      value={entry.institution}
+                      onChange={(event) =>
+                        updateEducation(
+                          entry.id,
+                          "institution",
+                          event.target.value
+                        )
+                      }
+                      placeholder="e.g. Abia State Polytechnic"
+                    />
+                  </label>
+
+                  <label className="cv-field">
+                    <span>Location</span>
+                    <input
+                      maxLength={120}
+                      value={entry.location}
+                      onChange={(event) =>
+                        updateEducation(
+                          entry.id,
+                          "location",
+                          event.target.value
+                        )
+                      }
+                      placeholder="e.g. Aba, Abia State"
+                    />
+                  </label>
+
+                  <label className="cv-field">
+                    <span>Start year / Date</span>
+                    <input
+                      maxLength={40}
+                      value={entry.startDate}
+                      onChange={(event) =>
+                        updateEducation(
+                          entry.id,
+                          "startDate",
+                          event.target.value
+                        )
+                      }
+                      placeholder="e.g. 2020"
+                    />
+                  </label>
+
+                  <label className="cv-field">
+                    <span>End year / Date</span>
+                    <input
+                      maxLength={40}
+                      value={entry.endDate}
+                      onChange={(event) =>
+                        updateEducation(
+                          entry.id,
+                          "endDate",
+                          event.target.value
+                        )
+                      }
+                      placeholder="e.g. 2022"
+                    />
+                  </label>
+
+                  <label className="cv-field cv-field-full">
+                    <span>Additional details <small>Optional</small></span>
+                    <textarea
+                      rows={3}
+                      maxLength={1200}
+                      value={entry.description}
+                      onChange={(event) =>
+                        updateEducation(
+                          entry.id,
+                          "description",
+                          event.target.value
+                        )
+                      }
+                      placeholder="Relevant courses, awards, projects or achievements..."
+                    />
+                  </label>
+                </div>
+              </div>
+            ))}
+
+            <button
+              className="cv-add-entry-button"
+              type="button"
+              onClick={addEducation}
+            >
+              <Plus size={17} />
+              Add education or training
+            </button>
           </div>
 
           <div className="cv-form-section" id="skills">
@@ -867,7 +1417,6 @@ export default function CVBuilderPage() {
               <span className="cv-form-icon">
                 <Award size={19} />
               </span>
-
               <div>
                 <h3>Skills and certifications</h3>
                 <p>
@@ -880,6 +1429,7 @@ export default function CVBuilderPage() {
               <span>Skills</span>
               <textarea
                 rows={4}
+                maxLength={2000}
                 value={data.skills}
                 onChange={(event) =>
                   updateField("skills", event.target.value)
@@ -888,7 +1438,6 @@ export default function CVBuilderPage() {
                   "Communication\nGraphic design\nMicrosoft Office\nCustomer service"
                 }
               />
-
               <small className="cv-field-hint">
                 Separate each skill with a new line or comma.
               </small>
@@ -898,9 +1447,9 @@ export default function CVBuilderPage() {
               <span>
                 Certifications and achievements <small>Optional</small>
               </span>
-
               <textarea
                 rows={3}
+                maxLength={2000}
                 value={data.certifications}
                 onChange={(event) =>
                   updateField("certifications", event.target.value)
@@ -915,7 +1464,6 @@ export default function CVBuilderPage() {
               <Check size={15} />
               Your CV draft is saved automatically in this browser.
             </span>
-
             <button onClick={handlePrint} type="button">
               <Download size={17} />
               Export CV as PDF
@@ -933,7 +1481,6 @@ export default function CVBuilderPage() {
               <span className="cv-editor-kicker">LIVE PREVIEW</span>
               <h2>Your CV</h2>
             </div>
-
             <button
               onClick={handlePrint}
               aria-label="Print or save as PDF"
@@ -945,7 +1492,6 @@ export default function CVBuilderPage() {
 
           <div className="cv-template-picker">
             <span>Choose a layout</span>
-
             <div>
               {(["modern", "classic", "minimal"] as Template[]).map(
                 (item) => (
@@ -960,7 +1506,6 @@ export default function CVBuilderPage() {
                       : item === "classic"
                         ? "Classic"
                         : "Minimal"}
-
                     {template === item && <Check size={13} />}
                   </button>
                 )
@@ -983,18 +1528,14 @@ export default function CVBuilderPage() {
               )}
 
               <h1>{data.fullName || "Your Name"}</h1>
-
-              <h2>
-                {data.professionalTitle || "Your Professional Title"}
-              </h2>
+              <h2>{data.professionalTitle || "Your Professional Title"}</h2>
 
               <div className="cv-paper-contact">
                 {data.email && <span>{data.email}</span>}
                 {data.phone && <span>{data.phone}</span>}
                 {data.location && <span>{data.location}</span>}
                 {data.website && <span>{data.website}</span>}
-
-                {!data.email && !data.phone && !data.location && (
+                {!data.email && !data.phone && !data.location && !data.website && (
                   <span>Your contact details will appear here</span>
                 )}
               </div>
@@ -1011,23 +1552,114 @@ export default function CVBuilderPage() {
 
               <section>
                 <h3>Work Experience</h3>
-                <p className="cv-paper-multiline">
-                  {data.experience ||
-                    "Your work experience will appear here."}
-                </p>
+                {data.experience.some(
+                  (entry) =>
+                    entry.jobTitle.trim() ||
+                    entry.company.trim() ||
+                    entry.description.trim()
+                ) ? (
+                  <div className="cv-paper-entries">
+                    {data.experience
+                      .filter(
+                        (entry) =>
+                          entry.jobTitle.trim() ||
+                          entry.company.trim() ||
+                          entry.description.trim()
+                      )
+                      .map((entry) => (
+                        <div className="cv-paper-entry" key={entry.id}>
+                          <div className="cv-paper-entry-top">
+                            <strong>
+                              {entry.jobTitle || "Position"}
+                            </strong>
+                            {formatDateRange(
+                              entry.startDate,
+                              entry.endDate
+                            ) && (
+                              <span>
+                                {formatDateRange(
+                                  entry.startDate,
+                                  entry.endDate
+                                )}
+                              </span>
+                            )}
+                          </div>
+                          {(entry.company || entry.location) && (
+                            <div className="cv-paper-entry-subtitle">
+                              {[entry.company, entry.location]
+                                .filter(Boolean)
+                                .join(" · ")}
+                            </div>
+                          )}
+                          {entry.description && (
+                            <p className="cv-paper-multiline">
+                              {entry.description}
+                            </p>
+                          )}
+                        </div>
+                      ))}
+                  </div>
+                ) : (
+                  <p>Your work experience will appear here.</p>
+                )}
               </section>
 
               <section>
                 <h3>Education</h3>
-                <p className="cv-paper-multiline">
-                  {data.education ||
-                    "Your educational qualifications will appear here."}
-                </p>
+                {data.education.some(
+                  (entry) =>
+                    entry.qualification.trim() ||
+                    entry.institution.trim() ||
+                    entry.description.trim()
+                ) ? (
+                  <div className="cv-paper-entries">
+                    {data.education
+                      .filter(
+                        (entry) =>
+                          entry.qualification.trim() ||
+                          entry.institution.trim() ||
+                          entry.description.trim()
+                      )
+                      .map((entry) => (
+                        <div className="cv-paper-entry" key={entry.id}>
+                          <div className="cv-paper-entry-top">
+                            <strong>
+                              {entry.qualification || "Qualification"}
+                            </strong>
+                            {formatDateRange(
+                              entry.startDate,
+                              entry.endDate
+                            ) && (
+                              <span>
+                                {formatDateRange(
+                                  entry.startDate,
+                                  entry.endDate
+                                )}
+                              </span>
+                            )}
+                          </div>
+                          {(entry.institution || entry.location) && (
+                            <div className="cv-paper-entry-subtitle">
+                              {[entry.institution, entry.location]
+                                .filter(Boolean)
+                                .join(" · ")}
+                            </div>
+                          )}
+                          {entry.description && (
+                            <p className="cv-paper-multiline">
+                              {entry.description}
+                            </p>
+                          )}
+                        </div>
+                      ))}
+                  </div>
+                ) : (
+                  <p>Your educational qualifications will appear here.</p>
+                )}
               </section>
 
               <section>
                 <h3>Skills</h3>
-
                 {skillList.length > 0 ? (
                   <div className="cv-paper-skills">
                     {skillList.map((skill, index) => (
@@ -1049,9 +1681,7 @@ export default function CVBuilderPage() {
               )}
             </div>
 
-            <div className="cv-paper-footer">
-              Created with Abi Job
-            </div>
+            <div className="cv-paper-footer">Created with Abi Job</div>
           </article>
 
           <div className="cv-preview-note">
@@ -1076,7 +1706,6 @@ export default function CVBuilderPage() {
 
       <footer className="cv-builder-footer">
         <span>© 2026 Abi Job. Opportunity starts here.</span>
-
         <Link href="/jobs">
           Explore opportunities <ArrowRight size={14} />
         </Link>

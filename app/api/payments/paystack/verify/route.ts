@@ -1,10 +1,9 @@
-
 import { NextResponse } from "next/server";
-import { createClient } from "@supabase/supabase-js";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient as createServerSupabaseClient } from "@/lib/supabase/server";
 
-const allowedRoles = ["job_seeker", "professional", "employer"];
-const allowedIntervals = ["monthly", "yearly"];
+const allowedRoles = ["job_seeker", "professional", "employer"] as const;
+const allowedIntervals = ["monthly", "yearly"] as const;
 
 type JsonRecord = Record<string, unknown>;
 
@@ -20,20 +19,25 @@ function asRecord(value: unknown): JsonRecord {
   return {};
 }
 
-function getAdminClient() {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const secret = process.env.SUPABASE_SERVICE_ROLE_KEY;
-
-  if (!url || !secret) {
-    throw new Error("Supabase server environment variables are missing.");
-  }
-
-  return createClient(url, secret, {
-    auth: {
-      autoRefreshToken: false,
-      persistSession: false,
+function jsonResponse(
+  body: JsonRecord,
+  status = 200
+) {
+  return NextResponse.json(body, {
+    status,
+    headers: {
+      "Cache-Control": "no-store, no-cache, must-revalidate",
     },
   });
+}
+
+function isValidReference(value: unknown): value is string {
+  return (
+    typeof value === "string" &&
+    /^ABIJOB-[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
+      value
+    )
+  );
 }
 
 export async function POST(request: Request) {
@@ -46,9 +50,9 @@ export async function POST(request: Request) {
     } = await supabase.auth.getUser();
 
     if (authError || !user) {
-      return NextResponse.json(
+      return jsonResponse(
         { error: "Please log in to verify your payment." },
-        { status: 401 }
+        401
       );
     }
 
@@ -57,30 +61,28 @@ export async function POST(request: Request) {
     try {
       body = asRecord(await request.json());
     } catch {
-      return NextResponse.json(
+      return jsonResponse(
         { error: "Invalid verification request." },
-        { status: 400 }
+        400
       );
     }
 
     const reference = body.reference;
 
-    if (
-      typeof reference !== "string" ||
-      reference.length < 5 ||
-      reference.length > 100
-    ) {
-      return NextResponse.json(
-        { error: "A valid payment reference is required." },
-        { status: 400 }
+    if (!isValidReference(reference)) {
+      return jsonResponse(
+        { error: "A valid Abi Job payment reference is required." },
+        400
       );
     }
 
-    const admin = getAdminClient();
+    const admin = createAdminClient();
 
     const { data: payment, error: paymentError } = await admin
       .from("payment_transactions")
-      .select("*")
+      .select(
+        "id,user_id,subscription_id,provider,provider_reference,amount_kobo,currency,billing_interval,status,metadata"
+      )
       .eq("provider_reference", reference)
       .eq("provider", "paystack")
       .eq("user_id", user.id)
@@ -89,21 +91,21 @@ export async function POST(request: Request) {
     if (paymentError) {
       console.error("Payment lookup error:", paymentError);
 
-      return NextResponse.json(
+      return jsonResponse(
         { error: "We could not retrieve your payment record." },
-        { status: 500 }
+        500
       );
     }
 
     if (!payment) {
-      return NextResponse.json(
+      return jsonResponse(
         { error: "Payment record not found." },
-        { status: 404 }
+        404
       );
     }
 
     if (payment.status === "successful") {
-      return NextResponse.json({
+      return jsonResponse({
         success: true,
         alreadyProcessed: true,
         message: "Payment has already been verified and activated.",
@@ -111,16 +113,20 @@ export async function POST(request: Request) {
     }
 
     if (payment.status !== "pending") {
-      return NextResponse.json(
+      return jsonResponse(
         { error: "This payment cannot be verified." },
-        { status: 400 }
+        409
       );
     }
 
-    if (!payment.subscription_id || !payment.user_id) {
-      return NextResponse.json(
-        { error: "Payment is missing its user or subscription information." },
-        { status: 400 }
+    if (
+      !payment.subscription_id ||
+      payment.user_id !== user.id ||
+      payment.provider_reference !== reference
+    ) {
+      return jsonResponse(
+        { error: "Payment ownership or subscription information is invalid." },
+        400
       );
     }
 
@@ -129,49 +135,62 @@ export async function POST(request: Request) {
     const accountRole = paymentMetadata.account_role;
     const billingInterval = payment.billing_interval;
     const storedAmount = Number(payment.amount_kobo);
-    const storedCurrency = payment.currency;
+    const storedCurrency =
+      typeof payment.currency === "string"
+        ? payment.currency.toUpperCase()
+        : "";
 
     if (
       typeof accountRole !== "string" ||
-      !allowedRoles.includes(accountRole) ||
+      !allowedRoles.includes(
+        accountRole as (typeof allowedRoles)[number]
+      ) ||
       typeof billingInterval !== "string" ||
-      !allowedIntervals.includes(billingInterval) ||
+      !allowedIntervals.includes(
+        billingInterval as (typeof allowedIntervals)[number]
+      ) ||
+      paymentMetadata.user_id !== user.id ||
       paymentMetadata.billing_interval !== billingInterval ||
       String(paymentMetadata.subscription_id) !==
         String(payment.subscription_id) ||
       !Number.isSafeInteger(storedAmount) ||
       storedAmount <= 0 ||
-      typeof storedCurrency !== "string"
+      storedCurrency !== "NGN"
     ) {
-      return NextResponse.json(
+      return jsonResponse(
         { error: "Stored payment information is invalid." },
-        { status: 400 }
+        400
       );
     }
 
-    const { data: subscription, error: subscriptionError } = await admin
-      .from("subscriptions")
-      .select("id,user_id,account_role")
-      .eq("id", payment.subscription_id)
-      .eq("user_id", user.id)
-      .maybeSingle();
+    const { data: subscription, error: subscriptionError } =
+      await admin
+        .from("subscriptions")
+        .select("id,user_id,account_role")
+        .eq("id", payment.subscription_id)
+        .eq("user_id", user.id)
+        .maybeSingle();
 
     if (subscriptionError) {
-      console.error("Subscription lookup error:", subscriptionError);
+      console.error(
+        "Subscription lookup error:",
+        subscriptionError
+      );
 
-      return NextResponse.json(
+      return jsonResponse(
         { error: "Could not validate your subscription record." },
-        { status: 500 }
+        500
       );
     }
 
     if (
       !subscription ||
+      subscription.user_id !== user.id ||
       subscription.account_role !== accountRole
     ) {
-      return NextResponse.json(
+      return jsonResponse(
         { error: "Your payment does not match your subscription." },
-        { status: 400 }
+        400
       );
     }
 
@@ -199,9 +218,9 @@ export async function POST(request: Request) {
         response.status
       );
 
-      return NextResponse.json(
+      return jsonResponse(
         { error: "Paystack verification is temporarily unavailable." },
-        { status: 502 }
+        502
       );
     }
 
@@ -210,68 +229,91 @@ export async function POST(request: Request) {
     try {
       result = asRecord(await response.json());
     } catch {
-      return NextResponse.json(
+      return jsonResponse(
         { error: "Paystack returned an invalid verification response." },
-        { status: 502 }
+        502
       );
     }
 
     if (result.status !== true) {
-      return NextResponse.json(
+      return jsonResponse(
         { error: "Paystack could not verify this transaction." },
-        { status: 502 }
+        502
       );
     }
 
     const transaction = asRecord(result.data);
     const metadata = asRecord(transaction.metadata);
     const verifiedAmount = Number(transaction.amount);
+    const verifiedCurrency =
+      typeof transaction.currency === "string"
+        ? transaction.currency.toUpperCase()
+        : "";
 
     if (
       transaction.status !== "success" ||
       transaction.reference !== reference ||
       !Number.isSafeInteger(verifiedAmount) ||
       verifiedAmount !== storedAmount ||
-      transaction.currency !== storedCurrency ||
-      String(metadata.user_id) !== String(user.id) ||
+      verifiedCurrency !== storedCurrency ||
+      metadata.user_id !== user.id ||
       metadata.account_role !== accountRole ||
       metadata.billing_interval !== billingInterval ||
       String(metadata.subscription_id) !==
         String(payment.subscription_id)
     ) {
-      console.error("Payment verification mismatch:", reference);
+      console.error(
+        "Payment verification mismatch:",
+        reference
+      );
 
-      return NextResponse.json(
+      return jsonResponse(
         { error: "Payment details could not be validated." },
-        { status: 400 }
+        400
       );
     }
 
-    const { error: activationError } = await admin.rpc(
-      "complete_paystack_subscription",
-      {
+    const { data: activationResult, error: activationError } =
+      await admin.rpc("complete_paystack_subscription", {
         p_reference: reference,
         p_user_id: user.id,
         p_amount_kobo: verifiedAmount,
-        p_currency: String(transaction.currency),
+        p_currency: verifiedCurrency,
         p_billing_interval: billingInterval,
         p_account_role: accountRole,
-      }
-    );
+      });
 
     if (activationError) {
-      console.error("Subscription activation error:", activationError);
+      console.error(
+        "Subscription activation error:",
+        activationError
+      );
 
-      return NextResponse.json(
+      return jsonResponse(
         {
           error:
             "Payment was verified, but subscription activation failed. Please retry or contact support.",
         },
-        { status: 500 }
+        500
       );
     }
 
-    return NextResponse.json({
+    if (activationResult !== true) {
+      console.error(
+        "Subscription activation returned an unexpected result:",
+        activationResult
+      );
+
+      return jsonResponse(
+        {
+          error:
+            "Payment was verified, but subscription activation could not be confirmed. Please contact support.",
+        },
+        500
+      );
+    }
+
+    return jsonResponse({
       success: true,
       alreadyProcessed: false,
       message:
@@ -280,12 +322,12 @@ export async function POST(request: Request) {
   } catch (error) {
     console.error("Paystack verification error:", error);
 
-    return NextResponse.json(
+    return jsonResponse(
       {
         error:
           "An unexpected error occurred while verifying payment.",
       },
-      { status: 500 }
+      500
     );
   }
 }

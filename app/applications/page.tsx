@@ -1,6 +1,6 @@
-
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
@@ -39,9 +39,33 @@ type ApplicationStatus =
   | "Submitted"
   | "Under review"
   | "Shortlisted"
-  | "Rejected"
   | "Successful"
+  | "Rejected"
   | "Withdrawn";
+
+type JobRecord = {
+  id: string;
+  title: string | null;
+  location: string | null;
+  employment_type: string | null;
+  salary_min: number | string | null;
+  salary_max: number | string | null;
+  salary_currency: string | null;
+  description: string | null;
+  employer_id: string;
+};
+
+type ApplicationRecord = {
+  id: string;
+  job_id: string;
+  applicant_id: string;
+  cover_letter: string | null;
+  cv_path: string | null;
+  status: DatabaseStatus;
+  created_at: string;
+  updated_at: string | null;
+  jobs: JobRecord | JobRecord[] | null;
+};
 
 type Application = {
   id: string;
@@ -101,14 +125,16 @@ function getStatusClass(status: ApplicationStatus) {
 function getStatusIcon(status: ApplicationStatus) {
   switch (status) {
     case "Successful":
+    case "Shortlisted":
       return <CheckCircle2 size={14} />;
+
     case "Rejected":
     case "Withdrawn":
       return <XCircle size={14} />;
-    case "Shortlisted":
-      return <CheckCircle2 size={14} />;
+
     case "Under review":
       return <Clock3 size={14} />;
+
     default:
       return <FileText size={14} />;
   }
@@ -117,7 +143,13 @@ function getStatusIcon(status: ApplicationStatus) {
 function formatDate(value: string | null) {
   if (!value) return "Date unavailable";
 
-  return new Date(value).toLocaleDateString("en-NG", {
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    return "Date unavailable";
+  }
+
+  return date.toLocaleDateString("en-NG", {
     day: "numeric",
     month: "long",
     year: "numeric",
@@ -128,10 +160,13 @@ function formatRelativeDate(value: string | null) {
   if (!value) return "Not available";
 
   const date = new Date(value);
-  const today = new Date();
+
+  if (Number.isNaN(date.getTime())) {
+    return "Not available";
+  }
 
   const difference = Math.floor(
-    (today.getTime() - date.getTime()) / (1000 * 60 * 60 * 24)
+    (Date.now() - date.getTime()) / (1000 * 60 * 60 * 24)
   );
 
   if (difference <= 0) return "Today";
@@ -142,33 +177,46 @@ function formatRelativeDate(value: string | null) {
 }
 
 function formatSalary(
-  minimum: number | null,
-  maximum: number | null,
+  minimum: number | string | null,
+  maximum: number | string | null,
   currency: string | null
 ) {
-  if (minimum === null && maximum === null) {
+  const min =
+    minimum === null || minimum === ""
+      ? null
+      : Number(minimum);
+
+  const max =
+    maximum === null || maximum === ""
+      ? null
+      : Number(maximum);
+
+  const validMin = min !== null && Number.isFinite(min) ? min : null;
+  const validMax = max !== null && Number.isFinite(max) ? max : null;
+
+  if (validMin === null && validMax === null) {
     return "Salary not specified";
   }
 
-  const code = currency || "NGN";
+  const code = (currency || "NGN").toUpperCase();
 
   const amount = (value: number) => {
     const formatted = new Intl.NumberFormat("en-NG", {
       maximumFractionDigits: 0,
     }).format(value);
 
-    return code.toUpperCase() === "NGN"
+    return code === "NGN"
       ? `₦${formatted}`
       : `${code} ${formatted}`;
   };
 
-  if (minimum !== null && maximum !== null) {
-    return `${amount(minimum)} – ${amount(maximum)}`;
+  if (validMin !== null && validMax !== null) {
+    return `${amount(validMin)} – ${amount(validMax)}`;
   }
 
-  if (minimum !== null) return `From ${amount(minimum)}`;
+  if (validMin !== null) return `From ${amount(validMin)}`;
 
-  return `Up to ${amount(maximum as number)}`;
+  return `Up to ${amount(validMax as number)}`;
 }
 
 function formatEmployment(value: string | null) {
@@ -180,16 +228,19 @@ function formatEmployment(value: string | null) {
 }
 
 function getCompanyInitials(name: string) {
-  return name
-    .split(/\s+/)
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((word) => word[0].toUpperCase())
-    .join("") || "AJ";
+  return (
+    name
+      .split(/\s+/)
+      .filter(Boolean)
+      .slice(0, 2)
+      .map((word) => word[0].toUpperCase())
+      .join("") || "AJ"
+  );
 }
 
 function getCompanyColor(name: string) {
   const colors = ["green", "orange", "blue", "purple", "pink", "teal"];
+
   const total = name
     .split("")
     .reduce((sum, character) => sum + character.charCodeAt(0), 0);
@@ -197,167 +248,231 @@ function getCompanyColor(name: string) {
   return colors[total % colors.length];
 }
 
+function getJobRecord(
+  value: JobRecord | JobRecord[] | null
+): JobRecord | null {
+  if (Array.isArray(value)) {
+    return value[0] || null;
+  }
+
+  return value;
+}
+
 export default function ApplicationsPage() {
   const router = useRouter();
   const supabase = useMemo(() => createClient(), []);
 
   const [applications, setApplications] = useState<Application[]>([]);
+  const [applicantId, setApplicantId] = useState("");
+
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("All");
   const [sortOrder, setSortOrder] = useState("newest");
+
   const [selectedApplication, setSelectedApplication] =
     useState<Application | null>(null);
-  const [showFilters, setShowFilters] = useState(false);
 
+  const [showFilters, setShowFilters] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [cvLoading, setCvLoading] = useState(false);
   const [error, setError] = useState("");
 
-  const loadApplications = useCallback(async () => {
-    setLoading(true);
-    setError("");
-
-    try {
-      const {
-        data: { user },
-        error: authError,
-      } = await supabase.auth.getUser();
-
-      if (authError || !user) {
-        router.replace("/login?redirect=%2Fapplications");
-        return;
+  const loadApplications = useCallback(
+    async (showLoading = true) => {
+      if (showLoading) {
+        setLoading(true);
+      } else {
+        setRefreshing(true);
       }
 
-      const { data: profile, error: profileError } = await supabase
-        .from("profiles")
-        .select("role")
-        .eq("id", user.id)
-        .single();
+      setError("");
 
-      if (profileError || !profile) {
-        throw new Error("Your account profile could not be loaded.");
-      }
+      try {
+        const {
+          data: { user },
+          error: authError,
+        } = await supabase.auth.getUser();
 
-      if (profile.role !== "job_seeker") {
-        if (profile.role === "professional") {
-          router.replace("/professional/dashboard");
-        } else if (profile.role === "employer") {
-          router.replace("/employer/dashboard");
-        } else {
-          router.replace("/login");
+        if (authError || !user) {
+          router.replace("/login?redirect=%2Fapplications");
+          return;
         }
-        return;
-      }
 
-      const { data, error: applicationsError } = await supabase
-        .from("job_applications")
-        .select(`
-          id,
-          job_id,
-          applicant_id,
-          cover_letter,
-          cv_path,
-          status,
-          created_at,
-          updated_at,
-          jobs (
-            id,
-            title,
-            location,
-            employment_type,
-            salary_min,
-            salary_max,
-            currency,
-            description,
-            employer_id
-          )
-        `)
-        .eq("applicant_id", user.id)
-        .order("created_at", { ascending: false });
+        setApplicantId(user.id);
 
-      if (applicationsError) {
-        throw applicationsError;
-      }
+        const { data: profile, error: profileError } = await supabase
+          .from("profiles")
+          .select("role")
+          .eq("id", user.id)
+          .single();
 
-      const records = (data || []) as any[];
-
-      const employerIds = [
-        ...new Set(
-          records
-            .map((record) => record.jobs?.employer_id)
-            .filter(Boolean)
-        ),
-      ];
-
-      let employerNames: Record<string, string> = {};
-
-      if (employerIds.length > 0) {
-        const { data: employers } = await supabase
-          .from("employer_profiles")
-          .select("id, business_name")
-          .in("id", employerIds);
-
-        if (employers) {
-          employerNames = Object.fromEntries(
-            employers.map((employer) => [
-              employer.id,
-              employer.business_name,
-            ])
+        if (profileError || !profile) {
+          throw new Error(
+            "Your account profile could not be loaded. Please try again."
           );
         }
-      }
 
-      const mappedApplications: Application[] = records
-        .filter((record) => record.jobs)
-        .map((record) => {
-          const job = record.jobs;
-          const company =
-            employerNames[job.employer_id] || "Abi Job Employer";
+        if (profile.role !== "job_seeker") {
+          if (profile.role === "professional") {
+            router.replace("/professional/dashboard");
+          } else if (profile.role === "employer") {
+            router.replace("/employer/dashboard");
+          } else {
+            router.replace("/login");
+          }
 
-          return {
-            id: record.id,
-            jobId: record.job_id,
-            title: job.title || "Untitled vacancy",
-            company,
-            initials: getCompanyInitials(company),
-            color: getCompanyColor(company),
-            location: job.location || "Location not specified",
-            employment: formatEmployment(job.employment_type),
-            salary: formatSalary(
-              job.salary_min,
-              job.salary_max,
-              job.currency
-            ),
-            appliedDate: formatDate(record.created_at),
-            appliedTimestamp: record.created_at
+          return;
+        }
+
+        const { data, error: applicationsError } = await supabase
+          .from("job_applications")
+          .select(`
+            id,
+            job_id,
+            applicant_id,
+            cover_letter,
+            cv_path,
+            status,
+            created_at,
+            updated_at,
+            jobs (
+              id,
+              title,
+              location,
+              employment_type,
+              salary_min,
+              salary_max,
+              salary_currency,
+              description,
+              employer_id
+            )
+          `)
+          .eq("applicant_id", user.id)
+          .order("created_at", { ascending: false });
+
+        if (applicationsError) {
+          throw applicationsError;
+        }
+
+        const records = (data || []) as unknown as ApplicationRecord[];
+
+        const mappedApplications: Application[] = records
+          .map((record) => {
+            const job = getJobRecord(record.jobs);
+
+            if (!job) return null;
+
+            // Employer profile records are private under the current RLS
+            // policies. Do not make an unauthorized lookup here.
+            const company = "Employer";
+
+            const createdAt = record.created_at
               ? new Date(record.created_at).getTime()
-              : 0,
-            status: formatStatus(record.status as DatabaseStatus),
-            updated: formatRelativeDate(
-              record.updated_at || record.created_at
-            ),
-            description: job.description || "No job description available.",
-            cvPath: record.cv_path || null,
-            coverLetter: record.cover_letter || null,
-          };
+              : 0;
+
+            return {
+              id: record.id,
+              jobId: record.job_id,
+              title: job.title || "Untitled vacancy",
+              company,
+              initials: getCompanyInitials(company),
+              color: getCompanyColor(company),
+              location: job.location || "Location not specified",
+              employment: formatEmployment(job.employment_type),
+              salary: formatSalary(
+                job.salary_min,
+                job.salary_max,
+                job.salary_currency
+              ),
+              appliedDate: formatDate(record.created_at),
+              appliedTimestamp: Number.isFinite(createdAt)
+                ? createdAt
+                : 0,
+              status: formatStatus(record.status),
+              updated: formatRelativeDate(
+                record.updated_at || record.created_at
+              ),
+              description:
+                job.description || "No job description available.",
+              cvPath: record.cv_path || null,
+              coverLetter: record.cover_letter || null,
+            };
+          })
+          .filter((application): application is Application =>
+            Boolean(application)
+          );
+
+        setApplications(mappedApplications);
+
+        setSelectedApplication((current) => {
+          if (!current) return null;
+
+          return (
+            mappedApplications.find(
+              (application) => application.id === current.id
+            ) || null
+          );
         });
+      } catch (err) {
+        console.error("Applications loading error:", err);
 
-      setApplications(mappedApplications);
-    } catch (err) {
-      console.error("Applications loading error:", err);
-
-      setError(
-        err instanceof Error
-          ? err.message
-          : "Unable to load your applications. Please try again."
-      );
-    } finally {
-      setLoading(false);
-    }
-  }, [supabase, router]);
+        setError(
+          err instanceof Error
+            ? err.message
+            : "Unable to load your applications. Please try again."
+        );
+      } finally {
+        setLoading(false);
+        setRefreshing(false);
+      }
+    },
+    [supabase, router]
+  );
 
   useEffect(() => {
-    loadApplications();
+    void loadApplications(true);
   }, [loadApplications]);
+
+  useEffect(() => {
+    if (!applicantId) return;
+
+    const channel = supabase
+      .channel(`applicant-applications-${applicantId}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "UPDATE",
+          schema: "public",
+          table: "job_applications",
+          filter: `applicant_id=eq.${applicantId}`,
+        },
+        () => {
+          void loadApplications(false);
+        }
+      )
+      .subscribe();
+
+    return () => {
+      void supabase.removeChannel(channel);
+    };
+  }, [applicantId, supabase, loadApplications]);
+
+  useEffect(() => {
+    if (!selectedApplication) return;
+
+    function handleEscape(event: KeyboardEvent) {
+      if (event.key === "Escape") {
+        setSelectedApplication(null);
+      }
+    }
+
+    window.addEventListener("keydown", handleEscape);
+
+    return () => {
+      window.removeEventListener("keydown", handleEscape);
+    };
+  }, [selectedApplication]);
 
   const counts = useMemo(() => {
     return {
@@ -395,7 +510,7 @@ export default function ApplicationsPage() {
         .toLowerCase();
 
       const matchesSearch = searchableText.includes(
-        search.toLowerCase()
+        search.trim().toLowerCase()
       );
 
       const matchesStatus =
@@ -427,16 +542,46 @@ export default function ApplicationsPage() {
   }
 
   async function openCv(path: string) {
-    const { data, error: signedUrlError } = await supabase.storage
-      .from("abi-job-profile-files")
-      .createSignedUrl(path, 60 * 5);
+    if (cvLoading) return;
 
-    if (signedUrlError || !data?.signedUrl) {
-      setError("Your CV could not be opened. Please try again.");
+    setError("");
+
+    const previewWindow = window.open("about:blank", "_blank");
+
+    if (!previewWindow) {
+      setError(
+        "Your browser blocked the CV preview. Please allow pop-ups for Abi Job and try again."
+      );
       return;
     }
 
-    window.open(data.signedUrl, "_blank", "noopener,noreferrer");
+    previewWindow.opener = null;
+    setCvLoading(true);
+
+    try {
+      const { data, error: signedUrlError } = await supabase.storage
+        .from("abi-job-profile-files")
+        .createSignedUrl(path, 60 * 5);
+
+      if (signedUrlError || !data?.signedUrl) {
+        previewWindow.close();
+        throw new Error(
+          "Your CV could not be opened. Please try again."
+        );
+      }
+
+      previewWindow.location.href = data.signedUrl;
+    } catch (err) {
+      previewWindow.close();
+
+      setError(
+        err instanceof Error
+          ? err.message
+          : "Your CV could not be opened. Please try again."
+      );
+    } finally {
+      setCvLoading(false);
+    }
   }
 
   if (loading) {
@@ -453,11 +598,24 @@ export default function ApplicationsPage() {
   return (
     <main className="applications-page">
       <aside className="applications-sidebar">
-        <Link href="/dashboard" className="applications-brand">
-          <span className="applications-brand-mark">a.</span>
-          <span>
-            abi<span className="applications-brand-green">job</span>
-          </span>
+        <Link
+          href="/dashboard"
+          className="applications-brand"
+          aria-label="Abi Job home"
+        >
+          <Image
+            src="/images/abijob-logo-white.png"
+            alt="Abi Job — Opportunity Starts Here"
+            width={180}
+            height={60}
+            priority
+            style={{
+              width: "155px",
+              height: "auto",
+              objectFit: "contain",
+              display: "block",
+            }}
+          />
         </Link>
 
         <div className="applications-nav-label">WORKSPACE</div>
@@ -487,6 +645,11 @@ export default function ApplicationsPage() {
             <span className="applications-nav-count">
               {counts.total}
             </span>
+          </Link>
+
+          <Link href="/interviews" className="applications-nav-link">
+            <CalendarDays size={19} />
+            <span>My Interviews</span>
           </Link>
 
           <Link href="/messages" className="applications-nav-link">
@@ -558,7 +721,10 @@ export default function ApplicationsPage() {
             <div className="applications-error" role="alert">
               <AlertCircle size={18} />
               <span>{error}</span>
-              <button onClick={() => setError("")} aria-label="Dismiss">
+              <button
+                onClick={() => setError("")}
+                aria-label="Dismiss"
+              >
                 <X size={16} />
               </button>
             </div>
@@ -701,12 +867,16 @@ export default function ApplicationsPage() {
                   fill: "rejected-fill",
                 },
               ].map((item) => (
-                <div className="applications-progress-item" key={item.label}>
+                <div
+                  className="applications-progress-item"
+                  key={item.label}
+                >
                   <div className="progress-item-heading">
                     <span className={`progress-dot ${item.dot}`} />
                     {item.label}
                     <strong>{item.count}</strong>
                   </div>
+
                   <div className="progress-track">
                     <span
                       className={`progress-fill ${item.fill}`}
@@ -750,6 +920,7 @@ export default function ApplicationsPage() {
                   value={search}
                   onChange={(event) => setSearch(event.target.value)}
                 />
+
                 {search && (
                   <button
                     onClick={() => setSearch("")}
@@ -765,6 +936,7 @@ export default function ApplicationsPage() {
                   showFilters ? "active" : ""
                 }`}
                 onClick={() => setShowFilters(!showFilters)}
+                aria-expanded={showFilters}
               >
                 <SlidersHorizontal size={17} />
                 Filter
@@ -820,7 +992,11 @@ export default function ApplicationsPage() {
                   onClick={() => setStatusFilter(status)}
                 >
                   {status}
-                  {status === "All" && <span>{counts.total}</span>}
+
+                  {status === "All" && (
+                    <span>{counts.total}</span>
+                  )}
+
                   {status === "Shortlisted" && (
                     <span>{counts.shortlisted}</span>
                   )}
@@ -845,6 +1021,7 @@ export default function ApplicationsPage() {
                       <div className="application-information">
                         <div className="application-title-row">
                           <h3>{application.title}</h3>
+
                           <span
                             className={`application-status ${getStatusClass(
                               application.status
@@ -867,10 +1044,12 @@ export default function ApplicationsPage() {
                             <MapPin size={14} />
                             {application.location}
                           </span>
+
                           <span>
                             <Clock3 size={14} />
                             {application.employment}
                           </span>
+
                           <span>
                             <BriefcaseBusiness size={14} />
                             {application.salary}
@@ -887,6 +1066,7 @@ export default function ApplicationsPage() {
 
                       <div className="application-footer-actions">
                         <span>Updated: {application.updated}</span>
+
                         <button
                           onClick={() =>
                             setSelectedApplication(application)
@@ -904,22 +1084,30 @@ export default function ApplicationsPage() {
                   <div>
                     <Filter size={30} />
                   </div>
+
                   <h3>
                     {applications.length === 0
                       ? "You haven't applied for any jobs yet"
                       : "No applications found"}
                   </h3>
+
                   <p>
                     {applications.length === 0
                       ? "When you apply for an opportunity, it will appear here so you can track its progress."
                       : "No applications match your current search or selected status. Try changing your filters."}
                   </p>
+
                   {applications.length === 0 ? (
-                    <Link href="/jobs" className="applications-empty-link">
+                    <Link
+                      href="/jobs"
+                      className="applications-empty-link"
+                    >
                       Find jobs <ArrowRight size={16} />
                     </Link>
                   ) : (
-                    <button onClick={resetFilters}>Clear filters</button>
+                    <button onClick={resetFilters}>
+                      Clear filters
+                    </button>
                   )}
                 </div>
               )}
@@ -930,6 +1118,7 @@ export default function ApplicationsPage() {
             <div className="applications-bottom-icon">
               <CheckCircle2 size={21} />
             </div>
+
             <div>
               <strong>Keep moving forward.</strong>
               <p>
@@ -937,6 +1126,7 @@ export default function ApplicationsPage() {
                 out to employers.
               </p>
             </div>
+
             <Link href="/profile">
               Update my profile <ArrowRight size={15} />
             </Link>
@@ -944,9 +1134,17 @@ export default function ApplicationsPage() {
 
           <button
             className="applications-refresh-button"
-            onClick={loadApplications}
+            onClick={() => void loadApplications(true)}
+            disabled={loading || refreshing}
           >
-            Refresh applications
+            {refreshing ? (
+              <>
+                <LoaderCircle size={15} className="animate-spin" />
+                Refreshing...
+              </>
+            ) : (
+              "Refresh applications"
+            )}
           </button>
         </div>
       </section>
@@ -958,12 +1156,17 @@ export default function ApplicationsPage() {
         >
           <section
             className="application-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="application-modal-title"
             onClick={(event) => event.stopPropagation()}
           >
             <div className="application-modal-header">
               <div>
                 <span>APPLICATION DETAILS</span>
-                <h2>Application overview</h2>
+                <h2 id="application-modal-title">
+                  Application overview
+                </h2>
               </div>
 
               <button
@@ -980,6 +1183,7 @@ export default function ApplicationsPage() {
               >
                 {selectedApplication.initials}
               </div>
+
               <div>
                 <h3>{selectedApplication.title}</h3>
                 <p>{selectedApplication.company}</p>
@@ -988,6 +1192,7 @@ export default function ApplicationsPage() {
 
             <div className="application-modal-status">
               <span>Current application status</span>
+
               <strong
                 className={`application-status ${getStatusClass(
                   selectedApplication.status
@@ -1003,18 +1208,22 @@ export default function ApplicationsPage() {
                 <span>Location</span>
                 <strong>{selectedApplication.location}</strong>
               </div>
+
               <div>
                 <span>Employment type</span>
                 <strong>{selectedApplication.employment}</strong>
               </div>
+
               <div>
                 <span>Salary range</span>
                 <strong>{selectedApplication.salary}</strong>
               </div>
+
               <div>
                 <span>Date applied</span>
                 <strong>{selectedApplication.appliedDate}</strong>
               </div>
+
               <div>
                 <span>Last update</span>
                 <strong>{selectedApplication.updated}</strong>
@@ -1036,18 +1245,33 @@ export default function ApplicationsPage() {
             {selectedApplication.cvPath && (
               <button
                 className="application-details-button"
-                onClick={() => openCv(selectedApplication.cvPath!)}
+                onClick={() =>
+                  void openCv(selectedApplication.cvPath!)
+                }
+                disabled={cvLoading}
               >
-                <FileText size={16} />
-                View submitted CV
+                {cvLoading ? (
+                  <LoaderCircle
+                    size={16}
+                    className="animate-spin"
+                  />
+                ) : (
+                  <FileText size={16} />
+                )}
+
+                {cvLoading ? "Opening CV..." : "View submitted CV"}
+
                 <ArrowRight size={15} />
               </button>
             )}
 
             <div className="application-modal-footer">
-              <button onClick={() => setSelectedApplication(null)}>
+              <button
+                onClick={() => setSelectedApplication(null)}
+              >
                 Close details
               </button>
+
               <Link href="/jobs">
                 Find more jobs <ArrowRight size={15} />
               </Link>

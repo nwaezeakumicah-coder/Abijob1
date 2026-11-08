@@ -1,7 +1,13 @@
+
+/* =========================================
+   ABI JOB — JOB SEEKER DASHBOARD
+   SINGLE PERMANENT BRAND THEME
+========================================= */
+
 .dashboard-page {
   min-height: 100vh;
   display: flex;
-  background: #f6f8f5;
+  background: var(--background);
   color: var(--ink);
 }
 
@@ -12,12 +18,17 @@
   z-index: 30;
   inset: 0 auto 0 0;
   width: 260px;
+  height: 100vh;
   min-height: 100vh;
   display: flex;
   flex-direction: column;
+  overflow-y: auto;
+  overscroll-behavior: contain;
   padding: 27px 18px 20px;
   border-right: 1px solid var(--line);
-  background: #fff;
+  background: var(--white);
+  scrollbar-width: thin;
+  scrollbar-color: var(--border-strong) transparent;
 }
 
 .dashboard-brand {
@@ -32,7 +43,7 @@
 .dashboard-sidebar-label {
   padding: 0 12px;
   margin-bottom: 13px;
-  color: #9aa49c;
+  color: #89968d;
   font-size: 10px;
   font-weight: 800;
   letter-spacing: 1.5px;
@@ -55,7 +66,7 @@
   gap: 13px;
   padding: 0 13px;
   border-radius: 10px;
-  color: #66746a;
+  color: var(--muted);
   font-size: 13px;
   font-weight: 600;
   transition: var(--transition);
@@ -72,6 +83,13 @@
   font-weight: 800;
 }
 
+.dashboard-nav-link:focus-visible,
+.dashboard-sidebar-user a:focus-visible,
+.dashboard-close-menu:focus-visible {
+  outline: 3px solid var(--green);
+  outline-offset: 3px;
+}
+
 .dashboard-nav-link > svg {
   flex-shrink: 0;
 }
@@ -82,6 +100,7 @@
   display: grid;
   place-items: center;
   margin-left: auto;
+  padding: 0 5px;
   border-radius: 50%;
   background: var(--green);
   color: #fff;
@@ -91,14 +110,15 @@
 
 .dashboard-sidebar-bottom {
   margin-top: auto;
+  padding-top: 25px;
 }
 
 .dashboard-support-card {
   padding: 17px;
   margin-bottom: 20px;
-  border: 1px solid #e5eee6;
+  border: 1px solid var(--line);
   border-radius: 14px;
-  background: #f8faf6;
+  background: var(--surface-raised);
 }
 
 .dashboard-support-icon {
@@ -148,11 +168,18 @@
   flex-shrink: 0;
   display: grid;
   place-items: center;
+  overflow: hidden;
   border-radius: 50%;
   background: var(--green);
   color: #fff;
   font-size: 14px;
   font-weight: 800;
+}
+
+.dashboard-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
 }
 
 .dashboard-sidebar-user > div:nth-child(2) {
@@ -191,25 +218,28 @@
 
 .dashboard-main {
   width: calc(100% - 260px);
+  min-width: 0;
   min-height: 100vh;
   margin-left: 260px;
 }
 
 .dashboard-topbar {
+  position: relative;
+  z-index: 10;
   height: 76px;
   display: flex;
   align-items: center;
   justify-content: space-between;
   padding: 0 4.2%;
   border-bottom: 1px solid var(--line);
-  background: #fff;
+  background: var(--white);
 }
 
 .dashboard-breadcrumb {
   display: flex;
   align-items: center;
   gap: 10px;
-  color: #9aa49c;
+  color: #89968d;
   font-size: 12px;
 }
 
@@ -233,7 +263,8 @@
   place-items: center;
   border: 1px solid var(--line);
   border-radius: 10px;
-  color: #69766d;
+  background: var(--white);
+  color: var(--muted);
   transition: var(--transition);
 }
 
@@ -249,9 +280,9 @@
   right: 8px;
   width: 7px;
   height: 7px;
-  border: 1px solid #fff;
+  border: 1px solid var(--white);
   border-radius: 50%;
-  background: #e66a50;
+  background: var(--red);
 }
 
 .dashboard-topbar-profile {
@@ -273,8 +304,13 @@
   display: none;
   padding: 7px;
   border: none;
+  border-radius: 8px;
   background: transparent;
   color: var(--ink);
+}
+
+.dashboard-menu-button:hover {
+  background: var(--surface-soft);
 }
 
 .dashboard-content {
@@ -329,6 +365,7 @@
   justify-content: center;
   gap: 10px;
   padding: 0 18px;
+  border: 1px solid transparent;
   border-radius: 9px;
   background: var(--green);
   color: #fff;
@@ -351,9 +388,9 @@
   gap: 30px;
   padding: 23px 25px;
   margin-bottom: 24px;
-  border: 1px solid #dfeade;
+  border: 1px solid #d4e3d3;
   border-radius: 16px;
-  background: linear-gradient(110deg, #f0f7ed 0%, #fff 100%);
+  background: linear-gradient(110deg, #eaf3e7 0%, #fff 100%);
 }
 
 .dashboard-progress-copy {
@@ -419,15 +456,16 @@
   height: 7px;
   overflow: hidden;
   border-radius: 20px;
-  background: #e2e9e1;
+  background: #dce7da;
 }
 
 .dashboard-progress-track span {
   display: block;
-  width: 40%;
   height: 100%;
+  max-width: 100%;
   border-radius: inherit;
   background: var(--green);
+  transition: width 300ms ease;
 }
 
 .dashboard-progress-action > a {
@@ -453,7 +491,7 @@
   padding: 19px;
   border: 1px solid var(--line);
   border-radius: 14px;
-  background: #fff;
+  background: var(--white);
   box-shadow: var(--shadow-sm);
 }
 
@@ -487,7 +525,7 @@
 
 .dashboard-stat-icon.orange {
   background: #fff0e3;
-  color: #d17a32;
+  color: #bd702f;
 }
 
 .dashboard-stat-icon.purple {
@@ -516,7 +554,7 @@
 
 .dashboard-stat-card > p {
   margin-bottom: 0;
-  color: #89948b;
+  color: var(--muted);
   font-size: 10px;
   line-height: 1.5;
 }
@@ -576,12 +614,12 @@
   padding: 18px;
   border: 1px solid var(--line);
   border-radius: 13px;
-  background: #fff;
+  background: var(--white);
   transition: var(--transition);
 }
 
 .dashboard-job-card:hover {
-  border-color: #cbdccc;
+  border-color: var(--border-strong);
   box-shadow: var(--shadow-sm);
   transform: translateY(-2px);
 }
@@ -592,9 +630,16 @@
   flex-shrink: 0;
   display: grid;
   place-items: center;
+  overflow: hidden;
   border-radius: 12px;
   font-size: 12px;
   font-weight: 800;
+}
+
+.dashboard-company-logo img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
 }
 
 .dashboard-company-logo.green {
@@ -634,7 +679,7 @@
 
 .dashboard-job-posted {
   flex-shrink: 0;
-  color: #9aa49c;
+  color: #89968d;
   font-size: 9px;
 }
 
@@ -655,7 +700,7 @@
   display: inline-flex;
   align-items: center;
   gap: 5px;
-  color: #7d8980;
+  color: var(--muted);
   font-size: 10px;
 }
 
@@ -675,8 +720,8 @@
   place-items: center;
   border: 1px solid var(--line);
   border-radius: 9px;
-  background: #fff;
-  color: #89948b;
+  background: var(--white);
+  color: #89968d;
   transition: var(--transition);
 }
 
@@ -693,7 +738,7 @@
   padding: 21px;
   border: 1px solid var(--line);
   border-radius: 14px;
-  background: #fff;
+  background: var(--white);
 }
 
 .dashboard-activity-section .dashboard-section-heading {
@@ -710,7 +755,11 @@
   gap: 12px;
   padding: 0 0 20px;
   margin-bottom: 20px;
-  border-bottom: 1px solid #edf0ec;
+  border-bottom: 1px solid #e8eee7;
+}
+
+.dashboard-activity-item:last-child {
+  margin-bottom: 0;
 }
 
 .dashboard-activity-icon {
@@ -795,6 +844,7 @@
 }
 
 .dashboard-bottom-banner > div:nth-child(2) {
+  min-width: 0;
   flex: 1;
 }
 
@@ -816,7 +866,7 @@
 
 .dashboard-bottom-banner p {
   margin-bottom: 0;
-  color: rgba(255, 255, 255, 0.7);
+  color: rgba(255, 255, 255, 0.8);
   font-size: 11px;
 }
 
@@ -849,7 +899,7 @@
   justify-content: space-between;
   gap: 15px;
   padding: 25px 0 5px;
-  color: #89948b;
+  color: var(--muted);
   font-size: 10px;
 }
 
@@ -858,11 +908,26 @@
   font-weight: 700;
 }
 
+/* ERROR AND FEEDBACK */
+
+.dashboard-save-message {
+  padding: 12px 15px;
+  margin-bottom: 18px;
+  border: 1px solid #e8c9c5;
+  border-radius: 10px;
+  background: #fff0ee;
+  color: #9b3029;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
 /* MOBILE NAVIGATION */
 
 .dashboard-overlay {
   display: none;
 }
+
+/* TABLET */
 
 @media (max-width: 1200px) {
   .dashboard-content {
@@ -883,6 +948,8 @@
   }
 }
 
+/* SMALL TABLET AND MOBILE */
+
 @media (max-width: 900px) {
   .dashboard-sidebar {
     transform: translateX(-100%);
@@ -900,6 +967,7 @@
     place-items: center;
     padding: 7px;
     border: none;
+    border-radius: 8px;
     background: transparent;
     color: var(--muted);
   }
@@ -924,7 +992,7 @@
     inset: 0;
     display: block;
     border: none;
-    background: rgba(9, 27, 17, 0.4);
+    background: var(--overlay);
   }
 
   .dashboard-main-grid {
@@ -945,6 +1013,8 @@
     margin-bottom: 0;
   }
 }
+
+/* MOBILE */
 
 @media (max-width: 600px) {
   .dashboard-topbar {
@@ -1103,6 +1173,8 @@
   }
 }
 
+/* VERY SMALL SCREENS */
+
 @media (max-width: 370px) {
   .dashboard-stat-grid {
     grid-template-columns: 1fr;
@@ -1115,5 +1187,21 @@
   .dashboard-breadcrumb span,
   .dashboard-breadcrumb svg {
     display: none;
+  }
+
+  .dashboard-topbar-actions {
+    gap: 7px;
+  }
+}
+
+/* ACCESSIBILITY */
+
+@media (prefers-reduced-motion: reduce) {
+  .dashboard-page *,
+  .dashboard-page *::before,
+  .dashboard-page *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
   }
 }

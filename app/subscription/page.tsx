@@ -1,617 +1,1114 @@
-
 "use client";
 
-import { useState } from "react";
 import Link from "next/link";
+import { useCallback, useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import {
+  Activity,
+  ArrowLeft,
   ArrowRight,
-  Check,
-  CheckCircle2,
+  Bell,
   BriefcaseBusiness,
-  Building2,
-  HardHat,
-  Sparkles,
-  Crown,
-  ShieldCheck,
-  Megaphone,
   CalendarDays,
-  Zap,
-  Target,
-  CircleHelp,
+  CheckCircle2,
+  Clock3,
+  CreditCard,
+  FileText,
+  HelpCircle,
+  LoaderCircle,
+  LogOut,
+  RefreshCw,
+  ShieldCheck,
+  Sparkles,
+  Wallet,
+  XCircle,
 } from "lucide-react";
-
-import Header from "../../components/Header";
-import Footer from "../../components/Footer";
-
+import Logo from "../../components/Logo";
+import { createClient } from "@/lib/supabase/client";
 import "./subscription.css";
 
-type AccountType = "job-seeker" | "professional" | "employer";
-type BillingCycle = "monthly" | "annual";
-
-type AccountDetails = {
-  id: AccountType;
-  name: string;
-  description: string;
-  icon: typeof BriefcaseBusiness;
-  benefits: string[];
+type SubscriptionRecord = {
+  id: string;
+  account_role: string;
+  billing_interval: string | null;
+  status: string;
+  trial_started_at: string | null;
+  trial_ends_at: string | null;
+  current_period_start: string | null;
+  current_period_end: string | null;
+  cancel_at_period_end: boolean;
 };
 
-const accountTypes: AccountDetails[] = [
-  {
-    id: "job-seeker",
-    name: "Job Seekers",
-    description: "Find opportunities and build your career.",
-    icon: BriefcaseBusiness,
-    benefits: [
-      "Access job opportunities across Abia State",
-      "Personalised job recommendations",
-      "Apply for suitable vacancies",
-      "Build and manage your professional profile",
-      "AI-assisted CV building",
-      "Interview preparation resources",
-      "Career news, scholarships and learning resources",
-      "Connect with employers",
-    ],
-  },
-  {
-    id: "professional",
-    name: "Skilled Professionals & Artisans",
-    description: "Showcase your skills and connect with customers.",
-    icon: HardHat,
-    benefits: [
-      "Create a professional skills profile",
-      "Showcase your portfolio and previous work",
-      "Discover relevant work opportunities",
-      "Connect with potential customers",
-      "Receive and manage work enquiries",
-      "Promote your professional services",
-      "Access professional resources",
-      "Build your reputation on Abi Job",
-    ],
-  },
-  {
-    id: "employer",
-    name: "Employers",
-    description: "Find the right people for your business.",
-    icon: Building2,
-    benefits: [
-      "Create and manage your business profile",
-      "Publish job vacancies for admin approval",
-      "Discover suitable candidates",
-      "Access job seeker profiles",
-      "Manage applications and recruitment",
-      "Connect with skilled professionals",
-      "Manage your recruitment activities",
-      "Reach talent across Abia State",
-    ],
-  },
-];
-
-const accountDetails: Record<AccountType, AccountDetails> = {
-  "job-seeker": accountTypes[0],
-  professional: accountTypes[1],
-  employer: accountTypes[2],
+type TransactionRecord = {
+  id: string;
+  provider: string;
+  provider_reference: string | null;
+  amount_kobo: number;
+  currency: string;
+  billing_interval: string;
+  status: string;
+  paid_at: string | null;
+  created_at: string;
 };
 
-export default function SubscriptionPage() {
-  const [selectedType, setSelectedType] =
-    useState<AccountType>("job-seeker");
+type PlanRecord = {
+  billing_interval: string;
+  amount_kobo: number;
+  trial_days: number;
+  trial_access_percent: number;
+};
 
-  const [billing, setBilling] =
-    useState<BillingCycle>("annual");
+type BillingData = {
+  fullName: string;
+  subscription: SubscriptionRecord | null;
+  transactions: TransactionRecord[];
+  plans: PlanRecord[];
+};
 
-  const selectedAccount = accountDetails[selectedType];
+function normalizeInterval(value: string | null | undefined) {
+  const interval = (value || "").trim().toLowerCase();
 
-  const monthlyPrice = 2000;
-  const annualPrice = 22800;
+  if (["annual", "annually", "year"].includes(interval)) {
+    return "yearly";
+  }
 
-  const currentPrice =
-    billing === "monthly" ? monthlyPrice : annualPrice;
+  return interval;
+}
 
-  const annualSavings = monthlyPrice * 12 - annualPrice;
+function formatMoney(amount: number) {
+  return new Intl.NumberFormat("en-NG", {
+    style: "currency",
+    currency: "NGN",
+    maximumFractionDigits: 0,
+  }).format(amount);
+}
 
-  const checkoutBilling = billing === "annual" ? "annual" : "monthly";
+function formatDate(value: string | null) {
+  if (!value) return "Not available";
 
-  const checkoutUrl =
-    `/subscription/checkout?type=${selectedType}&plan=${checkoutBilling}`;
+  const date = new Date(value);
 
-  const trialUrl = `/register?type=${selectedType}&plan=introductory`;
+  if (Number.isNaN(date.getTime())) {
+    return "Not available";
+  }
+
+  return new Intl.DateTimeFormat("en-NG", {
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+  }).format(date);
+}
+
+function getStatusLabel(status: string) {
+  const normalized = status.toLowerCase();
+
+  switch (normalized) {
+    case "active":
+      return "Active";
+    case "trial":
+    case "trialing":
+      return "Free trial";
+    case "pending":
+      return "Pending";
+    case "past_due":
+      return "Payment overdue";
+    case "expired":
+      return "Expired";
+    case "cancelled":
+    case "canceled":
+      return "Cancelled";
+    default:
+      return status.replace(/_/g, " ");
+  }
+}
+
+function getTransactionStatus(status: string) {
+  const normalized = status.toLowerCase();
+
+  if (["success", "successful", "paid"].includes(normalized)) {
+    return "success";
+  }
+
+  if (["failed", "cancelled", "canceled"].includes(normalized)) {
+    return "failed";
+  }
+
+  return "pending";
+}
+
+function getErrorDetails(error: unknown): string {
+  if (error instanceof Error) {
+    return error.stack || error.message;
+  }
+
+  if (typeof error === "string") {
+    return error;
+  }
+
+  if (error && typeof error === "object") {
+    try {
+      return (
+        JSON.stringify(error, Object.getOwnPropertyNames(error), 2) ||
+        String(error)
+      );
+    } catch {
+      return String(error);
+    }
+  }
+
+  return String(error);
+}
+
+function isValidDate(value: string | null | undefined): number | null {
+  if (!value) return null;
+
+  const timestamp = new Date(value).getTime();
+
+  return Number.isNaN(timestamp) ? null : timestamp;
+}
+
+export default function JobSeekerSubscriptionPage() {
+  const router = useRouter();
+
+  const [data, setData] = useState<BillingData | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [error, setError] = useState("");
+
+  const loadBilling = useCallback(
+    async (isRefresh = false) => {
+      if (isRefresh) {
+        setRefreshing(true);
+      } else {
+        setLoading(true);
+      }
+
+      setError("");
+
+      try {
+        const supabase = createClient();
+
+        const {
+          data: { user },
+          error: authError,
+        } = await supabase.auth.getUser();
+
+        if (authError || !user) {
+          router.replace(
+            "/login?redirect=%2Fdashboard%2Fsubscription"
+          );
+          return;
+        }
+
+        const { data: profile, error: profileError } = await supabase
+          .from("profiles")
+          .select("role, full_name")
+          .eq("id", user.id)
+          .single();
+
+        if (profileError) {
+          throw new Error(
+            `Profile query failed: ${getErrorDetails(profileError)}`
+          );
+        }
+
+        if (!profile) {
+          throw new Error("Your account profile could not be loaded.");
+        }
+
+        const role = String(profile.role || "").trim().toLowerCase();
+
+        if (!["job_seeker", "job-seeker"].includes(role)) {
+          if (role === "employer") {
+            router.replace("/employer/dashboard");
+          } else if (
+            ["professional", "skilled_professional"].includes(role)
+          ) {
+            router.replace("/professional/dashboard");
+          } else if (role === "admin") {
+            router.replace("/admin");
+          } else {
+            router.replace("/login");
+          }
+
+          return;
+        }
+
+        const [
+          subscriptionResult,
+          transactionsResult,
+          plansResult,
+        ] = await Promise.all([
+          supabase
+            .from("subscriptions")
+            .select(
+              "id, account_role, billing_interval, status, trial_started_at, trial_ends_at, current_period_start, current_period_end, cancel_at_period_end"
+            )
+            .eq("user_id", user.id)
+            .eq("account_role", "job_seeker")
+            .order("created_at", { ascending: false })
+            .limit(1)
+            .maybeSingle(),
+
+          supabase
+            .from("payment_transactions")
+            .select(
+              "id, provider, provider_reference, amount_kobo, currency, billing_interval, status, paid_at, created_at"
+            )
+            .eq("user_id", user.id)
+            .order("created_at", { ascending: false })
+            .limit(10),
+
+          supabase
+            .from("subscription_plans")
+            .select(
+              "billing_interval, amount_kobo, trial_days, trial_access_percent"
+            )
+            .eq("account_role", "job_seeker"),
+        ]);
+
+        if (subscriptionResult.error) {
+          throw new Error(
+            `Subscription query failed: ${getErrorDetails(
+              subscriptionResult.error
+            )}`
+          );
+        }
+
+        if (transactionsResult.error) {
+          throw new Error(
+            `Payment history query failed: ${getErrorDetails(
+              transactionsResult.error
+            )}`
+          );
+        }
+
+        if (plansResult.error) {
+          throw new Error(
+            `Subscription plans query failed: ${getErrorDetails(
+              plansResult.error
+            )}`
+          );
+        }
+
+        setData({
+          fullName: profile.full_name || "Job Seeker",
+          subscription:
+            subscriptionResult.data as SubscriptionRecord | null,
+          transactions:
+            (transactionsResult.data || []) as TransactionRecord[],
+          plans: (plansResult.data || []) as PlanRecord[],
+        });
+      } catch (err: unknown) {
+        console.error(
+          "JOB SEEKER BILLING ERROR DETAILS:",
+          getErrorDetails(err)
+        );
+
+        setError(
+          "We couldn't load your billing information. Please try again."
+        );
+      } finally {
+        setLoading(false);
+        setRefreshing(false);
+      }
+    },
+    [router]
+  );
+
+  useEffect(() => {
+    void loadBilling();
+  }, [loadBilling]);
+
+  if (loading) {
+    return (
+      <main className="js-billing-loading">
+        <LoaderCircle size={35} className="js-billing-spin" />
+        <p>Loading your subscription information...</p>
+      </main>
+    );
+  }
+
+  if (error || !data) {
+    return (
+      <main className="js-billing-error-page">
+        <div>
+          <ShieldCheck size={38} />
+          <h2>We couldn't load your billing information.</h2>
+          <p>{error || "Please try again."}</p>
+
+          <button
+            type="button"
+            onClick={() => void loadBilling()}
+          >
+            <RefreshCw size={17} />
+            Try again
+          </button>
+
+          <Link href="/dashboard">
+            <ArrowLeft size={16} />
+            Back to dashboard
+          </Link>
+        </div>
+      </main>
+    );
+  }
+
+  const subscription = data.subscription;
+
+  const monthlyPlan = data.plans.find(
+    (plan) =>
+      normalizeInterval(plan.billing_interval) === "monthly"
+  );
+
+  const yearlyPlan = data.plans.find(
+    (plan) =>
+      normalizeInterval(plan.billing_interval) === "yearly"
+  );
+
+  // Database prices are stored in kobo.
+  const monthlyPrice = monthlyPlan
+    ? Number(monthlyPlan.amount_kobo) / 100
+    : null;
+
+  const yearlyPrice = yearlyPlan
+    ? Number(yearlyPlan.amount_kobo) / 100
+    : null;
+
+  const annualSavings =
+    monthlyPrice !== null && yearlyPrice !== null
+      ? monthlyPrice * 12 - yearlyPrice
+      : null;
+
+  const successfulTransactions = data.transactions.filter(
+    (transaction) =>
+      ["success", "successful", "paid"].includes(
+        transaction.status.toLowerCase()
+      )
+  );
+
+  const totalPaid = successfulTransactions.reduce(
+    (total, transaction) =>
+      total + Number(transaction.amount_kobo) / 100,
+    0
+  );
+
+  const status = subscription?.status.toLowerCase() || "none";
+  const now = Date.now();
+
+  const trialStart = isValidDate(subscription?.trial_started_at);
+  const trialEnd = isValidDate(subscription?.trial_ends_at);
+
+  const trialIsActive =
+    trialStart !== null &&
+    trialEnd !== null &&
+    trialStart <= now &&
+    trialEnd > now &&
+    ["trial", "trialing", "active"].includes(status);
+
+  const paidPeriodStart = isValidDate(
+    subscription?.current_period_start
+  );
+
+  const paidPeriodEnd = isValidDate(
+    subscription?.current_period_end
+  );
+
+  const paidPeriodIsActive =
+    status === "active" &&
+    paidPeriodStart !== null &&
+    paidPeriodEnd !== null &&
+    paidPeriodStart <= now &&
+    paidPeriodEnd > now;
+
+  const isActive = trialIsActive || paidPeriodIsActive;
+
+  const trialDaysRemaining = trialIsActive
+    ? Math.max(
+        0,
+        Math.ceil((trialEnd! - now) / 86400000)
+      )
+    : 0;
+
+  const configuredTrialDays = Math.max(
+    Number(monthlyPlan?.trial_days) || 30,
+    1
+  );
+
+  const actualTrialDuration =
+    trialStart !== null && trialEnd !== null
+      ? Math.max(
+          1,
+          Math.ceil((trialEnd - trialStart) / 86400000)
+        )
+      : configuredTrialDays;
+
+  const trialProgress = trialIsActive
+    ? Math.min(
+        100,
+        Math.max(
+          0,
+          ((now - trialStart!) / (trialEnd! - trialStart!)) * 100
+        )
+      )
+    : 0;
+
+  const currentInterval = normalizeInterval(
+    subscription?.billing_interval
+  );
+
+  const currentStatusLabel = trialIsActive
+    ? "Free trial"
+    : isActive
+      ? "Active"
+      : subscription
+        ? getStatusLabel(status)
+        : "No subscription";
+
+  const statusTone = trialIsActive
+    ? "trial"
+    : isActive
+      ? "active"
+      : ["past_due", "expired", "cancelled", "canceled"].includes(
+            status
+          )
+        ? "attention"
+        : "pending";
 
   return (
-    <main className="subscription-page">
-      <Header />
-
-      {/* HERO SECTION */}
-      <section className="subscription-hero">
-        <div className="subscription-hero-content">
-          <div className="subscription-eyebrow">
-            <Sparkles size={16} />
-            ABI JOB MEMBERSHIP
-          </div>
-
-          <h1>
-            Invest in your next
-            <span> opportunity.</span>
-          </h1>
-
-          <p>
-            Whether you are searching for a job, offering your skills,
-            or building a business, Abi Job gives you the tools and
-            connections to move forward.
-          </p>
-
-          <div className="subscription-hero-points">
-            <span>
-              <CheckCircle2 size={17} />
-              30 days completely free
-            </span>
-
-            <span>
-              <CheckCircle2 size={17} />
-              Full platform benefits
-            </span>
-
-            <span>
-              <CheckCircle2 size={17} />
-              Opportunities across Abia
-            </span>
-          </div>
+    <main className="js-billing">
+      <aside className="js-billing-sidebar">
+        <div className="js-billing-brand">
+          <Logo href="/dashboard" size="medium" light />
         </div>
 
-        <div className="subscription-hero-card">
-          <div className="hero-card-top">
-            <div className="hero-card-icon">
-              <Crown size={23} />
-            </div>
-
-            <span>ABI JOB MEMBERSHIP</span>
-          </div>
-
-          <div className="hero-card-price">
-            <small>Starting from</small>
-            <h2>₦2,000</h2>
-            <span>per month</span>
-          </div>
-
-          <div className="hero-card-divider" />
-
-          <div className="hero-card-detail">
-            <ShieldCheck size={19} />
-
-            <div>
-              <strong>30-day free trial</strong>
-              <small>
-                Enjoy all available platform benefits during your trial.
-              </small>
-            </div>
-          </div>
-
-          <div className="hero-card-detail">
-            <Target size={19} />
-
-            <div>
-              <strong>Purpose-built platform</strong>
-              <small>
-                Connecting talent, businesses and opportunities.
-              </small>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* ACCOUNT TYPE SELECTION */}
-      <section className="subscription-section">
-        <div className="subscription-section-heading">
-          <span className="section-kicker">
-            CHOOSE YOUR MEMBERSHIP
+        <div className="js-billing-account">
+          <span className="js-billing-account-avatar">
+            {data.fullName
+              .split(" ")
+              .slice(0, 2)
+              .map((part) => part[0]?.toUpperCase() || "")
+              .join("")}
           </span>
 
-          <h2>What brings you to Abi Job?</h2>
-
-          <p>
-            Select your account category to see the membership benefits
-            available to you.
-          </p>
-        </div>
-
-        <div className="account-type-grid">
-          {accountTypes.map((account) => {
-            const Icon = account.icon;
-            const active = selectedType === account.id;
-
-            return (
-              <button
-                type="button"
-                key={account.id}
-                className={`account-type-card ${
-                  active ? "active" : ""
-                }`}
-                onClick={() => setSelectedType(account.id)}
-                aria-pressed={active}
-              >
-                <div className="account-card-icon">
-                  <Icon size={25} />
-                </div>
-
-                {active && (
-                  <span className="account-selected">
-                    <Check size={14} />
-                    Selected
-                  </span>
-                )}
-
-                <h3>{account.name}</h3>
-
-                <p>{account.description}</p>
-
-                <span className="account-card-action">
-                  View membership
-                  <ArrowRight size={16} />
-                </span>
-              </button>
-            );
-          })}
-        </div>
-      </section>
-
-      {/* SUBSCRIPTION PRICING */}
-      <section className="subscription-pricing-section">
-        <div className="subscription-section-heading">
-          <span className="section-kicker">
-            SIMPLE AND TRANSPARENT
-          </span>
-
-          <h2>Your membership, your choice.</h2>
-
-          <p>
-            Every account category starts with 30 days of full platform
-            access. Choose a billing option for your paid membership.
-          </p>
-        </div>
-
-        {/* BILLING TOGGLE */}
-        <div className="billing-toggle">
-          <button
-            type="button"
-            className={billing === "monthly" ? "active" : ""}
-            onClick={() => setBilling("monthly")}
-            aria-pressed={billing === "monthly"}
-          >
-            Monthly
-          </button>
-
-          <button
-            type="button"
-            className={billing === "annual" ? "active" : ""}
-            onClick={() => setBilling("annual")}
-            aria-pressed={billing === "annual"}
-          >
-            Annually
-            <span>Save 5%</span>
-          </button>
-        </div>
-
-        <div className="subscription-plan-layout">
-          {/* PAID MEMBERSHIP CARD */}
-          <div className="subscription-plan-card">
-            <div className="plan-card-heading">
-              <div>
-                <span className="plan-label">
-                  YOUR SELECTED PLAN
-                </span>
-
-                <h3>{selectedAccount.name}</h3>
-
-                <p>{selectedAccount.description}</p>
-              </div>
-
-              <div className="plan-icon">
-                {selectedType === "job-seeker" && (
-                  <BriefcaseBusiness size={25} />
-                )}
-
-                {selectedType === "professional" && (
-                  <HardHat size={25} />
-                )}
-
-                {selectedType === "employer" && (
-                  <Building2 size={25} />
-                )}
-              </div>
-            </div>
-
-            <div className="plan-price-area">
-              <div>
-                <span className="plan-price">
-                  ₦{currentPrice.toLocaleString("en-NG")}
-                </span>
-
-                <span className="plan-duration">
-                  / {billing === "monthly" ? "month" : "year"}
-                </span>
-              </div>
-
-              {billing === "annual" && (
-                <span className="annual-saving">
-                  Save ₦{annualSavings.toLocaleString("en-NG")}
-                </span>
-              )}
-            </div>
-
-            <div className="plan-divider" />
-
-            <h4>What's included</h4>
-
-            <ul className="plan-benefits">
-              {selectedAccount.benefits.map((benefit) => (
-                <li key={benefit}>
-                  <span className="benefit-check">
-                    <Check size={14} />
-                  </span>
-
-                  {benefit}
-                </li>
-              ))}
-            </ul>
-
-            <Link
-              href={checkoutUrl}
-              className="subscription-primary-btn"
-            >
-              Continue to payment
-              <ArrowRight size={18} />
-            </Link>
-
-            <div className="plan-security-note">
-              <ShieldCheck size={16} />
-
-              <span>
-                Secure payments powered by Paystack. Your selected
-                paid plan will be activated after successful payment
-                verification.
-              </span>
-            </div>
+          <div>
+            <strong>{data.fullName}</strong>
+            <span>Job Seeker</span>
           </div>
+        </div>
 
-          {/* FULL ACCESS FREE TRIAL */}
-          <div className="introductory-plan-card">
-            <div className="intro-badge">
-              <Sparkles size={14} />
-              AVAILABLE TO EVERY ACCOUNT
-            </div>
+        <span className="js-billing-nav-label">
+          MY WORKSPACE
+        </span>
 
-            <div className="intro-icon">
-              <Zap size={25} />
-            </div>
+        <nav className="js-billing-nav">
+          <Link href="/dashboard">
+            <Activity size={18} />
+            Dashboard
+          </Link>
 
-            <h3>Start with 30 days free</h3>
+          <Link href="/jobs">
+            <BriefcaseBusiness size={18} />
+            Find jobs
+          </Link>
+
+          <Link href="/applications">
+            <FileText size={18} />
+            My applications
+          </Link>
+
+          <Link href="/notifications">
+            <Bell size={18} />
+            Notifications
+          </Link>
+        </nav>
+
+        <span className="js-billing-nav-label">
+          ACCOUNT
+        </span>
+
+        <nav className="js-billing-nav">
+          <Link href="/profile">
+            <Activity size={18} />
+            My profile
+          </Link>
+
+          <Link
+            href="/dashboard/subscription"
+            className="active"
+          >
+            <CreditCard size={18} />
+            Subscription & Billing
+          </Link>
+
+          <Link href="/settings">
+            <HelpCircle size={18} />
+            Settings
+          </Link>
+        </nav>
+
+        <div className="js-billing-sidebar-bottom">
+          <div className="js-billing-sidebar-help">
+            <ShieldCheck size={22} />
+
+            <strong>
+              Your next opportunity starts here.
+            </strong>
 
             <p>
-              Experience Abi Job without paying during your first
-              30 days. Every account category receives full access
-              to its available platform benefits.
+              Manage your subscription and keep your career moving.
             </p>
 
-            <div className="intro-price">
-              <strong>FREE</strong>
-              <span>For your first 30 days</span>
+            <Link href="/about">
+              About Abi Job <ArrowRight size={14} />
+            </Link>
+          </div>
+
+          <Link
+            href="/dashboard"
+            className="js-billing-back-link"
+          >
+            <LogOut size={17} />
+            Back to workspace
+          </Link>
+        </div>
+      </aside>
+
+      <section className="js-billing-main">
+        <header className="js-billing-topbar">
+          <div>
+            <span>Job Seeker Workspace</span>
+            <span>/</span>
+            <strong>Subscription & Billing</strong>
+          </div>
+
+          <button
+            type="button"
+            onClick={() => void loadBilling(true)}
+            disabled={refreshing}
+            className="js-billing-refresh"
+          >
+            <RefreshCw
+              size={16}
+              className={
+                refreshing ? "js-billing-spin" : ""
+              }
+            />
+            <span>Refresh</span>
+          </button>
+        </header>
+
+        <div className="js-billing-content">
+          <section className="js-billing-heading">
+            <div>
+              <span className="js-billing-eyebrow">
+                ACCOUNT MANAGEMENT
+              </span>
+
+              <h1>Subscription & Billing</h1>
+
+              <p>
+                Manage your Abi Job membership, monitor your free
+                trial, and review your payment history.
+              </p>
             </div>
-
-            <div className="intro-access">
-              <strong>100% platform benefits</strong>
-
-              <div className="access-progress">
-                <span />
-              </div>
-
-              <small>
-                No restricted trial features. Enjoy the full benefits
-                available to your account category.
-              </small>
-            </div>
-
-            <ul className="intro-benefits">
-              <li>
-                <Check size={15} />
-                Full access to your account features
-              </li>
-
-              <li>
-                <Check size={15} />
-                Access to relevant opportunities
-              </li>
-
-              <li>
-                <Check size={15} />
-                Full use of available platform tools
-              </li>
-
-              <li>
-                <Check size={15} />
-                No payment required to start your trial
-              </li>
-            </ul>
 
             <Link
-              href={trialUrl}
-              className="subscription-secondary-btn"
+              href="/dashboard"
+              className="js-billing-back"
             >
-              Start your free trial
-              <ArrowRight size={17} />
+              <ArrowLeft size={16} />
+              Dashboard
             </Link>
+          </section>
 
-            <p className="intro-footnote">
-              After the 30-day trial, an active paid subscription is
-              required to continue accessing the platform.
+          <section className="js-billing-overview">
+            <article className="js-billing-current">
+              <div className="js-billing-current-top">
+                <div>
+                  <span className="js-billing-card-label">
+                    YOUR MEMBERSHIP
+                  </span>
+
+                  <h2>
+                    {trialIsActive
+                      ? `${actualTrialDuration}-Day Free Trial`
+                      : isActive
+                        ? `${
+                            currentInterval === "yearly"
+                              ? "Annual"
+                              : "Monthly"
+                          } Membership`
+                        : "Abi Job Membership"}
+                  </h2>
+                </div>
+
+                <div className="js-billing-current-icon">
+                  <CreditCard size={24} />
+                </div>
+              </div>
+
+              <div className="js-billing-status-row">
+                <span
+                  className={`js-billing-status ${statusTone}`}
+                >
+                  <i />
+                  {currentStatusLabel}
+                </span>
+
+                {subscription?.cancel_at_period_end && (
+                  <span className="js-billing-cancel-note">
+                    Scheduled to end at period expiry
+                  </span>
+                )}
+              </div>
+
+              {trialIsActive && (
+                <div className="js-billing-trial">
+                  <div className="js-billing-trial-info">
+                    <strong>
+                      {trialDaysRemaining}{" "}
+                      {trialDaysRemaining === 1
+                        ? "day"
+                        : "days"}{" "}
+                      remaining
+                    </strong>
+
+                    <span>
+                      Your trial ends{" "}
+                      {formatDate(
+                        subscription?.trial_ends_at || null
+                      )}
+                    </span>
+                  </div>
+
+                  <div className="js-billing-trial-track">
+                    <span
+                      style={{
+                        width: `${trialProgress}%`,
+                      }}
+                    />
+                  </div>
+
+                  <p>
+                    You currently have full access during your
+                    free trial. You can choose a monthly or annual
+                    plan whenever you're ready.
+                  </p>
+                </div>
+              )}
+
+              <div className="js-billing-period">
+                <div>
+                  <span>Membership started</span>
+
+                  <strong>
+                    {formatDate(
+                      subscription?.trial_started_at ||
+                        subscription?.current_period_start ||
+                        null
+                    )}
+                  </strong>
+                </div>
+
+                <div>
+                  <span>
+                    {trialIsActive
+                      ? "Trial expiry"
+                      : "Current period ends"}
+                  </span>
+
+                  <strong>
+                    {formatDate(
+                      trialIsActive
+                        ? subscription?.trial_ends_at || null
+                        : subscription?.current_period_end || null
+                    )}
+                  </strong>
+                </div>
+              </div>
+
+              <div className="js-billing-current-footer">
+                <span>
+                  Abi Job · Opportunity starts here.
+                </span>
+
+                <Link href="#billing-plans">
+                  View membership plans{" "}
+                  <ArrowRight size={15} />
+                </Link>
+              </div>
+            </article>
+
+            <article className="js-billing-summary">
+              <div className="js-billing-summary-icon">
+                <Wallet size={22} />
+              </div>
+
+              <span>Total successful payments</span>
+
+              <strong>{formatMoney(totalPaid)}</strong>
+
+              <small>
+                Based on your recorded successful transactions
+              </small>
+
+              <div className="js-billing-summary-divider" />
+
+              <div className="js-billing-summary-row">
+                <span>Recent payment records</span>
+                <strong>{data.transactions.length}</strong>
+              </div>
+
+              <div className="js-billing-summary-row">
+                <span>Successful payments shown</span>
+                <strong>{successfulTransactions.length}</strong>
+              </div>
+            </article>
+          </section>
+
+          <section
+            id="billing-plans"
+            className="js-billing-section"
+          >
+            <div className="js-billing-section-heading">
+              <div>
+                <span>MEMBERSHIP OPTIONS</span>
+
+                <h2>Choose your subscription plan</h2>
+
+                <p>
+                  You can switch between monthly and annual
+                  membership. Your selected plan goes through
+                  checkout.
+                </p>
+              </div>
+
+              <span className="js-billing-trial-tag">
+                <Sparkles size={14} />
+                Trial for eligible accounts
+              </span>
+            </div>
+
+            <div className="js-billing-plans">
+              <article
+                className={`js-billing-plan ${
+                  currentInterval === "monthly" && isActive
+                    ? "current"
+                    : ""
+                }`}
+              >
+                <div className="js-billing-plan-heading">
+                  <div>
+                    <h3>Monthly Plan</h3>
+                    <p>Flexible monthly membership</p>
+                  </div>
+
+                  {currentInterval === "monthly" &&
+                    isActive && (
+                      <span className="js-billing-current-tag">
+                        Current plan
+                      </span>
+                    )}
+                </div>
+
+                <div className="js-billing-price">
+                  <strong>
+                    {monthlyPrice !== null
+                      ? formatMoney(monthlyPrice)
+                      : "Unavailable"}
+                  </strong>
+
+                  <span>/ month</span>
+                </div>
+
+                <div className="js-billing-plan-benefit">
+                  <CheckCircle2 size={17} />
+                  Trial for eligible verified accounts
+                </div>
+
+                <div className="js-billing-plan-benefit">
+                  <CheckCircle2 size={17} />
+                  Access to job opportunities and applications
+                </div>
+
+                <div className="js-billing-plan-benefit">
+                  <CheckCircle2 size={17} />
+                  Manage your career profile
+                </div>
+
+                {monthlyPlan ? (
+                  <Link
+                    href="/subscription/checkout?type=job-seeker&interval=monthly"
+                    className="js-billing-plan-button secondary"
+                  >
+                    {isActive && currentInterval === "monthly"
+                      ? "Manage membership"
+                      : isActive
+                        ? "Switch to monthly"
+                        : "Choose monthly"}
+
+                    <ArrowRight size={16} />
+                  </Link>
+                ) : (
+                  <button
+                    type="button"
+                    className="js-billing-plan-button disabled"
+                    disabled
+                  >
+                    Plan currently unavailable
+                  </button>
+                )}
+              </article>
+
+              <article
+                className={`js-billing-plan featured ${
+                  currentInterval === "yearly" && isActive
+                    ? "current"
+                    : ""
+                }`}
+              >
+                <span className="js-billing-popular">
+                  BEST VALUE
+                </span>
+
+                <div className="js-billing-plan-heading">
+                  <div>
+                    <h3>Annual Plan</h3>
+                    <p>One payment for twelve months</p>
+                  </div>
+
+                  {currentInterval === "yearly" &&
+                    isActive && (
+                      <span className="js-billing-current-tag">
+                        Current plan
+                      </span>
+                    )}
+                </div>
+
+                <div className="js-billing-price">
+                  <strong>
+                    {yearlyPrice !== null
+                      ? formatMoney(yearlyPrice)
+                      : "Unavailable"}
+                  </strong>
+
+                  <span>/ year</span>
+                </div>
+
+                {annualSavings !== null &&
+                  annualSavings > 0 && (
+                    <span className="js-billing-savings">
+                      Save {formatMoney(annualSavings)} compared
+                      with monthly billing
+                    </span>
+                  )}
+
+                <div className="js-billing-plan-benefit">
+                  <CheckCircle2 size={17} />
+                  Trial for eligible verified accounts
+                </div>
+
+                <div className="js-billing-plan-benefit">
+                  <CheckCircle2 size={17} />
+                  Access to job opportunities and applications
+                </div>
+
+                <div className="js-billing-plan-benefit">
+                  <CheckCircle2 size={17} />
+                  Convenient annual billing
+                </div>
+
+                {yearlyPlan ? (
+                  <Link
+                    href="/subscription/checkout?type=job-seeker&interval=yearly"
+                    className="js-billing-plan-button"
+                  >
+                    {isActive && currentInterval === "yearly"
+                      ? "Manage membership"
+                      : isActive
+                        ? "Switch to annual"
+                        : "Choose annual"}
+
+                    <ArrowRight size={16} />
+                  </Link>
+                ) : (
+                  <button
+                    type="button"
+                    className="js-billing-plan-button disabled"
+                    disabled
+                  >
+                    Plan currently unavailable
+                  </button>
+                )}
+              </article>
+            </div>
+          </section>
+
+          <section className="js-billing-lower">
+            <article className="js-billing-history">
+              <div className="js-billing-section-heading compact">
+                <div>
+                  <span>PAYMENT RECORDS</span>
+
+                  <h2>Transaction history</h2>
+
+                  <p>
+                    Your ten most recent subscription payment records.
+                  </p>
+                </div>
+
+                <CalendarDays size={23} />
+              </div>
+
+              {data.transactions.length > 0 ? (
+                <div className="js-billing-table-wrap">
+                  <table className="js-billing-table">
+                    <thead>
+                      <tr>
+                        <th>DATE</th>
+                        <th>REFERENCE</th>
+                        <th>PLAN</th>
+                        <th>AMOUNT</th>
+                        <th>STATUS</th>
+                      </tr>
+                    </thead>
+
+                    <tbody>
+                      {data.transactions.map((transaction) => {
+                        const transactionStatus =
+                          getTransactionStatus(transaction.status);
+
+                        return (
+                          <tr key={transaction.id}>
+                            <td>
+                              {formatDate(
+                                transaction.paid_at ||
+                                  transaction.created_at
+                              )}
+                            </td>
+
+                            <td>
+                              {transaction.provider_reference ||
+                                "Pending"}
+                            </td>
+
+                            <td>
+                              {normalizeInterval(
+                                transaction.billing_interval
+                              ) === "yearly"
+                                ? "Annual"
+                                : "Monthly"}
+                            </td>
+
+                            <td>
+                              <strong>
+                                {formatMoney(
+                                  Number(transaction.amount_kobo) / 100
+                                )}
+                              </strong>
+                            </td>
+
+                            <td>
+                              <span
+                                className={`js-billing-transaction-status ${transactionStatus}`}
+                              >
+                                {transactionStatus === "success" ? (
+                                  <CheckCircle2 size={13} />
+                                ) : transactionStatus === "failed" ? (
+                                  <XCircle size={13} />
+                                ) : (
+                                  <Clock3 size={13} />
+                                )}
+
+                                {getStatusLabel(transaction.status)}
+                              </span>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              ) : (
+                <div className="js-billing-empty">
+                  <div>
+                    <FileText size={25} />
+                  </div>
+
+                  <strong>No payment history yet</strong>
+
+                  <p>
+                    Your subscription transactions will appear here
+                    when payment records are created.
+                  </p>
+                </div>
+              )}
+            </article>
+
+            <aside className="js-billing-help">
+              <div className="js-billing-help-icon">
+                <HelpCircle size={23} />
+              </div>
+
+              <span>NEED ASSISTANCE?</span>
+
+              <h3>We're here to help.</h3>
+
+              <p>
+                If you have questions about your subscription,
+                payments, or trial period, contact the Abi Job
+                support team.
+              </p>
+
+              <div className="js-billing-help-divider" />
+
+              <div className="js-billing-help-row">
+                <ShieldCheck size={17} />
+                Secure payment processing
+              </div>
+
+              <div className="js-billing-help-row">
+                <CheckCircle2 size={17} />
+                Transparent subscription pricing
+              </div>
+
+              <div className="js-billing-help-row">
+                <CalendarDays size={17} />
+                Clear billing periods
+              </div>
+
+              <Link href="/contact">
+                Contact support <ArrowRight size={16} />
+              </Link>
+            </aside>
+          </section>
+
+          <div className="js-billing-notice">
+            <ShieldCheck size={19} />
+
+            <p>
+              <strong>
+                Your account and profile are yours.
+              </strong>{" "}
+              If your trial or subscription expires, your profile
+              information remains available. Subscription-protected
+              features may require an active membership.
             </p>
           </div>
-        </div>
-      </section>
 
-      {/* ADVERTISING SERVICES */}
-      <section className="advertising-section">
-        <div className="advertising-icon">
-          <Megaphone size={27} />
-        </div>
-
-        <div className="advertising-content">
-          <span className="section-kicker">
-            FOR BUSINESSES & ORGANISATIONS
-          </span>
-
-          <h2>Want to advertise on Abi Job?</h2>
-
-          <p>
-            Abi Job also offers promotional campaigns for businesses,
-            brands, training centres and organisations. Our team can
-            help design, prepare, schedule and publish your
-            advertisement across the platform.
-          </p>
-
-          <div className="advertising-points">
+          <footer className="js-billing-footer">
             <span>
-              <Check size={15} />
-              Promotional campaigns
+              © 2026 Abi Job. Opportunity starts here.
             </span>
 
             <span>
-              <Check size={15} />
-              Sponsored placements
+              <CheckCircle2 size={14} />
+              Secure account billing
             </span>
-
-            <span>
-              <Check size={15} />
-              Campaign management
-            </span>
-          </div>
-        </div>
-
-        <Link
-          href="/contact?subject=advertising"
-          className="advertising-btn"
-        >
-          Discuss advertising
-          <ArrowRight size={17} />
-        </Link>
-      </section>
-
-      {/* FREQUENTLY ASKED QUESTIONS */}
-      <section className="subscription-faq-section">
-        <div className="subscription-section-heading">
-          <span className="section-kicker">
-            NEED CLARITY?
-          </span>
-
-          <h2>Frequently asked questions</h2>
-
-          <p>
-            Some helpful information about Abi Job membership.
-          </p>
-        </div>
-
-        <div className="subscription-faq-grid">
-          <div className="faq-item">
-            <CircleHelp size={20} />
-
-            <div>
-              <h3>Can I change my billing cycle?</h3>
-
-              <p>
-                You can choose monthly or annual billing when
-                selecting your paid membership.
-              </p>
-            </div>
-          </div>
-
-          <div className="faq-item">
-            <CircleHelp size={20} />
-
-            <div>
-              <h3>Who can use the free trial?</h3>
-
-              <p>
-                All three account categories receive a 30-day free
-                trial with 100% access to their available platform
-                benefits.
-              </p>
-            </div>
-          </div>
-
-          <div className="faq-item">
-            <CircleHelp size={20} />
-
-            <div>
-              <h3>Do employers get a free trial?</h3>
-
-              <p>
-                Yes. Employers receive the same 30-day full-access
-                free trial as job seekers and skilled professionals.
-              </p>
-            </div>
-          </div>
-
-          <div className="faq-item">
-            <CircleHelp size={20} />
-
-            <div>
-              <h3>What happens after 30 days?</h3>
-
-              <p>
-                An active paid subscription is required to continue
-                accessing Abi Job after the introductory trial ends.
-              </p>
-            </div>
-          </div>
-
-          <div className="faq-item">
-            <CircleHelp size={20} />
-
-            <div>
-              <h3>How much does membership cost?</h3>
-
-              <p>
-                Membership costs ₦2,000 monthly or ₦22,800 annually.
-                Annual subscribers save ₦1,200 compared with monthly
-                payments over 12 months.
-              </p>
-            </div>
-          </div>
-
-          <div className="faq-item">
-            <CircleHelp size={20} />
-
-            <div>
-              <h3>Is advertising included?</h3>
-
-              <p>
-                No. Advertising campaigns are separate services with
-                their own agreed campaign fees.
-              </p>
-            </div>
-          </div>
+          </footer>
         </div>
       </section>
-
-      {/* FINAL CALL TO ACTION */}
-      <section className="subscription-bottom-cta">
-        <CalendarDays size={25} />
-
-        <div>
-          <h2>Ready to move forward?</h2>
-
-          <p>
-            Start with 30 days of full access or choose your paid
-            membership with Abi Job.
-          </p>
-        </div>
-
-        <Link href={trialUrl}>
-          Start free
-          <ArrowRight size={17} />
-        </Link>
-      </section>
-
-      <Footer />
     </main>
   );
 }

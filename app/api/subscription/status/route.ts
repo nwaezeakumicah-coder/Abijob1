@@ -1,11 +1,29 @@
-
-import { NextResponse } from "next/server";
-import { connection } from "next/server";
+import { NextResponse, connection } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 
+function jsonResponse(
+  body: Record<string, unknown>,
+  status = 200
+) {
+  return NextResponse.json(body, {
+    status,
+    headers: {
+      "Cache-Control": "private, no-store, no-cache, must-revalidate",
+      Pragma: "no-cache",
+      Expires: "0",
+    },
+  });
+}
+
+function timestamp(value: string | null | undefined): number | null {
+  if (!value) return null;
+
+  const parsed = new Date(value).getTime();
+
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
 export async function GET() {
-  // Keep this outside try/catch.
-  // It tells Next.js this route depends on an incoming request.
   await connection();
 
   try {
@@ -17,9 +35,9 @@ export async function GET() {
     } = await supabase.auth.getUser();
 
     if (authError || !user) {
-      return NextResponse.json(
+      return jsonResponse(
         { error: "Please log in to view your subscription." },
-        { status: 401 }
+        401
       );
     }
 
@@ -35,14 +53,14 @@ export async function GET() {
     if (subscriptionError) {
       console.error("Subscription lookup error:", subscriptionError);
 
-      return NextResponse.json(
+      return jsonResponse(
         { error: "Could not retrieve your subscription information." },
-        { status: 500 }
+        500
       );
     }
 
     if (!subscription) {
-      return NextResponse.json({
+      return jsonResponse({
         success: true,
         hasSubscription: false,
         hasAccess: false,
@@ -53,6 +71,7 @@ export async function GET() {
           hasPlatformAccess: false,
           isTrialActive: false,
           isPaidSubscriptionActive: false,
+          hasScheduledPaidPeriod: false,
         },
         message: "No subscription record was found for this account.",
       });
@@ -64,36 +83,43 @@ export async function GET() {
     if (accessError) {
       console.error("Subscription access check error:", accessError);
 
-      return NextResponse.json(
+      return jsonResponse(
         { error: "Could not verify your platform access." },
-        { status: 500 }
+        500
       );
     }
 
     const now = Date.now();
 
-    const trialEndsAt = subscription.trial_ends_at
-      ? new Date(subscription.trial_ends_at).getTime()
-      : null;
-
-    const periodEndsAt = subscription.current_period_end
-      ? new Date(subscription.current_period_end).getTime()
-      : null;
+    const trialStartedAt = timestamp(subscription.trial_started_at);
+    const trialEndsAt = timestamp(subscription.trial_ends_at);
+    const periodStartsAt = timestamp(subscription.current_period_start);
+    const periodEndsAt = timestamp(subscription.current_period_end);
 
     const isTrialActive =
+      ["trialing", "active"].includes(subscription.status) &&
+      trialStartedAt !== null &&
+      trialStartedAt <= now &&
       trialEndsAt !== null &&
-      trialEndsAt > now &&
-      (periodEndsAt === null || periodEndsAt <= now);
+      trialEndsAt > now;
 
     const isPaidSubscriptionActive =
       subscription.status === "active" &&
+      periodStartsAt !== null &&
+      periodStartsAt <= now &&
       periodEndsAt !== null &&
-      periodEndsAt > now &&
-      !isTrialActive;
+      periodEndsAt > now;
 
-    const hasPlatformAccess = Boolean(databaseAccess);
+    const hasScheduledPaidPeriod =
+      subscription.status === "active" &&
+      periodStartsAt !== null &&
+      periodStartsAt > now &&
+      periodEndsAt !== null &&
+      periodEndsAt > now;
 
-    return NextResponse.json({
+    const hasPlatformAccess = databaseAccess === true;
+
+    return jsonResponse({
       success: true,
       hasSubscription: true,
       hasAccess: hasPlatformAccess,
@@ -115,6 +141,7 @@ export async function GET() {
           startedAt: subscription.current_period_start,
           endsAt: subscription.current_period_end,
           isActive: isPaidSubscriptionActive,
+          isScheduled: hasScheduledPaidPeriod,
         },
 
         cancelAtPeriodEnd: subscription.cancel_at_period_end,
@@ -125,17 +152,18 @@ export async function GET() {
         hasPlatformAccess,
         isTrialActive,
         isPaidSubscriptionActive,
+        hasScheduledPaidPeriod,
       },
     });
   } catch (error) {
     console.error("Subscription status API error:", error);
 
-    return NextResponse.json(
+    return jsonResponse(
       {
         error:
           "An unexpected error occurred while checking your subscription.",
       },
-      { status: 500 }
+      500
     );
   }
 }

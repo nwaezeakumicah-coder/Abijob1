@@ -2,12 +2,15 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import Logo from "../../../components/Logo";
+import { createClient } from "../../../lib/supabase/client";
 import {
   Activity,
   ArrowRight,
   Bell,
+  BellRing,
   Bookmark,
   BriefcaseBusiness,
   Check,
@@ -20,84 +23,42 @@ import {
   Trash2,
   UserRound,
   X,
-  BellRing,
 } from "lucide-react";
 import "./notifications.css";
 
+type NotificationCategory =
+  | "Application"
+  | "Opportunity"
+  | "Message"
+  | "Profile"
+  | "System";
+
 type Notification = {
-  id: number;
+  id: string | number;
   title: string;
   message: string;
   time: string;
-  category: "Application" | "Opportunity" | "Message" | "Profile" | "System";
+  category: NotificationCategory;
   read: boolean;
   href: string;
+  createdAt: string;
 };
 
-const STORAGE_KEY = "abijob-professional-notifications";
+type NotificationRow = {
+  id: string | number;
+  title: string;
+  description: string | null;
+  category: string | null;
+  href: string | null;
+  is_read: boolean;
+  created_at: string;
+};
 
-const initialNotifications: Notification[] = [
-  {
-    id: 1,
-    title: "Welcome to your professional workspace",
-    message:
-      "Your professional account is ready. Complete your profile to help employers discover your skills and experience.",
-    time: "Just now",
-    category: "System",
-    read: false,
-    href: "/professional/profile",
-  },
-  {
-    id: 2,
-    title: "New opportunities are waiting",
-    message:
-      "Explore available jobs, contracts and projects that could match your professional interests.",
-    time: "Today",
-    category: "Opportunity",
-    read: false,
-    href: "/professional/opportunities",
-  },
-  {
-    id: 3,
-    title: "Complete your professional profile",
-    message:
-      "Add your skills, work experience and professional information to improve your profile.",
-    time: "Yesterday",
-    category: "Profile",
-    read: false,
-    href: "/professional/profile",
-  },
-  {
-    id: 4,
-    title: "Your saved opportunities are ready",
-    message:
-      "Return to your saved opportunities whenever you are ready to review them.",
-    time: "2 days ago",
-    category: "Opportunity",
-    read: true,
-    href: "/professional/saved",
-  },
-  {
-    id: 5,
-    title: "Check your applications",
-    message:
-      "Keep track of opportunities you have applied for from your applications dashboard.",
-    time: "3 days ago",
-    category: "Application",
-    read: true,
-    href: "/professional/applications",
-  },
-  {
-    id: 6,
-    title: "Stay connected with employers",
-    message:
-      "Visit your messages inbox to keep track of conversations and professional enquiries.",
-    time: "4 days ago",
-    category: "Message",
-    read: true,
-    href: "/professional/messages",
-  },
-];
+type ProfileRow = {
+  id: string;
+  role: string;
+  full_name: string | null;
+};
 
 const filters = [
   "All",
@@ -109,76 +70,235 @@ const filters = [
   "System",
 ];
 
+function getCategory(value: string | null): NotificationCategory {
+  switch ((value || "").toLowerCase()) {
+    case "application":
+      return "Application";
+    case "job":
+    case "opportunity":
+      return "Opportunity";
+    case "message":
+      return "Message";
+    case "profile":
+      return "Profile";
+    default:
+      return "System";
+  }
+}
+
+function getNotificationHref(
+  href: string | null,
+  category: NotificationCategory
+) {
+  // Only allow internal application routes from notification records.
+  if (href && href.startsWith("/") && !href.startsWith("//")) {
+    return href;
+  }
+
+  switch (category) {
+    case "Application":
+      return "/professional/applications";
+    case "Opportunity":
+      return "/professional/opportunities";
+    case "Message":
+      return "/professional/messages";
+    case "Profile":
+      return "/professional/profile";
+    default:
+      return "/professional/dashboard";
+  }
+}
+
+function getRelativeTime(value: string) {
+  const timestamp = new Date(value).getTime();
+
+  if (!Number.isFinite(timestamp)) return "Date unavailable";
+
+  const difference = timestamp - Date.now();
+  const absoluteDifference = Math.abs(difference);
+
+  const units: Array<[Intl.RelativeTimeFormatUnit, number]> = [
+    ["year", 365 * 24 * 60 * 60 * 1000],
+    ["month", 30 * 24 * 60 * 60 * 1000],
+    ["week", 7 * 24 * 60 * 60 * 1000],
+    ["day", 24 * 60 * 60 * 1000],
+    ["hour", 60 * 60 * 1000],
+    ["minute", 60 * 1000],
+  ];
+
+  if (absoluteDifference < 60 * 1000) return "Just now";
+
+  const formatter = new Intl.RelativeTimeFormat("en", {
+    numeric: "auto",
+  });
+
+  for (const [unit, milliseconds] of units) {
+    if (absoluteDifference >= milliseconds) {
+      return formatter.format(
+        Math.round(difference / milliseconds),
+        unit
+      );
+    }
+  }
+
+  return "Just now";
+}
+
+function getInitials(name: string) {
+  const parts = name.trim().split(/\s+/).filter(Boolean);
+
+  if (parts.length === 0) return "P";
+  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+
+  return `${parts[0][0]}${parts[parts.length - 1][0]}`.toUpperCase();
+}
+
 export default function ProfessionalNotificationsPage() {
+  const router = useRouter();
+  const supabase = useMemo(() => createClient(), []);
+
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [activeFilter, setActiveFilter] = useState("All");
   const [confirmClear, setConfirmClear] = useState(false);
   const [isLoaded, setIsLoaded] = useState(false);
+  const [isWorking, setIsWorking] = useState(false);
+  const [fullName, setFullName] = useState("Professional");
+  const [userId, setUserId] = useState("");
+  const [error, setError] = useState("");
 
-  useEffect(() => {
-    try {
-      const stored = localStorage.getItem(STORAGE_KEY);
+  const mapDatabaseNotification = useCallback(
+    (row: NotificationRow): Notification => {
+      const category = getCategory(row.category);
 
-      if (stored) {
-        const parsed = JSON.parse(stored);
+      return {
+        id: row.id,
+        title: row.title || "Notification",
+        message: row.description || "",
+        time: getRelativeTime(row.created_at),
+        category,
+        read: Boolean(row.is_read),
+        href: getNotificationHref(row.href, category),
+        createdAt: row.created_at,
+      };
+    },
+    []
+  );
 
-        if (Array.isArray(parsed)) {
-          setNotifications(parsed);
-        } else {
-          setNotifications(initialNotifications);
-        }
-      } else {
-        setNotifications(initialNotifications);
-        localStorage.setItem(
-          STORAGE_KEY,
-          JSON.stringify(initialNotifications)
+  const loadNotifications = useCallback(
+    async (accountId: string) => {
+      const { data, error: queryError } = await supabase
+        .from("notifications")
+        .select(
+          "id, title, description, category, href, is_read, created_at"
+        )
+        .eq("user_id", accountId)
+        .order("created_at", { ascending: false });
+
+      if (queryError) {
+        throw new Error(
+          "Your notifications could not be loaded. Please try again."
         );
       }
-    } catch {
-      setNotifications(initialNotifications);
+
+      const rows = (data || []) as NotificationRow[];
+      setNotifications(rows.map(mapDatabaseNotification));
+    },
+    [mapDatabaseNotification, supabase]
+  );
+
+  const initializePage = useCallback(async () => {
+    setIsLoaded(false);
+    setError("");
+
+    try {
+      const {
+        data: { user },
+        error: authError,
+      } = await supabase.auth.getUser();
+
+      if (authError || !user) {
+        router.replace("/login");
+        return;
+      }
+
+      const { data: profile, error: profileError } = await supabase
+        .from("profiles")
+        .select("id, role, full_name")
+        .eq("id", user.id)
+        .maybeSingle();
+
+      if (profileError) {
+        throw new Error("We could not verify your account. Please try again.");
+      }
+
+      if (!profile) {
+        router.replace("/login");
+        return;
+      }
+
+      if (profile.role !== "professional") {
+        const destination =
+          profile.role === "job_seeker"
+            ? "/dashboard"
+            : profile.role === "employer"
+              ? "/employer/dashboard"
+              : profile.role === "admin"
+                ? "/admin"
+                : "/login";
+
+        router.replace(destination);
+        return;
+      }
+
+      setUserId(user.id);
+      setFullName(profile.full_name?.trim() || "Professional");
+
+      await loadNotifications(user.id);
+    } catch (loadError) {
+      console.error("Professional notifications loading error:", loadError);
+
+      setError(
+        loadError instanceof Error
+          ? loadError.message
+          : "Something went wrong while loading notifications."
+      );
     } finally {
       setIsLoaded(true);
     }
-  }, []);
+  }, [loadNotifications, router, supabase]);
 
-  function persistNotifications(updated: Notification[]) {
-    try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
-      setNotifications(updated);
-    } catch {
-      alert("Unable to save your notification changes.");
-    }
-  }
+  useEffect(() => {
+    void initializePage();
+  }, [initializePage]);
 
-  function markAsRead(id: number) {
-    const updated = notifications.map((notification) =>
-      notification.id === id
-        ? { ...notification, read: true }
-        : notification
-    );
+  useEffect(() => {
+    if (!userId) return;
 
-    persistNotifications(updated);
-  }
+    const channel = supabase
+      .channel(`professional-notifications-${userId}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "notifications",
+          filter: `user_id=eq.${userId}`,
+        },
+        () => {
+          void loadNotifications(userId).catch((loadError) => {
+            console.error(
+              "Professional notification refresh failed:",
+              loadError
+            );
+          });
+        }
+      )
+      .subscribe();
 
-  function markAllAsRead() {
-    const updated = notifications.map((notification) => ({
-      ...notification,
-      read: true,
-    }));
-
-    persistNotifications(updated);
-  }
-
-  function deleteNotification(id: number) {
-    persistNotifications(
-      notifications.filter((notification) => notification.id !== id)
-    );
-  }
-
-  function clearAllNotifications() {
-    persistNotifications([]);
-    setConfirmClear(false);
-  }
+    return () => {
+      void supabase.removeChannel(channel);
+    };
+  }, [loadNotifications, supabase, userId]);
 
   const unreadCount = notifications.filter(
     (notification) => !notification.read
@@ -187,10 +307,13 @@ export default function ProfessionalNotificationsPage() {
   const filteredNotifications = notifications.filter((notification) => {
     if (activeFilter === "All") return true;
     if (activeFilter === "Unread") return !notification.read;
+
     return notification.category === activeFilter;
   });
 
-  function getIcon(category: Notification["category"]) {
+  const initials = getInitials(fullName);
+
+  function getIcon(category: NotificationCategory) {
     switch (category) {
       case "Application":
         return <FileText size={19} />;
@@ -203,6 +326,141 @@ export default function ProfessionalNotificationsPage() {
       default:
         return <BellRing size={19} />;
     }
+  }
+
+  async function markAsRead(id: string | number) {
+    if (!userId || isWorking) return;
+
+    const notification = notifications.find((item) => item.id === id);
+    if (!notification || notification.read) return;
+
+    setIsWorking(true);
+    setError("");
+
+    try {
+      const { error: updateError } = await supabase
+        .from("notifications")
+        .update({ is_read: true })
+        .eq("id", id)
+        .eq("user_id", userId);
+
+      if (updateError) {
+        throw new Error("We could not update this notification.");
+      }
+
+      setNotifications((current) =>
+        current.map((item) =>
+          item.id === id ? { ...item, read: true } : item
+        )
+      );
+    } catch (actionError) {
+      setError(
+        actionError instanceof Error
+          ? actionError.message
+          : "Unable to update notification."
+      );
+    } finally {
+      setIsWorking(false);
+    }
+  }
+
+  async function markAllAsRead() {
+    if (!userId || unreadCount === 0 || isWorking) return;
+
+    setIsWorking(true);
+    setError("");
+
+    try {
+      const { error: updateError } = await supabase
+        .from("notifications")
+        .update({ is_read: true })
+        .eq("user_id", userId)
+        .eq("is_read", false);
+
+      if (updateError) {
+        throw new Error("We could not mark your notifications as read.");
+      }
+
+      setNotifications((current) =>
+        current.map((item) => ({ ...item, read: true }))
+      );
+    } catch (actionError) {
+      setError(
+        actionError instanceof Error
+          ? actionError.message
+          : "Unable to update notifications."
+      );
+    } finally {
+      setIsWorking(false);
+    }
+  }
+
+  async function deleteNotification(id: string | number) {
+    if (!userId || isWorking) return;
+
+    setIsWorking(true);
+    setError("");
+
+    try {
+      const { error: deleteError } = await supabase
+        .from("notifications")
+        .delete()
+        .eq("id", id)
+        .eq("user_id", userId);
+
+      if (deleteError) {
+        throw new Error("We could not delete this notification.");
+      }
+
+      setNotifications((current) =>
+        current.filter((item) => item.id !== id)
+      );
+    } catch (actionError) {
+      setError(
+        actionError instanceof Error
+          ? actionError.message
+          : "Unable to delete notification."
+      );
+    } finally {
+      setIsWorking(false);
+    }
+  }
+
+  async function clearAllNotifications() {
+    if (!userId || notifications.length === 0 || isWorking) return;
+
+    setIsWorking(true);
+    setError("");
+
+    try {
+      const { error: deleteError } = await supabase
+        .from("notifications")
+        .delete()
+        .eq("user_id", userId);
+
+      if (deleteError) {
+        throw new Error("We could not clear your notifications.");
+      }
+
+      setNotifications([]);
+      setConfirmClear(false);
+    } catch (actionError) {
+      setError(
+        actionError instanceof Error
+          ? actionError.message
+          : "Unable to clear notifications."
+      );
+    } finally {
+      setIsWorking(false);
+    }
+  }
+
+  async function openNotification(notification: Notification) {
+    if (!notification.read) {
+      await markAsRead(notification.id);
+    }
+
+    router.push(notification.href);
   }
 
   return (
@@ -290,9 +548,9 @@ export default function ProfessionalNotificationsPage() {
 
           <div className="pn-topbar-right">
             <div className="pn-user">
-              <div className="pn-avatar">MN</div>
+              <div className="pn-avatar">{initials}</div>
               <div>
-                <strong>Micah Nwaezeaku</strong>
+                <strong>{fullName}</strong>
                 <span>Professional account</span>
               </div>
             </div>
@@ -316,8 +574,8 @@ export default function ProfessionalNotificationsPage() {
               <button
                 type="button"
                 className="pn-mark-all"
-                onClick={markAllAsRead}
-                disabled={unreadCount === 0}
+                onClick={() => void markAllAsRead()}
+                disabled={unreadCount === 0 || isWorking || !isLoaded}
               >
                 <CheckCheck size={16} />
                 Mark all as read
@@ -326,13 +584,26 @@ export default function ProfessionalNotificationsPage() {
                 type="button"
                 className="pn-clear-button"
                 onClick={() => setConfirmClear(true)}
-                disabled={notifications.length === 0}
+                disabled={notifications.length === 0 || isWorking || !isLoaded}
               >
                 <Trash2 size={16} />
                 Clear all
               </button>
             </div>
           </section>
+
+          {error && (
+            <div className="pn-empty" role="alert">
+              <p>{error}</p>
+              <button
+                type="button"
+                onClick={() => void initializePage()}
+                disabled={isWorking}
+              >
+                Try again
+              </button>
+            </div>
+          )}
 
           <section className="pn-summary">
             <article className="pn-summary-card">
@@ -350,17 +621,19 @@ export default function ProfessionalNotificationsPage() {
                 <BellRing size={20} />
               </div>
               <div>
-                <strong>{unreadCount}</strong>
+                <strong>{isLoaded ? unreadCount : "—"}</strong>
                 <span>Unread notifications</span>
               </div>
             </article>
 
             <article className="pn-summary-card">
               <div className="pn-summary-icon read">
-                <CheckCircle2Icon />
+                <CheckCheck size={20} />
               </div>
               <div>
-                <strong>{notifications.length - unreadCount}</strong>
+                <strong>
+                  {isLoaded ? notifications.length - unreadCount : "—"}
+                </strong>
                 <span>Read notifications</span>
               </div>
             </article>
@@ -372,7 +645,9 @@ export default function ProfessionalNotificationsPage() {
                 <h2>Your activity updates</h2>
                 <p>Review your latest notifications.</p>
               </div>
-              <span>{filteredNotifications.length} notifications</span>
+              <span>
+                {isLoaded ? `${filteredNotifications.length} notifications` : "Loading..."}
+              </span>
             </div>
 
             <div className="pn-filters">
@@ -432,17 +707,19 @@ export default function ProfessionalNotificationsPage() {
                       </div>
 
                       <div className="pn-notification-actions">
-                        <Link
-                          href={notification.href}
-                          onClick={() => markAsRead(notification.id)}
+                        <button
+                          type="button"
+                          onClick={() => void openNotification(notification)}
+                          disabled={isWorking}
                         >
                           View details <ArrowRight size={14} />
-                        </Link>
+                        </button>
 
                         {!notification.read && (
                           <button
                             type="button"
-                            onClick={() => markAsRead(notification.id)}
+                            onClick={() => void markAsRead(notification.id)}
+                            disabled={isWorking}
                           >
                             <Check size={14} />
                             Mark as read
@@ -456,7 +733,8 @@ export default function ProfessionalNotificationsPage() {
                       className="pn-delete"
                       aria-label="Delete notification"
                       title="Delete notification"
-                      onClick={() => deleteNotification(notification.id)}
+                      onClick={() => void deleteNotification(notification.id)}
+                      disabled={isWorking}
                     >
                       <X size={17} />
                     </button>
@@ -471,12 +749,16 @@ export default function ProfessionalNotificationsPage() {
                 <h3>
                   {activeFilter === "Unread"
                     ? "You are all caught up"
-                    : "No notifications found"}
+                    : notifications.length === 0
+                      ? "No notifications yet"
+                      : "No notifications found"}
                 </h3>
                 <p>
                   {activeFilter === "Unread"
                     ? "You have no unread notifications at the moment."
-                    : "There are no notifications in this category."}
+                    : notifications.length === 0
+                      ? "Platform updates about your applications and account will appear here."
+                      : "There are no notifications in this category."}
                 </p>
 
                 {activeFilter !== "All" && (
@@ -496,7 +778,9 @@ export default function ProfessionalNotificationsPage() {
       {confirmClear && (
         <div
           className="pn-modal-overlay"
-          onClick={() => setConfirmClear(false)}
+          onClick={() => {
+            if (!isWorking) setConfirmClear(false);
+          }}
         >
           <section
             className="pn-confirm-modal"
@@ -507,7 +791,7 @@ export default function ProfessionalNotificationsPage() {
             </div>
             <h3>Clear all notifications?</h3>
             <p>
-              This will remove all notifications from your list. This action
+              This will remove all notifications from your account. This action
               cannot be undone.
             </p>
             <div className="pn-confirm-actions">
@@ -515,15 +799,17 @@ export default function ProfessionalNotificationsPage() {
                 type="button"
                 className="pn-cancel"
                 onClick={() => setConfirmClear(false)}
+                disabled={isWorking}
               >
                 Cancel
               </button>
               <button
                 type="button"
                 className="pn-confirm-delete"
-                onClick={clearAllNotifications}
+                onClick={() => void clearAllNotifications()}
+                disabled={isWorking}
               >
-                Clear notifications
+                {isWorking ? "Clearing..." : "Clear notifications"}
               </button>
             </div>
           </section>
@@ -531,8 +817,4 @@ export default function ProfessionalNotificationsPage() {
       )}
     </main>
   );
-}
-
-function CheckCircle2Icon() {
-  return <CheckCheck size={20} />;
 }

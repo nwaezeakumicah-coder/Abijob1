@@ -3,7 +3,6 @@ import { NextResponse } from "next/server";
 import { createHmac, timingSafeEqual } from "node:crypto";
 import { createClient } from "@supabase/supabase-js";
 
-
 const allowedRoles = ["job_seeker", "professional", "employer"];
 const allowedIntervals = ["monthly", "yearly"];
 
@@ -67,7 +66,7 @@ export async function POST(request: Request) {
       throw new Error("Paystack secret key is missing.");
     }
 
-    // Read the original request body for signature verification.
+    // Read the original body before parsing it.
     const rawBody = await request.text();
     const signature = request.headers.get("x-paystack-signature");
 
@@ -81,7 +80,7 @@ export async function POST(request: Request) {
       );
     }
 
-    // Safely parse the webhook payload.
+    // Parse the signed webhook payload.
     let event: JsonRecord;
 
     try {
@@ -93,7 +92,7 @@ export async function POST(request: Request) {
       );
     }
 
-    // Ignore events unrelated to successful charges.
+    // Acknowledge events that do not concern successful charges.
     if (event.event !== "charge.success") {
       return NextResponse.json({ received: true });
     }
@@ -115,7 +114,7 @@ export async function POST(request: Request) {
 
     const admin = getAdminClient();
 
-    // Find the payment record created during checkout initialization.
+    // Retrieve the original checkout payment.
     const { data: payment, error: paymentError } = await admin
       .from("payment_transactions")
       .select("*")
@@ -141,17 +140,16 @@ export async function POST(request: Request) {
       );
     }
 
-    // Protect against repeated webhook deliveries.
-    if (payment.status === "paid") {
-      return NextResponse.json({
-        received: true,
-        alreadyProcessed: true,
-      });
-    }
+    // The database's permitted completed status is "successful".
+    // Do not acknowledge it yet: verify the incoming event with Paystack.
+    const wasAlreadySuccessful = payment.status === "successful";
 
-    if (payment.status !== "pending") {
+    if (
+      payment.status !== "pending" &&
+      payment.status !== "successful"
+    ) {
       return NextResponse.json(
-        { error: "Payment is not pending." },
+        { error: "Payment is not in a processable state." },
         { status: 400 }
       );
     }
@@ -193,7 +191,7 @@ export async function POST(request: Request) {
       );
     }
 
-    // Confirm that the subscription belongs to this user and role.
+    // Confirm that the subscription belongs to the payment owner.
     const { data: subscription, error: subscriptionError } =
       await admin
         .from("subscriptions")
@@ -263,7 +261,7 @@ export async function POST(request: Request) {
       );
     }
 
-    // Safely parse Paystack's verification response.
+    // Parse Paystack's verification response.
     let verification: JsonRecord;
 
     try {
@@ -287,7 +285,8 @@ export async function POST(request: Request) {
 
     const verifiedAmount = Number(transaction.amount);
 
-    // Compare Paystack's verified transaction against our database.
+    // Compare Paystack's verified transaction with our database
+    // and the signed webhook event.
     if (
       transaction.status !== "success" ||
       transaction.reference !== reference ||
@@ -301,10 +300,7 @@ export async function POST(request: Request) {
       Number(eventData.amount) !== verifiedAmount ||
       eventData.currency !== transaction.currency
     ) {
-      console.error(
-        "Paystack transaction mismatch:",
-        reference
-      );
+      console.error("Paystack transaction mismatch:", reference);
 
       return NextResponse.json(
         {
@@ -315,27 +311,27 @@ export async function POST(request: Request) {
       );
     }
 
-    // Activate through the protected database function.
-    // The function handles locking, validation and duplicate protection.
-    const { error: activationError } = await admin.rpc(
-      "complete_paystack_subscription",
-      {
-        p_reference: reference,
-        p_user_id: payment.user_id,
-        p_amount_kobo: verifiedAmount,
-        p_currency: String(transaction.currency),
-        p_billing_interval: billingInterval,
-        p_account_role: accountRole,
-      }
-    );
+    // The database function locks the payment row and prevents
+    // duplicate subscription activation, including concurrent events.
+    const {
+      data: activationResult,
+      error: activationError,
+    } = await admin.rpc("complete_paystack_subscription", {
+      p_reference: reference,
+      p_user_id: payment.user_id,
+      p_amount_kobo: verifiedAmount,
+      p_currency: String(transaction.currency),
+      p_billing_interval: billingInterval,
+      p_account_role: accountRole,
+    });
 
-    if (activationError) {
+    if (activationError || activationResult !== true) {
       console.error(
         "Webhook subscription activation error:",
         activationError
       );
 
-      // Return 500 so Paystack can retry the webhook.
+      // A server error allows Paystack to retry delivery.
       return NextResponse.json(
         {
           error:
@@ -343,6 +339,15 @@ export async function POST(request: Request) {
         },
         { status: 500 }
       );
+    }
+
+    // A repeated, independently verified notification is acknowledged.
+    if (wasAlreadySuccessful) {
+      return NextResponse.json({
+        received: true,
+        alreadyProcessed: true,
+        message: "Payment was already processed successfully.",
+      });
     }
 
     return NextResponse.json({

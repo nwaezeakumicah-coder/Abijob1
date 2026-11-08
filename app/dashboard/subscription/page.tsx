@@ -55,7 +55,6 @@ type TransactionRecord = {
 type PlanRecord = {
   billing_interval: string;
   amount_kobo: number;
-  amount_naira: number | null;
   trial_days: number;
   trial_access_percent: number;
 };
@@ -68,9 +67,9 @@ type BillingData = {
 };
 
 function normalizeInterval(value: string | null | undefined) {
-  const interval = (value || "").toLowerCase();
+  const interval = (value || "").trim().toLowerCase();
 
-  if (interval === "annual" || interval === "annually") {
+  if (["annual", "annually", "year"].includes(interval)) {
     return "yearly";
   }
 
@@ -90,7 +89,9 @@ function formatDate(value: string | null) {
 
   const date = new Date(value);
 
-  if (Number.isNaN(date.getTime())) return "Not available";
+  if (Number.isNaN(date.getTime())) {
+    return "Not available";
+  }
 
   return new Intl.DateTimeFormat("en-NG", {
     day: "numeric",
@@ -136,6 +137,53 @@ function getTransactionStatus(status: string) {
   return "pending";
 }
 
+function getErrorDetails(error: unknown): string {
+  if (error instanceof Error) {
+    return [
+      error.name,
+      error.message,
+      error.stack || "",
+    ]
+      .filter(Boolean)
+      .join("\n");
+  }
+
+  if (typeof error === "string") {
+    return error;
+  }
+
+  if (error && typeof error === "object") {
+    const source = error as Record<string, unknown>;
+
+    const details = {
+      name: source.name,
+      message: source.message,
+      code: source.code,
+      details: source.details,
+      hint: source.hint,
+      status: source.status,
+      statusCode: source.statusCode,
+      error: source.error,
+    };
+
+    try {
+      return JSON.stringify(details, null, 2);
+    } catch {
+      return String(error);
+    }
+  }
+
+  return String(error);
+}
+
+function isValidDate(value: string | null | undefined): number | null {
+  if (!value) return null;
+
+  const timestamp = new Date(value).getTime();
+
+  return Number.isNaN(timestamp) ? null : timestamp;
+}
+
 export default function JobSeekerSubscriptionPage() {
   const router = useRouter();
 
@@ -144,113 +192,173 @@ export default function JobSeekerSubscriptionPage() {
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState("");
 
-  const loadBilling = useCallback(async (isRefresh = false) => {
-    if (isRefresh) {
-      setRefreshing(true);
-    } else {
-      setLoading(true);
-    }
-
-    setError("");
-
-    try {
-      const supabase = createClient();
-
-      const {
-        data: { user },
-        error: authError,
-      } = await supabase.auth.getUser();
-
-      if (authError || !user) {
-        router.replace("/login?redirect=%2Fdashboard%2Fsubscription");
-        return;
+  const loadBilling = useCallback(
+    async (isRefresh = false) => {
+      if (isRefresh) {
+        setRefreshing(true);
+      } else {
+        setLoading(true);
       }
 
-      const { data: profile, error: profileError } = await supabase
-        .from("profiles")
-        .select("role, full_name")
-        .eq("id", user.id)
-        .single();
+      setError("");
 
-      if (profileError || !profile) {
-        throw new Error("Your account profile could not be loaded.");
-      }
+      try {
+        const supabase = createClient();
 
-      if (!["job_seeker", "job-seeker"].includes(profile.role)) {
-        if (profile.role === "employer") {
-          router.replace("/employer/dashboard");
-        } else if (
-          ["professional", "skilled_professional"].includes(profile.role)
-        ) {
-          router.replace("/professional/dashboard");
-        } else if (profile.role === "admin") {
-          router.replace("/admin");
-        } else {
-          router.replace("/login");
+        const {
+          data: { user },
+          error: authError,
+        } = await supabase.auth.getUser();
+
+        if (authError) {
+          throw new Error(
+            `Authentication failed: ${getErrorDetails(authError)}`
+          );
         }
 
-        return;
+        if (!user) {
+          router.replace(
+            "/login?redirect=%2Fdashboard%2Fsubscription"
+          );
+          return;
+        }
+
+        const { data: profile, error: profileError } = await supabase
+          .from("profiles")
+          .select("role, full_name")
+          .eq("id", user.id)
+          .single();
+
+        if (profileError) {
+          throw new Error(
+            `Profile query failed: ${getErrorDetails(profileError)}`
+          );
+        }
+
+        if (!profile) {
+          throw new Error(
+            "Your account profile could not be loaded."
+          );
+        }
+
+        const role = String(profile.role || "")
+          .trim()
+          .toLowerCase();
+
+        if (!["job_seeker", "job-seeker"].includes(role)) {
+          if (role === "employer") {
+            router.replace("/employer/dashboard");
+          } else if (
+            ["professional", "skilled_professional"].includes(role)
+          ) {
+            router.replace("/professional/dashboard");
+          } else if (role === "admin") {
+            router.replace("/admin");
+          } else {
+            router.replace("/login");
+          }
+
+          return;
+        }
+
+        const [
+          subscriptionResult,
+          transactionsResult,
+          plansResult,
+        ] = await Promise.all([
+          supabase
+            .from("subscriptions")
+            .select(
+              "id, account_role, billing_interval, status, trial_started_at, trial_ends_at, current_period_start, current_period_end, cancel_at_period_end"
+            )
+            .eq("user_id", user.id)
+            .eq("account_role", "job_seeker")
+            .order("created_at", { ascending: false })
+            .limit(1)
+            .maybeSingle(),
+
+          supabase
+            .from("payment_transactions")
+            .select(
+              "id, provider, provider_reference, amount_kobo, currency, billing_interval, status, paid_at, created_at"
+            )
+            .eq("user_id", user.id)
+            .order("created_at", { ascending: false })
+            .limit(10),
+
+          supabase
+            .from("subscription_plans")
+            .select(
+              "billing_interval, amount_kobo, trial_days, trial_access_percent"
+            )
+            .eq("account_role", "job_seeker"),
+        ]);
+
+        if (subscriptionResult.error) {
+          throw new Error(
+            `Subscription query failed: ${getErrorDetails(
+              subscriptionResult.error
+            )}`
+          );
+        }
+
+        if (transactionsResult.error) {
+          throw new Error(
+            `Payment history query failed: ${getErrorDetails(
+              transactionsResult.error
+            )}`
+          );
+        }
+
+        if (plansResult.error) {
+          throw new Error(
+            `Subscription plans query failed: ${getErrorDetails(
+              plansResult.error
+            )}`
+          );
+        }
+
+        setData({
+          fullName: profile.full_name || "Job Seeker",
+          subscription:
+            subscriptionResult.data as SubscriptionRecord | null,
+          transactions:
+            (transactionsResult.data || []) as TransactionRecord[],
+          plans: (plansResult.data || []) as PlanRecord[],
+        });
+      } catch (err: unknown) {
+        const diagnostic = getErrorDetails(err);
+
+        console.error("JOB SEEKER BILLING ERROR:", {
+          message: err instanceof Error ? err.message : undefined,
+          details:
+            typeof err === "object" && err !== null
+              ? (err as Record<string, unknown>).details
+              : undefined,
+          hint:
+            typeof err === "object" && err !== null
+              ? (err as Record<string, unknown>).hint
+              : undefined,
+          code:
+            typeof err === "object" && err !== null
+              ? (err as Record<string, unknown>).code
+              : undefined,
+          fullError: diagnostic,
+        });
+
+        setError(
+          "We couldn't load your billing information. Please try again."
+        );
+      } finally {
+        setLoading(false);
+        setRefreshing(false);
       }
-
-      const [
-        { data: subscription, error: subscriptionError },
-        { data: transactions, error: transactionsError },
-        { data: plans, error: plansError },
-      ] = await Promise.all([
-        supabase
-          .from("subscriptions")
-          .select(
-            "id, account_role, billing_interval, status, trial_started_at, trial_ends_at, current_period_start, current_period_end, cancel_at_period_end"
-          )
-          .eq("user_id", user.id)
-          .eq("account_role", "job_seeker")
-          .order("created_at", { ascending: false })
-          .limit(1)
-          .maybeSingle(),
-
-        supabase
-          .from("payment_transactions")
-          .select(
-            "id, provider, provider_reference, amount_kobo, currency, billing_interval, status, paid_at, created_at"
-          )
-          .eq("user_id", user.id)
-          .order("created_at", { ascending: false })
-          .limit(10),
-
-        supabase
-          .from("subscription_plans")
-          .select(
-            "billing_interval, amount_kobo, amount_naira, trial_days, trial_access_percent"
-          )
-          .eq("account_role", "job_seeker"),
-      ]);
-
-      if (subscriptionError) throw subscriptionError;
-      if (transactionsError) throw transactionsError;
-      if (plansError) throw plansError;
-
-      setData({
-        fullName: profile.full_name || "Job Seeker",
-        subscription: subscription as SubscriptionRecord | null,
-        transactions: (transactions || []) as TransactionRecord[],
-        plans: (plans || []) as PlanRecord[],
-      });
-    } catch (err) {
-      console.error("Job seeker billing error:", err);
-
-      setError(
-        err instanceof Error
-          ? err.message
-          : "Unable to load your subscription information."
-      );
-    } finally {
-      setLoading(false);
-      setRefreshing(false);
-    }
-  }, [router]);
+    },
+    [router]
+  );
 
   useEffect(() => {
-    loadBilling();
+    void loadBilling();
   }, [loadBilling]);
 
   if (loading) {
@@ -269,10 +377,15 @@ export default function JobSeekerSubscriptionPage() {
           <ShieldCheck size={38} />
           <h2>We couldn't load your billing information.</h2>
           <p>{error || "Please try again."}</p>
-          <button type="button" onClick={() => loadBilling()}>
+
+          <button
+            type="button"
+            onClick={() => void loadBilling()}
+          >
             <RefreshCw size={17} />
             Try again
           </button>
+
           <Link href="/dashboard">
             <ArrowLeft size={16} />
             Back to dashboard
@@ -285,80 +398,121 @@ export default function JobSeekerSubscriptionPage() {
   const subscription = data.subscription;
 
   const monthlyPlan = data.plans.find(
-    (plan) => normalizeInterval(plan.billing_interval) === "monthly"
+    (plan) =>
+      normalizeInterval(plan.billing_interval) === "monthly"
   );
 
   const yearlyPlan = data.plans.find(
-    (plan) => normalizeInterval(plan.billing_interval) === "yearly"
+    (plan) =>
+      normalizeInterval(plan.billing_interval) === "yearly"
   );
 
-  const monthlyPrice = monthlyPlan?.amount_naira ??
-    (monthlyPlan ? monthlyPlan.amount_kobo / 100 : null);
+  // subscription_plans stores prices in kobo.
+  const monthlyPrice = monthlyPlan
+    ? Number(monthlyPlan.amount_kobo) / 100
+    : null;
 
-  const yearlyPrice = yearlyPlan?.amount_naira ??
-    (yearlyPlan ? yearlyPlan.amount_kobo / 100 : null);
+  const yearlyPrice = yearlyPlan
+    ? Number(yearlyPlan.amount_kobo) / 100
+    : null;
 
   const annualSavings =
     monthlyPrice !== null && yearlyPrice !== null
       ? monthlyPrice * 12 - yearlyPrice
       : null;
 
-  const successfulTransactions = data.transactions.filter((transaction) =>
-    ["success", "successful", "paid"].includes(
-      transaction.status.toLowerCase()
-    )
+  const successfulTransactions = data.transactions.filter(
+    (transaction) =>
+      ["success", "successful", "paid"].includes(
+        transaction.status.toLowerCase()
+      )
   );
 
   const totalPaid = successfulTransactions.reduce(
-    (total, transaction) => total + transaction.amount_kobo / 100,
+    (total, transaction) =>
+      total + Number(transaction.amount_kobo) / 100,
     0
   );
 
   const status = subscription?.status.toLowerCase() || "none";
+  const now = Date.now();
 
-  const trialEnd = subscription?.trial_ends_at
-    ? new Date(subscription.trial_ends_at)
-    : null;
+  const trialStart = isValidDate(subscription?.trial_started_at);
+  const trialEnd = isValidDate(subscription?.trial_ends_at);
 
   const trialIsActive =
-    Boolean(trialEnd) &&
-    !Number.isNaN(trialEnd!.getTime()) &&
-    trialEnd!.getTime() > Date.now() &&
+    trialStart !== null &&
+    trialEnd !== null &&
+    trialStart <= now &&
+    trialEnd > now &&
     ["trial", "trialing", "active"].includes(status);
+
+  const paidPeriodStart = isValidDate(
+    subscription?.current_period_start
+  );
+
+  const paidPeriodEnd = isValidDate(
+    subscription?.current_period_end
+  );
+
+  const paidPeriodIsActive =
+    status === "active" &&
+    paidPeriodStart !== null &&
+    paidPeriodEnd !== null &&
+    paidPeriodStart <= now &&
+    paidPeriodEnd > now;
+
+  const isActive = trialIsActive || paidPeriodIsActive;
 
   const trialDaysRemaining = trialIsActive
     ? Math.max(
         0,
-        Math.ceil((trialEnd!.getTime() - Date.now()) / 86400000)
+        Math.ceil((trialEnd! - now) / 86400000)
       )
     : 0;
 
-  const trialDuration = Math.max(monthlyPlan?.trial_days || 30, 1);
+  const configuredTrialDays = Math.max(
+    Number(monthlyPlan?.trial_days) || 30,
+    1
+  );
+
+  const actualTrialDuration =
+    trialStart !== null && trialEnd !== null
+      ? Math.max(
+          1,
+          Math.ceil((trialEnd - trialStart) / 86400000)
+        )
+      : configuredTrialDays;
 
   const trialProgress = trialIsActive
     ? Math.min(
         100,
         Math.max(
           0,
-          ((trialDuration - trialDaysRemaining) / trialDuration) * 100
+          ((now - trialStart!) / (trialEnd! - trialStart!)) * 100
         )
       )
     : 0;
 
-  const isActive = status === "active" && !trialIsActive;
-  const currentInterval = normalizeInterval(subscription?.billing_interval);
+  const currentInterval = normalizeInterval(
+    subscription?.billing_interval
+  );
 
   const currentStatusLabel = trialIsActive
     ? "Free trial"
-    : subscription
-      ? getStatusLabel(status)
-      : "No subscription";
+    : isActive
+      ? "Active"
+      : subscription
+        ? getStatusLabel(status)
+        : "No subscription";
 
   const statusTone = trialIsActive
     ? "trial"
     : isActive
       ? "active"
-      : ["past_due", "expired", "cancelled", "canceled"].includes(status)
+      : ["past_due", "expired", "cancelled", "canceled"].includes(
+            status
+          )
         ? "attention"
         : "pending";
 
@@ -377,44 +531,57 @@ export default function JobSeekerSubscriptionPage() {
               .map((part) => part[0]?.toUpperCase() || "")
               .join("")}
           </span>
+
           <div>
             <strong>{data.fullName}</strong>
             <span>Job Seeker</span>
           </div>
         </div>
 
-        <span className="js-billing-nav-label">MY WORKSPACE</span>
+        <span className="js-billing-nav-label">
+          MY WORKSPACE
+        </span>
 
         <nav className="js-billing-nav">
           <Link href="/dashboard">
             <Activity size={18} />
             Dashboard
           </Link>
+
           <Link href="/jobs">
             <BriefcaseBusiness size={18} />
             Find jobs
           </Link>
+
           <Link href="/applications">
             <FileText size={18} />
             My applications
           </Link>
+
           <Link href="/notifications">
             <Bell size={18} />
             Notifications
           </Link>
         </nav>
 
-        <span className="js-billing-nav-label">ACCOUNT</span>
+        <span className="js-billing-nav-label">
+          ACCOUNT
+        </span>
 
         <nav className="js-billing-nav">
           <Link href="/profile">
             <Activity size={18} />
             My profile
           </Link>
-          <Link href="/dashboard/subscription" className="active">
+
+          <Link
+            href="/dashboard/subscription"
+            className="active"
+          >
             <CreditCard size={18} />
             Subscription & Billing
           </Link>
+
           <Link href="/settings">
             <HelpCircle size={18} />
             Settings
@@ -424,14 +591,24 @@ export default function JobSeekerSubscriptionPage() {
         <div className="js-billing-sidebar-bottom">
           <div className="js-billing-sidebar-help">
             <ShieldCheck size={22} />
-            <strong>Your next opportunity starts here.</strong>
-            <p>Manage your subscription and keep your career moving.</p>
+
+            <strong>
+              Your next opportunity starts here.
+            </strong>
+
+            <p>
+              Manage your subscription and keep your career moving.
+            </p>
+
             <Link href="/about">
               About Abi Job <ArrowRight size={14} />
             </Link>
           </div>
 
-          <Link href="/dashboard" className="js-billing-back-link">
+          <Link
+            href="/dashboard"
+            className="js-billing-back-link"
+          >
             <LogOut size={17} />
             Back to workspace
           </Link>
@@ -448,13 +625,15 @@ export default function JobSeekerSubscriptionPage() {
 
           <button
             type="button"
-            onClick={() => loadBilling(true)}
+            onClick={() => void loadBilling(true)}
             disabled={refreshing}
             className="js-billing-refresh"
           >
             <RefreshCw
               size={16}
-              className={refreshing ? "js-billing-spin" : ""}
+              className={
+                refreshing ? "js-billing-spin" : ""
+              }
             />
             <span>Refresh</span>
           </button>
@@ -466,13 +645,19 @@ export default function JobSeekerSubscriptionPage() {
               <span className="js-billing-eyebrow">
                 ACCOUNT MANAGEMENT
               </span>
+
               <h1>Subscription & Billing</h1>
+
               <p>
-                Manage your Abi Job membership, monitor your free trial,
-                and review your payment history.
+                Manage your Abi Job membership, monitor your free
+                trial, and review your payment history.
               </p>
             </div>
-            <Link href="/dashboard" className="js-billing-back">
+
+            <Link
+              href="/dashboard"
+              className="js-billing-back"
+            >
               <ArrowLeft size={16} />
               Dashboard
             </Link>
@@ -485,21 +670,29 @@ export default function JobSeekerSubscriptionPage() {
                   <span className="js-billing-card-label">
                     YOUR MEMBERSHIP
                   </span>
+
                   <h2>
                     {trialIsActive
-                      ? "30-Day Free Trial"
+                      ? `${actualTrialDuration}-Day Free Trial`
                       : isActive
-                        ? `${currentInterval === "yearly" ? "Annual" : "Monthly"} Membership`
+                        ? `${
+                            currentInterval === "yearly"
+                              ? "Annual"
+                              : "Monthly"
+                          } Membership`
                         : "Abi Job Membership"}
                   </h2>
                 </div>
+
                 <div className="js-billing-current-icon">
                   <CreditCard size={24} />
                 </div>
               </div>
 
               <div className="js-billing-status-row">
-                <span className={`js-billing-status ${statusTone}`}>
+                <span
+                  className={`js-billing-status ${statusTone}`}
+                >
                   <i />
                   {currentStatusLabel}
                 </span>
@@ -516,20 +709,32 @@ export default function JobSeekerSubscriptionPage() {
                   <div className="js-billing-trial-info">
                     <strong>
                       {trialDaysRemaining}{" "}
-                      {trialDaysRemaining === 1 ? "day" : "days"} remaining
+                      {trialDaysRemaining === 1
+                        ? "day"
+                        : "days"}{" "}
+                      remaining
                     </strong>
+
                     <span>
-                      Your trial ends {formatDate(subscription?.trial_ends_at || null)}
+                      Your trial ends{" "}
+                      {formatDate(
+                        subscription?.trial_ends_at || null
+                      )}
                     </span>
                   </div>
 
                   <div className="js-billing-trial-track">
-                    <span style={{ width: `${trialProgress}%` }} />
+                    <span
+                      style={{
+                        width: `${trialProgress}%`,
+                      }}
+                    />
                   </div>
 
                   <p>
-                    You currently have full access during your free trial.
-                    Choose a plan whenever you're ready.
+                    You currently have full access during your
+                    free trial. You can choose a monthly or annual
+                    plan whenever you're ready.
                   </p>
                 </div>
               )}
@@ -537,6 +742,7 @@ export default function JobSeekerSubscriptionPage() {
               <div className="js-billing-period">
                 <div>
                   <span>Membership started</span>
+
                   <strong>
                     {formatDate(
                       subscription?.trial_started_at ||
@@ -545,10 +751,14 @@ export default function JobSeekerSubscriptionPage() {
                     )}
                   </strong>
                 </div>
+
                 <div>
                   <span>
-                    {trialIsActive ? "Trial expiry" : "Current period ends"}
+                    {trialIsActive
+                      ? "Trial expiry"
+                      : "Current period ends"}
                   </span>
+
                   <strong>
                     {formatDate(
                       trialIsActive
@@ -560,9 +770,13 @@ export default function JobSeekerSubscriptionPage() {
               </div>
 
               <div className="js-billing-current-footer">
-                <span>Abi Job · Opportunity starts here.</span>
+                <span>
+                  Abi Job · Opportunity starts here.
+                </span>
+
                 <Link href="#billing-plans">
-                  View membership plans <ArrowRight size={15} />
+                  View membership plans{" "}
+                  <ArrowRight size={15} />
                 </Link>
               </div>
             </article>
@@ -571,8 +785,11 @@ export default function JobSeekerSubscriptionPage() {
               <div className="js-billing-summary-icon">
                 <Wallet size={22} />
               </div>
+
               <span>Total successful payments</span>
+
               <strong>{formatMoney(totalPaid)}</strong>
+
               <small>
                 Based on your recorded successful transactions
               </small>
@@ -580,36 +797,46 @@ export default function JobSeekerSubscriptionPage() {
               <div className="js-billing-summary-divider" />
 
               <div className="js-billing-summary-row">
-                <span>Payment records</span>
+                <span>Recent payment records</span>
                 <strong>{data.transactions.length}</strong>
               </div>
 
               <div className="js-billing-summary-row">
-                <span>Successful payments</span>
+                <span>Successful payments shown</span>
                 <strong>{successfulTransactions.length}</strong>
               </div>
             </article>
           </section>
 
-          <section id="billing-plans" className="js-billing-section">
+          <section
+            id="billing-plans"
+            className="js-billing-section"
+          >
             <div className="js-billing-section-heading">
               <div>
                 <span>MEMBERSHIP OPTIONS</span>
+
                 <h2>Choose your subscription plan</h2>
+
                 <p>
-                  Your first verified account receives one 30-day free trial.
+                  You can switch between monthly and annual
+                  membership. Your selected plan goes through
+                  checkout.
                 </p>
               </div>
+
               <span className="js-billing-trial-tag">
                 <Sparkles size={14} />
-                30-day free trial
+                Trial for eligible accounts
               </span>
             </div>
 
             <div className="js-billing-plans">
               <article
                 className={`js-billing-plan ${
-                  currentInterval === "monthly" && isActive ? "current" : ""
+                  currentInterval === "monthly" && isActive
+                    ? "current"
+                    : ""
                 }`}
               >
                 <div className="js-billing-plan-heading">
@@ -617,11 +844,13 @@ export default function JobSeekerSubscriptionPage() {
                     <h3>Monthly Plan</h3>
                     <p>Flexible monthly membership</p>
                   </div>
-                  {currentInterval === "monthly" && isActive && (
-                    <span className="js-billing-current-tag">
-                      Current plan
-                    </span>
-                  )}
+
+                  {currentInterval === "monthly" &&
+                    isActive && (
+                      <span className="js-billing-current-tag">
+                        Current plan
+                      </span>
+                    )}
                 </div>
 
                 <div className="js-billing-price">
@@ -630,17 +859,20 @@ export default function JobSeekerSubscriptionPage() {
                       ? formatMoney(monthlyPrice)
                       : "Unavailable"}
                   </strong>
+
                   <span>/ month</span>
                 </div>
 
                 <div className="js-billing-plan-benefit">
                   <CheckCircle2 size={17} />
-                  30-day trial for eligible verified accounts
+                  Trial for eligible verified accounts
                 </div>
+
                 <div className="js-billing-plan-benefit">
                   <CheckCircle2 size={17} />
                   Access to job opportunities and applications
                 </div>
+
                 <div className="js-billing-plan-benefit">
                   <CheckCircle2 size={17} />
                   Manage your career profile
@@ -653,7 +885,10 @@ export default function JobSeekerSubscriptionPage() {
                   >
                     {isActive && currentInterval === "monthly"
                       ? "Manage membership"
-                      : "Choose monthly"}
+                      : isActive
+                        ? "Switch to monthly"
+                        : "Choose monthly"}
+
                     <ArrowRight size={16} />
                   </Link>
                 ) : (
@@ -669,21 +904,27 @@ export default function JobSeekerSubscriptionPage() {
 
               <article
                 className={`js-billing-plan featured ${
-                  currentInterval === "yearly" && isActive ? "current" : ""
+                  currentInterval === "yearly" && isActive
+                    ? "current"
+                    : ""
                 }`}
               >
-                <span className="js-billing-popular">BEST VALUE</span>
+                <span className="js-billing-popular">
+                  BEST VALUE
+                </span>
 
                 <div className="js-billing-plan-heading">
                   <div>
                     <h3>Annual Plan</h3>
                     <p>One payment for twelve months</p>
                   </div>
-                  {currentInterval === "yearly" && isActive && (
-                    <span className="js-billing-current-tag">
-                      Current plan
-                    </span>
-                  )}
+
+                  {currentInterval === "yearly" &&
+                    isActive && (
+                      <span className="js-billing-current-tag">
+                        Current plan
+                      </span>
+                    )}
                 </div>
 
                 <div className="js-billing-price">
@@ -692,24 +933,28 @@ export default function JobSeekerSubscriptionPage() {
                       ? formatMoney(yearlyPrice)
                       : "Unavailable"}
                   </strong>
+
                   <span>/ year</span>
                 </div>
 
-                {annualSavings !== null && annualSavings > 0 && (
-                  <span className="js-billing-savings">
-                    Save {formatMoney(annualSavings)} compared with monthly
-                    billing
-                  </span>
-                )}
+                {annualSavings !== null &&
+                  annualSavings > 0 && (
+                    <span className="js-billing-savings">
+                      Save {formatMoney(annualSavings)} compared
+                      with monthly billing
+                    </span>
+                  )}
 
                 <div className="js-billing-plan-benefit">
                   <CheckCircle2 size={17} />
-                  30-day trial for eligible verified accounts
+                  Trial for eligible verified accounts
                 </div>
+
                 <div className="js-billing-plan-benefit">
                   <CheckCircle2 size={17} />
                   Access to job opportunities and applications
                 </div>
+
                 <div className="js-billing-plan-benefit">
                   <CheckCircle2 size={17} />
                   Convenient annual billing
@@ -722,7 +967,10 @@ export default function JobSeekerSubscriptionPage() {
                   >
                     {isActive && currentInterval === "yearly"
                       ? "Manage membership"
-                      : "Choose annual"}
+                      : isActive
+                        ? "Switch to annual"
+                        : "Choose annual"}
+
                     <ArrowRight size={16} />
                   </Link>
                 ) : (
@@ -743,9 +991,14 @@ export default function JobSeekerSubscriptionPage() {
               <div className="js-billing-section-heading compact">
                 <div>
                   <span>PAYMENT RECORDS</span>
+
                   <h2>Transaction history</h2>
-                  <p>Your recent subscription payment records.</p>
+
+                  <p>
+                    Your ten most recent subscription payment records.
+                  </p>
                 </div>
+
                 <CalendarDays size={23} />
               </div>
 
@@ -761,33 +1014,42 @@ export default function JobSeekerSubscriptionPage() {
                         <th>STATUS</th>
                       </tr>
                     </thead>
+
                     <tbody>
                       {data.transactions.map((transaction) => {
-                        const transactionStatus = getTransactionStatus(
-                          transaction.status
-                        );
+                        const transactionStatus =
+                          getTransactionStatus(transaction.status);
 
                         return (
                           <tr key={transaction.id}>
                             <td>
                               {formatDate(
-                                transaction.paid_at || transaction.created_at
+                                transaction.paid_at ||
+                                  transaction.created_at
                               )}
                             </td>
+
                             <td>
-                              {transaction.provider_reference || "Pending"}
+                              {transaction.provider_reference ||
+                                "Pending"}
                             </td>
+
                             <td>
-                              {normalizeInterval(transaction.billing_interval) ===
-                              "yearly"
+                              {normalizeInterval(
+                                transaction.billing_interval
+                              ) === "yearly"
                                 ? "Annual"
                                 : "Monthly"}
                             </td>
+
                             <td>
                               <strong>
-                                {formatMoney(transaction.amount_kobo / 100)}
+                                {formatMoney(
+                                  Number(transaction.amount_kobo) / 100
+                                )}
                               </strong>
                             </td>
+
                             <td>
                               <span
                                 className={`js-billing-transaction-status ${transactionStatus}`}
@@ -799,6 +1061,7 @@ export default function JobSeekerSubscriptionPage() {
                                 ) : (
                                   <Clock3 size={13} />
                                 )}
+
                                 {getStatusLabel(transaction.status)}
                               </span>
                             </td>
@@ -813,10 +1076,12 @@ export default function JobSeekerSubscriptionPage() {
                   <div>
                     <FileText size={25} />
                   </div>
+
                   <strong>No payment history yet</strong>
+
                   <p>
-                    Your subscription transactions will appear here when
-                    payment records are created.
+                    Your subscription transactions will appear here
+                    when payment records are created.
                   </p>
                 </div>
               )}
@@ -826,11 +1091,15 @@ export default function JobSeekerSubscriptionPage() {
               <div className="js-billing-help-icon">
                 <HelpCircle size={23} />
               </div>
+
               <span>NEED ASSISTANCE?</span>
+
               <h3>We're here to help.</h3>
+
               <p>
-                If you have questions about your subscription, payments,
-                or trial period, contact the Abi Job support team.
+                If you have questions about your subscription,
+                payments, or trial period, contact the Abi Job
+                support team.
               </p>
 
               <div className="js-billing-help-divider" />
@@ -839,10 +1108,12 @@ export default function JobSeekerSubscriptionPage() {
                 <ShieldCheck size={17} />
                 Secure payment processing
               </div>
+
               <div className="js-billing-help-row">
                 <CheckCircle2 size={17} />
                 Transparent subscription pricing
               </div>
+
               <div className="js-billing-help-row">
                 <CalendarDays size={17} />
                 Clear billing periods
@@ -856,16 +1127,22 @@ export default function JobSeekerSubscriptionPage() {
 
           <div className="js-billing-notice">
             <ShieldCheck size={19} />
+
             <p>
-              <strong>Your account and profile are yours.</strong> If your
-              trial or subscription expires, your profile information remains
-              available. Subscription-protected features may require an active
-              membership.
+              <strong>
+                Your account and profile are yours.
+              </strong>{" "}
+              If your trial or subscription expires, your profile
+              information remains available. Subscription-protected
+              features may require an active membership.
             </p>
           </div>
 
           <footer className="js-billing-footer">
-            <span>© 2026 Abi Job. Opportunity starts here.</span>
+            <span>
+              © 2026 Abi Job. Opportunity starts here.
+            </span>
+
             <span>
               <CheckCircle2 size={14} />
               Secure account billing

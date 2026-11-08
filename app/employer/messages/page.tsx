@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import Logo from "../../../components/Logo";
@@ -10,6 +10,7 @@ import {
   ArrowLeft,
   BriefcaseBusiness,
   Building2,
+  Check,
   CheckCheck,
   ChevronDown,
   CircleHelp,
@@ -49,23 +50,14 @@ type Conversation = {
   messages: Message[];
 };
 
-type JobRecord = {
-  id: string;
-  title: string;
-};
-
-type ApplicationRecord = {
-  id: string;
-  job_id: string;
-  applicant_id: string;
-  status: string;
-  created_at: string;
-};
-
-type ProfileRecord = {
-  id: string;
-  full_name: string | null;
-  headline: string | null;
+type ContactRecord = {
+  application_id: string;
+  contact_id: string;
+  contact_name: string;
+  contact_role: string;
+  business_name: string | null;
+  avatar_url: string | null;
+  job_title: string | null;
 };
 
 type MessageRecord = {
@@ -81,13 +73,16 @@ type MessageRecord = {
 const COLORS = ["green", "orange", "purple", "blue"];
 
 function getInitials(name: string) {
-  return name
-    .split(" ")
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((part) => part[0])
-    .join("")
-    .toUpperCase() || "AP";
+  return (
+    name
+      .trim()
+      .split(/\s+/)
+      .filter(Boolean)
+      .slice(0, 2)
+      .map((part) => part[0])
+      .join("")
+      .toUpperCase() || "AP"
+  );
 }
 
 function formatTime(value: string) {
@@ -130,6 +125,7 @@ function formatMessageTime(value: string) {
 
 export default function EmployerMessagesPage() {
   const router = useRouter();
+  const supabase = useMemo(() => createClient(), []);
 
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [activeId, setActiveId] = useState<string | null>(null);
@@ -141,6 +137,8 @@ export default function EmployerMessagesPage() {
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
   const [error, setError] = useState("");
+
+  const applicationIdsRef = useRef<string[]>([]);
 
   const activeConversation = conversations.find(
     (conversation) => conversation.id === activeId
@@ -160,8 +158,6 @@ export default function EmployerMessagesPage() {
   }, [conversations, search]);
 
   const loadConversations = useCallback(async () => {
-    const supabase = createClient();
-
     setError("");
 
     try {
@@ -183,79 +179,60 @@ export default function EmployerMessagesPage() {
         .eq("id", user.id)
         .single();
 
-      if (profileError || profile?.role !== "employer") {
+      if (profileError) throw profileError;
+
+      if (profile?.role !== "employer") {
         router.replace("/dashboard");
         return;
       }
 
-      // Load the employer's company name.
-      const { data: employerProfile } = await supabase
-        .from("employer_profiles")
-        .select("business_name")
-        .eq("id", user.id)
-        .maybeSingle();
+      // Load the employer's own company name.
+      // employer_profiles uses user_id, not id.
+      const { data: employerProfile, error: employerProfileError } =
+        await supabase
+          .from("employer_profiles")
+          .select("business_name")
+          .eq("user_id", user.id)
+          .maybeSingle();
+
+      if (employerProfileError) throw employerProfileError;
 
       if (employerProfile?.business_name) {
         setCompanyName(employerProfile.business_name);
       }
 
-      // Load the employer's job posts.
-      const { data: jobs, error: jobsError } = await supabase
-        .from("jobs")
-        .select("id, title")
-        .eq("employer_id", user.id);
-
-      if (jobsError) throw jobsError;
-
-      const jobRecords = (jobs || []) as JobRecord[];
-
-      if (jobRecords.length === 0) {
-        setConversations([]);
-        setActiveId(null);
-        return;
-      }
-
-      const jobIds = jobRecords.map((job) => job.id);
-
-      // Load applications submitted to those jobs.
-      const { data: applications, error: applicationsError } =
-        await supabase
-          .from("job_applications")
-          .select("id, job_id, applicant_id, status, created_at")
-          .in("job_id", jobIds)
-          .order("created_at", { ascending: false });
-
-      if (applicationsError) throw applicationsError;
-
-      const applicationRecords = (applications || []) as ApplicationRecord[];
-
-      if (applicationRecords.length === 0) {
-        setConversations([]);
-        setActiveId(null);
-        return;
-      }
-
-      const applicationIds = applicationRecords.map(
-        (application) => application.id
+      // Securely retrieve applicants connected to this employer.
+      // The RPC exposes only the contact details required for messaging.
+      const { data: contacts, error: contactsError } = await supabase.rpc(
+        "get_message_contacts"
       );
 
-      const applicantIds = [
+      if (contactsError) throw contactsError;
+
+      const contactRecords = (contacts || []) as ContactRecord[];
+
+      const employerContacts = contactRecords.filter(
+        (contact) =>
+          contact.contact_role === "applicant" &&
+          Boolean(contact.application_id) &&
+          Boolean(contact.contact_id)
+      );
+
+      const applicationIds = [
         ...new Set(
-          applicationRecords.map((application) => application.applicant_id)
+          employerContacts.map((contact) => contact.application_id)
         ),
       ];
 
-      // Load applicant names and professional headlines.
-      const { data: profiles, error: profilesError } = await supabase
-        .from("profiles")
-        .select("id, full_name, headline")
-        .in("id", applicantIds);
+      applicationIdsRef.current = applicationIds;
 
-      if (profilesError) throw profilesError;
+      if (applicationIds.length === 0) {
+        setConversations([]);
+        setActiveId(null);
+        return;
+      }
 
-      const profileRecords = (profiles || []) as ProfileRecord[];
-
-      // Load all messages belonging to the employer's applications.
+      // Retrieve messages for these applications.
       const { data: messages, error: messagesError } = await supabase
         .from("messages")
         .select(
@@ -268,19 +245,14 @@ export default function EmployerMessagesPage() {
 
       const messageRecords = (messages || []) as MessageRecord[];
 
-      const nextConversations: Conversation[] = applicationRecords.map(
-        (application, index) => {
-          const applicant = profileRecords.find(
-            (profile) => profile.id === application.applicant_id
-          );
-
-          const job = jobRecords.find(
-            (record) => record.id === application.job_id
-          );
+      const nextConversations: Conversation[] = employerContacts.map(
+        (contact, index) => {
+          const applicantName = contact.contact_name || "Applicant";
 
           const applicantMessages = messageRecords
             .filter(
-              (message) => message.application_id === application.id
+              (message) =>
+                message.application_id === contact.application_id
             )
             .map((message) => ({
               id: message.id,
@@ -300,40 +272,43 @@ export default function EmployerMessagesPage() {
           const lastMessage =
             applicantMessages[applicantMessages.length - 1];
 
-          const applicantName = applicant?.full_name || "Applicant";
+          const lastMessageRecord = lastMessage
+            ? messageRecords.find(
+                (message) => message.id === lastMessage.id
+              )
+            : null;
 
           return {
-            id: application.id,
-            applicationId: application.id,
-            applicantId: application.applicant_id,
+            id: contact.application_id,
+            applicationId: contact.application_id,
+            applicantId: contact.contact_id,
             name: applicantName,
-            role: applicant?.headline || "Job applicant",
-            job: job?.title || "Job application",
+            role: "Job applicant",
+            job: contact.job_title || "Job application",
             initials: getInitials(applicantName),
             color: COLORS[index % COLORS.length],
             unread,
-            time: lastMessage
-              ? formatTime(
-                  messageRecords.find(
-                    (message) => message.id === lastMessage.id
-                  )?.created_at || application.created_at
-                )
-              : formatTime(application.created_at),
+            time: lastMessageRecord
+              ? formatTime(lastMessageRecord.created_at)
+              : "",
             messages: applicantMessages,
           };
         }
       );
 
+      // Sort using actual timestamps.
       nextConversations.sort((a, b) => {
         const aDate =
           messageRecords
             .filter((message) => message.application_id === a.id)
-            .at(-1)?.created_at || "";
+            .map((message) => message.created_at)
+            .pop() || "";
 
         const bDate =
           messageRecords
             .filter((message) => message.application_id === b.id)
-            .at(-1)?.created_at || "";
+            .map((message) => message.created_at)
+            .pop() || "";
 
         return bDate.localeCompare(aDate);
       });
@@ -343,7 +318,9 @@ export default function EmployerMessagesPage() {
       setActiveId((currentId) => {
         if (
           currentId &&
-          nextConversations.some((conversation) => conversation.id === currentId)
+          nextConversations.some(
+            (conversation) => conversation.id === currentId
+          )
         ) {
           return currentId;
         }
@@ -361,11 +338,44 @@ export default function EmployerMessagesPage() {
     } finally {
       setLoading(false);
     }
-  }, [router]);
+  }, [router, supabase]);
 
+  // Load conversations when the page opens.
   useEffect(() => {
     loadConversations();
   }, [loadConversations]);
+
+  // Listen for messages and read-status changes.
+  useEffect(() => {
+    const channel = supabase
+      .channel("employer-messages-realtime")
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "messages",
+        },
+        (payload) => {
+          const changedMessage =
+            (payload.new || payload.old) as Partial<MessageRecord>;
+
+          if (
+            changedMessage.application_id &&
+            applicationIdsRef.current.includes(
+              changedMessage.application_id
+            )
+          ) {
+            loadConversations();
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [loadConversations, supabase]);
 
   async function openConversation(id: string) {
     setActiveId(id);
@@ -379,13 +389,12 @@ export default function EmployerMessagesPage() {
     const unreadIds = conversation.messages
       .filter(
         (message) =>
-          message.recipient_id === userId && message.read_at === null
+          message.recipient_id === userId &&
+          message.read_at === null
       )
       .map((message) => message.id);
 
     if (unreadIds.length === 0) return;
-
-    const supabase = createClient();
 
     const readAt = new Date().toISOString();
 
@@ -397,6 +406,7 @@ export default function EmployerMessagesPage() {
 
     if (updateError) {
       console.error("Unable to mark messages as read:", updateError);
+      setError("Unable to update message read status.");
       return;
     }
 
@@ -424,6 +434,7 @@ export default function EmployerMessagesPage() {
       !trimmedMessage ||
       !activeConversation ||
       !userId ||
+      !activeConversation.applicantId ||
       sending
     ) {
       return;
@@ -433,8 +444,6 @@ export default function EmployerMessagesPage() {
     setError("");
 
     try {
-      const supabase = createClient();
-
       const { data, error: sendError } = await supabase
         .from("messages")
         .insert({
@@ -467,7 +476,7 @@ export default function EmployerMessagesPage() {
             ? {
                 ...conversation,
                 messages: [...conversation.messages, newMessage],
-                time: "Just now",
+                time: formatTime(savedMessage.created_at),
               }
             : conversation
         )
@@ -611,7 +620,7 @@ export default function EmployerMessagesPage() {
           </div>
 
           {error && (
-            <div className="employer-messages-notice">
+            <div className="employer-messages-notice" role="alert">
               <CircleHelp size={17} />
               <p>{error}</p>
             </div>
@@ -679,7 +688,15 @@ export default function EmployerMessagesPage() {
                         <span className="employer-messages-conversation-info">
                           <span className="employer-messages-conversation-top">
                             <strong>{conversation.name}</strong>
-                            <small>{conversation.time}</small>
+                            <small>
+                              {conversation.messages[
+                                conversation.messages.length - 1
+                              ]
+                                ? conversation.messages[
+                                    conversation.messages.length - 1
+                                  ].time
+                                : conversation.time}
+                            </small>
                           </span>
 
                           <span className="employer-messages-job">
@@ -807,9 +824,12 @@ export default function EmployerMessagesPage() {
                             <span className="employer-message-time">
                               {message.time}
 
-                              {message.sender_id === userId && (
-                                <CheckCheck size={14} />
-                              )}
+                              {message.sender_id === userId &&
+                                (message.read_at ? (
+                                  <CheckCheck size={14} />
+                                ) : (
+                                  <Check size={14} />
+                                ))}
                             </span>
                           </div>
                         </div>

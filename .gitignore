@@ -52,3 +52,7 @@ Thumbs.db
 # Ignore nested project dependencies and build files
 **/node_modules/
 **/.next/
+
+# Local diagnostic files
+ABI-JOB-DEBUG-BUNDLE-1.txt
+abi-job-baseline.txt

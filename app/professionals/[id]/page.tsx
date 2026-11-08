@@ -1,258 +1,234 @@
+"use client";
 
-import Link from "next/link";
-import { notFound } from "next/navigation";
 import { Suspense } from "react";
-import { connection } from "next/server";
+import Link from "next/link";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { useParams, useRouter } from "next/navigation";
 import {
   ArrowLeft,
   ArrowRight,
   ArrowUpRight,
   BriefcaseBusiness,
-  CalendarDays,
-  CheckCircle2,
   Clock3,
   MapPin,
   MessageCircle,
   ShieldCheck,
-  Star,
 } from "lucide-react";
 import Header from "../../../components/Header";
 import Footer from "../../../components/Footer";
+import { createClient } from "@/lib/supabase/client";
 import "./profile.css";
 
 type Professional = {
-  id: number;
-  name: string;
-  profession: string;
-  category: string;
-  location: string;
-  experience: string;
-  rating: number;
-  reviews: number;
-  description: string;
-  skills: string[];
-  initials: string;
-  featured?: boolean;
-  availability: string;
-  about: string;
-  services: string[];
-  workHistory: { role: string; period: string; description: string }[];
-  portfolio: { title: string; category: string; number: string }[];
+  user_id: string;
+  full_name: string | null;
+  location: string | null;
+  headline: string | null;
+  about: string | null;
+  profile_skills: string[] | null;
+  category: string | null;
+  professional_skills: string[] | null;
+  experience_years: number | null;
+  professional_bio: string | null;
+  service_area: string | null;
+  portfolio_url: string | null;
 };
 
-const professionals: Professional[] = [
-  {
-    id: 1,
-    name: "Chinedu Okafor",
-    profession: "Graphic Designer",
-    category: "Creative & Design",
-    location: "Aba",
-    experience: "4 years experience",
-    rating: 4.9,
-    reviews: 28,
-    description: "Creative designer specialising in brand identity, business graphics, advertising designs and digital content.",
-    skills: ["Brand Identity", "CorelDRAW", "Social Media Design"],
-    initials: "CO",
-    featured: true,
-    availability: "Available for projects",
-    about: "I am a creative graphic designer passionate about helping businesses communicate clearly through professional visual design. I work with individuals, startups and established businesses to create memorable brand identities and marketing materials.",
-    services: ["Logo and brand identity design", "Business cards and stationery", "Flyers and promotional graphics", "Social media designs", "Marketing and advertising materials"],
-    workHistory: [
-      { role: "Freelance Graphic Designer", period: "2023 – Present", description: "Working with businesses and individuals on branding, promotional graphics and digital design projects." },
-      { role: "Junior Graphic Designer", period: "2022 – 2023", description: "Supported creative projects and produced marketing materials for local businesses." },
-    ],
-    portfolio: [
-      { title: "Brand Identity", category: "Branding", number: "01" },
-      { title: "Business Graphics", category: "Print Design", number: "02" },
-      { title: "Social Media Campaign", category: "Digital Design", number: "03" },
-    ],
-  },
-  {
-    id: 2,
-    name: "Amara Nwosu",
-    profession: "Fashion Designer",
-    category: "Fashion & Tailoring",
-    location: "Ariaria, Aba",
-    experience: "6 years experience",
-    rating: 4.8,
-    reviews: 34,
-    description: "Fashion designer creating beautiful ready-to-wear outfits, traditional attire and custom clothing.",
-    skills: ["Fashion Design", "Tailoring", "Styling"],
-    initials: "AN",
-    featured: true,
-    availability: "Available for orders",
-    about: "I create custom clothing that combines good craftsmanship with personal style. From traditional outfits to modern ready-to-wear pieces, I focus on fit, quality and attention to detail.",
-    services: ["Custom clothing", "Traditional outfits", "Ready-to-wear fashion", "Clothing alterations", "Fashion styling"],
-    workHistory: [
-      { role: "Independent Fashion Designer", period: "2020 – Present", description: "Designing and producing custom outfits for individual clients and fashion orders." },
-      { role: "Fashion Assistant", period: "2018 – 2020", description: "Supported garment production, measurements and clothing finishing." },
-    ],
-    portfolio: [
-      { title: "Traditional Wear", category: "Fashion", number: "01" },
-      { title: "Ready-to-Wear", category: "Fashion", number: "02" },
-      { title: "Custom Designs", category: "Tailoring", number: "03" },
-    ],
-  },
-  {
-    id: 3,
-    name: "Emeka Eze",
-    profession: "Professional Barber",
-    category: "Beauty & Personal Care",
-    location: "Osisioma",
-    experience: "5 years experience",
-    rating: 4.7,
-    reviews: 19,
-    description: "Experienced barber offering modern haircuts, grooming, beard styling and professional hair care.",
-    skills: ["Haircuts", "Beard Grooming", "Hair Styling"],
-    initials: "EE",
-    availability: "Available for appointments",
-    about: "I provide professional barbering and grooming services with a focus on neat finishing, customer comfort and consistent results.",
-    services: ["Modern haircuts", "Beard trimming", "Hair styling", "Hairline finishing", "Personal grooming"],
-    workHistory: [
-      { role: "Professional Barber", period: "2021 – Present", description: "Providing haircut and grooming services to regular and walk-in clients." },
-    ],
-    portfolio: [
-      { title: "Modern Haircuts", category: "Barbering", number: "01" },
-      { title: "Beard Grooming", category: "Grooming", number: "02" },
-      { title: "Hair Styling", category: "Styling", number: "03" },
-    ],
-  },
-  {
-    id: 4,
-    name: "Blessing Kalu",
-    profession: "Makeup Artist",
-    category: "Beauty & Personal Care",
-    location: "Umuahia",
-    experience: "3 years experience",
-    rating: 4.9,
-    reviews: 16,
-    description: "Professional makeup artist for weddings, special events, photoshoots and everyday beauty.",
-    skills: ["Bridal Makeup", "Beauty", "Photoshoot Makeup"],
-    initials: "BK",
-    availability: "Available for bookings",
-    about: "I am a makeup artist helping clients look and feel confident for their important moments. I offer makeup services for celebrations, photoshoots and personal occasions.",
-    services: ["Bridal makeup", "Event makeup", "Photoshoot makeup", "Natural makeup", "Makeup consultation"],
-    workHistory: [
-      { role: "Independent Makeup Artist", period: "2023 – Present", description: "Providing makeup services for weddings, events and personal bookings." },
-    ],
-    portfolio: [
-      { title: "Bridal Looks", category: "Bridal", number: "01" },
-      { title: "Event Makeup", category: "Beauty", number: "02" },
-      { title: "Photoshoot Looks", category: "Editorial", number: "03" },
-    ],
-  },
-  {
-    id: 5,
-    name: "Ikenna Nwachukwu",
-    profession: "Web Developer",
-    category: "Technology",
-    location: "Aba",
-    experience: "3 years experience",
-    rating: 4.8,
-    reviews: 22,
-    description: "Web developer building responsive websites and digital solutions for individuals and businesses.",
-    skills: ["React", "Next.js", "Web Design"],
-    initials: "IN",
-    availability: "Open to projects",
-    about: "I build responsive websites and digital experiences that help individuals and businesses establish a strong online presence. I enjoy solving practical problems through technology.",
-    services: ["Business websites", "Responsive web design", "Frontend development", "Website maintenance", "Landing pages"],
-    workHistory: [
-      { role: "Freelance Web Developer", period: "2023 – Present", description: "Building and maintaining websites for small businesses and independent clients." },
-    ],
-    portfolio: [
-      { title: "Business Website", category: "Web Development", number: "01" },
-      { title: "Landing Page", category: "Frontend", number: "02" },
-      { title: "Web Application", category: "Development", number: "03" },
-    ],
-  },
-  {
-    id: 6,
-    name: "Ngozi Umeh",
-    profession: "Caterer",
-    category: "Food & Hospitality",
-    location: "Umuahia",
-    experience: "7 years experience",
-    rating: 4.9,
-    reviews: 41,
-    description: "Experienced caterer providing delicious meals, event catering and food services for all occasions.",
-    skills: ["Event Catering", "Meal Preparation", "Small Chops"],
-    initials: "NU",
-    availability: "Accepting bookings",
-    about: "I provide food preparation and catering services for private events, celebrations and business gatherings. My focus is quality meals, good presentation and dependable service.",
-    services: ["Event catering", "Small chops", "Private meal preparation", "Food trays", "Event menu planning"],
-    workHistory: [
-      { role: "Independent Caterer", period: "2019 – Present", description: "Providing catering services for private events, celebrations and corporate gatherings." },
-    ],
-    portfolio: [
-      { title: "Event Catering", category: "Catering", number: "01" },
-      { title: "Small Chops", category: "Food Service", number: "02" },
-      { title: "Food Presentation", category: "Hospitality", number: "03" },
-    ],
-  },
-  {
-    id: 7,
-    name: "Obinna Aja",
-    profession: "Electrician",
-    category: "Technical Services",
-    location: "Aba",
-    experience: "8 years experience",
-    rating: 4.7,
-    reviews: 25,
-    description: "Qualified electrical technician handling domestic wiring, electrical installations and repairs.",
-    skills: ["Electrical Wiring", "Installation", "Repairs"],
-    initials: "OA",
-    availability: "Available for jobs",
-    about: "I handle domestic electrical installations, wiring and troubleshooting. I aim to deliver safe, reliable electrical work for homes and small businesses.",
-    services: ["Electrical wiring", "Fault diagnosis", "Electrical installations", "Lighting installation", "Electrical repairs"],
-    workHistory: [
-      { role: "Independent Electrical Technician", period: "2018 – Present", description: "Handling residential and small-business electrical installation and maintenance jobs." },
-    ],
-    portfolio: [
-      { title: "Home Wiring", category: "Installation", number: "01" },
-      { title: "Lighting Systems", category: "Electrical", number: "02" },
-      { title: "Electrical Repairs", category: "Maintenance", number: "03" },
-    ],
-  },
-  {
-    id: 8,
-    name: "Esther Otti",
-    profession: "Photographer",
-    category: "Creative & Design",
-    location: "Arochukwu",
-    experience: "4 years experience",
-    rating: 4.8,
-    reviews: 18,
-    description: "Creative photographer covering portraits, celebrations, product photography and events.",
-    skills: ["Portraits", "Event Photography", "Editing"],
-    initials: "EO",
-    availability: "Open to bookings",
-    about: "I capture meaningful moments and create visual content for individuals, events and businesses. My services include portrait sessions, event coverage and product photography.",
-    services: ["Portrait photography", "Event coverage", "Product photography", "Photo editing", "Personal photography sessions"],
-    workHistory: [
-      { role: "Independent Photographer", period: "2022 – Present", description: "Providing photography and editing services for individuals, events and businesses." },
-    ],
-    portfolio: [
-      { title: "Portrait Sessions", category: "Portraits", number: "01" },
-      { title: "Event Coverage", category: "Events", number: "02" },
-      { title: "Product Photography", category: "Commercial", number: "03" },
-    ],
-  },
-];
+function getInitials(name: string) {
+  return name
+    .trim()
+    .split(/\s+/)
+    .slice(0, 2)
+    .map((part) => part[0]?.toUpperCase() ?? "")
+    .join("");
+}
 
-async function ProfessionalProfileContent({
-  params,
-}: {
-  params: Promise<{ id: string }>;
-}) {
-  await connection();
+function getExperience(years: number | null) {
+  if (years === null || years < 0) return "Not specified";
+  if (years === 0) return "Less than 1 year";
+  return `${years} ${years === 1 ? "year" : "years"} experience`;
+}
 
-  const { id } = await params;
+function ProfessionalProfileContent() {
+  const params = useParams<{ id: string }>();
+  const router = useRouter();
+  const id = params.id;
 
-  const professional = professionals.find(
-    (person) => person.id === Number(id)
+  const [professional, setProfessional] = useState<Professional | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [pageError, setPageError] = useState("");
+  const [contactError, setContactError] = useState("");
+  const [contactNotice, setContactNotice] = useState("");
+  const [contacting, setContacting] = useState(false);
+
+  const handledContactRef = useRef(false);
+  const supabase = createClient();
+
+  useEffect(() => {
+    let active = true;
+
+    async function loadProfessional() {
+      setLoading(true);
+      setPageError("");
+      setProfessional(null);
+
+      const { data, error } = await supabase.rpc(
+        "get_public_professionals",
+        { p_professional_id: id }
+      );
+
+      if (!active) return;
+
+      if (error) {
+        console.error("Professional profile loading failed:", error);
+        setPageError(
+          "We couldn't load this professional's profile. Please try again."
+        );
+        setLoading(false);
+        return;
+      }
+
+      const result = Array.isArray(data) ? data[0] : null;
+
+      if (!result) {
+        setPageError(
+          "This professional is not currently available for public viewing."
+        );
+        setLoading(false);
+        return;
+      }
+
+      setProfessional(result as Professional);
+      setLoading(false);
+    }
+
+    if (id) {
+      void loadProfessional();
+    }
+
+    return () => {
+      active = false;
+    };
+  }, [id, supabase]);
+
+  const contactProfessional = useCallback(async () => {
+    if (!professional || contacting) return;
+
+    setContactError("");
+    setContactNotice("");
+    setContacting(true);
+
+    try {
+      const {
+        data: { user },
+        error: authError,
+      } = await supabase.auth.getUser();
+
+      if (authError) {
+        console.error("Contact authentication check failed:", authError);
+        setContactError(
+          "We couldn't verify your sign-in. Please refresh the page and try again."
+        );
+        return;
+      }
+
+      if (!user) {
+        const returnTo = `/professionals/${encodeURIComponent(
+          professional.user_id
+        )}?contact=1`;
+
+        router.push(`/login?next=${encodeURIComponent(returnTo)}`);
+        return;
+      }
+
+      const { data: profile, error: profileError } = await supabase
+        .from("profiles")
+        .select("role")
+        .eq("id", user.id)
+        .maybeSingle();
+
+      if (profileError || !profile) {
+        console.error(
+          "Contact role verification failed:",
+          profileError
+        );
+        setContactError(
+          "We couldn't verify your account type. Please try again."
+        );
+        return;
+      }
+
+      const role = String(profile.role ?? "")
+        .toLowerCase()
+        .replaceAll("-", "_");
+
+      if (role !== "job_seeker") {
+        setContactNotice(
+          "Direct professional enquiries are currently available to signed-in Job Seekers."
+        );
+        return;
+      }
+
+      const { data: conversationId, error: conversationError } =
+        await supabase.rpc("create_direct_conversation", {
+          p_professional_id: professional.user_id,
+        });
+
+      if (conversationError || !conversationId) {
+        console.error(
+          "Direct conversation creation failed:",
+          conversationError
+        );
+        setContactError(
+          conversationError?.message ||
+            "We couldn't start this conversation. Please try again."
+        );
+        return;
+      }
+
+      router.push(
+        `/messages?conversation=${encodeURIComponent(conversationId)}`
+      );
+    } catch (error) {
+      console.error("Unexpected contact error:", error);
+      setContactError(
+        "Something went wrong while connecting. Please try again."
+      );
+    } finally {
+      setContacting(false);
+    }
+  }, [professional, contacting, router, supabase]);
+
+  // Resume the contact action after a Job Seeker signs in.
+  useEffect(() => {
+    if (
+      loading ||
+      !professional ||
+      handledContactRef.current ||
+      typeof window === "undefined"
+    ) {
+      return;
+    }
+
+    const searchParams = new URLSearchParams(window.location.search);
+
+    if (searchParams.get("contact") !== "1") return;
+
+    handledContactRef.current = true;
+    void contactProfessional();
+  }, [loading, professional, contactProfessional]);
+
+  const skills = Array.from(
+    new Set([
+      ...(professional?.professional_skills ?? []),
+      ...(professional?.profile_skills ?? []),
+    ])
+  ).filter(Boolean);
+
+  const name = professional?.full_name?.trim() || "Professional";
+  const experience = getExperience(
+    professional?.experience_years ?? null
   );
-
-  if (!professional) notFound();
 
   return (
     <>
@@ -265,189 +241,233 @@ async function ProfessionalProfileContent({
             Back to professionals
           </Link>
 
-          <section className="public-profile-hero">
-            <div className="public-profile-identity">
-              <div className="public-profile-avatar">
-                {professional.initials}
-              </div>
+          {loading && (
+            <section className="public-profile-section">
+              <p>Loading professional profile...</p>
+            </section>
+          )}
 
-              <div className="public-profile-name-block">
-                <div className="public-profile-badges">
-                  {professional.featured && (
-                    <span className="public-profile-featured">
-                      FEATURED PROFESSIONAL
-                    </span>
-                  )}
-                  <span className="public-profile-verified">
-                    <ShieldCheck size={14} /> Sample profile
-                  </span>
-                </div>
-
-                <h1>{professional.name}</h1>
-                <p>{professional.profession}</p>
-
-                <div className="public-profile-quick-meta">
-                  <span>
-                    <MapPin size={16} /> {professional.location}, Abia State
-                  </span>
-                  <span>
-                    <BriefcaseBusiness size={16} /> {professional.experience}
-                  </span>
-                  <span className="public-profile-rating">
-                    <Star size={16} fill="currentColor" /> {professional.rating} ({professional.reviews} reviews)
-                  </span>
-                </div>
-              </div>
-            </div>
-
-            <div className="public-profile-actions">
-              <span className="public-profile-availability">
-                <span /> {professional.availability}
-              </span>
-              <Link href="/login" className="public-profile-contact">
-                <MessageCircle size={18} />
-                Contact professional
+          {!loading && pageError && (
+            <section className="public-profile-section">
+              <h1>Professional profile unavailable</h1>
+              <p className="public-profile-about">{pageError}</p>
+              <Link href="/professionals" className="public-profile-back">
+                <ArrowLeft size={17} />
+                Return to professionals
               </Link>
-              <span className="public-profile-action-note">
-                Sign in to connect through Abi Job.
-              </span>
-            </div>
-          </section>
+            </section>
+          )}
 
-          <div className="public-profile-layout">
-            <div className="public-profile-main-column">
-              <section className="public-profile-section">
-                <div className="public-profile-section-heading">
-                  <span>01</span>
-                  <h2>About this professional</h2>
-                </div>
-                <p className="public-profile-about">{professional.about}</p>
-              </section>
+          {!loading && !pageError && professional && (
+            <>
+              <section className="public-profile-hero">
+                <div className="public-profile-identity">
+                  <div className="public-profile-avatar">
+                    {getInitials(name)}
+                  </div>
 
-              <section className="public-profile-section">
-                <div className="public-profile-section-heading">
-                  <span>02</span>
-                  <h2>Services offered</h2>
-                </div>
-
-                <div className="public-profile-services">
-                  {professional.services.map((service) => (
-                    <div key={service} className="public-profile-service">
-                      <CheckCircle2 size={18} />
-                      {service}
+                  <div className="public-profile-name-block">
+                    <div className="public-profile-badges">
+                      <span className="public-profile-verified">
+                        <ShieldCheck size={14} />
+                        Public professional profile
+                      </span>
                     </div>
-                  ))}
+
+                    <h1>{name}</h1>
+                    <p>
+                      {professional.headline ||
+                        professional.category ||
+                        "Skilled Professional"}
+                    </p>
+
+                    <div className="public-profile-quick-meta">
+                      {professional.location && (
+                        <span>
+                          <MapPin size={16} />
+                          {professional.location}
+                        </span>
+                      )}
+
+                      <span>
+                        <BriefcaseBusiness size={16} />
+                        {experience}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="public-profile-actions">
+                  <button
+                    type="button"
+                    className="public-profile-contact"
+                    onClick={() => void contactProfessional()}
+                    disabled={contacting}
+                  >
+                    <MessageCircle size={18} />
+                    {contacting ? "Connecting..." : "Contact professional"}
+                  </button>
+
+                  <span className="public-profile-action-note">
+                    Signed-in Job Seekers can connect through Abi Job.
+                  </span>
+
+                  {contactError && (
+                    <p role="alert" className="public-profile-contact-error">
+                      {contactError}
+                    </p>
+                  )}
+
+                  {contactNotice && (
+                    <p role="status" className="public-profile-contact-error">
+                      {contactNotice}
+                    </p>
+                  )}
                 </div>
               </section>
 
-              <section className="public-profile-section">
-                <div className="public-profile-section-heading">
-                  <span>03</span>
-                  <h2>Portfolio and work samples</h2>
+              <div className="public-profile-layout">
+                <div className="public-profile-main-column">
+                  <section className="public-profile-section">
+                    <div className="public-profile-section-heading">
+                      <span>01</span>
+                      <h2>About this professional</h2>
+                    </div>
+
+                    <p className="public-profile-about">
+                      {professional.professional_bio?.trim() ||
+                        professional.about?.trim() ||
+                        "This professional has not added an introduction yet."}
+                    </p>
+                  </section>
+
+                  <section className="public-profile-section">
+                    <div className="public-profile-section-heading">
+                      <span>02</span>
+                      <h2>Skills and expertise</h2>
+                    </div>
+
+                    {skills.length > 0 ? (
+                      <div className="public-profile-skills">
+                        {skills.map((skill) => (
+                          <span key={skill}>{skill}</span>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="public-profile-section-intro">
+                        This professional has not added skills yet.
+                      </p>
+                    )}
+                  </section>
+
+                  <section className="public-profile-section">
+                    <div className="public-profile-section-heading">
+                      <span>03</span>
+                      <h2>Portfolio</h2>
+                    </div>
+
+                    {professional.portfolio_url ? (
+                      <p className="public-profile-section-intro">
+                        <a
+                          href={professional.portfolio_url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                        >
+                          View portfolio
+                          <ArrowUpRight
+                            size={16}
+                            style={{
+                              display: "inline",
+                              verticalAlign: "middle",
+                              marginLeft: 5,
+                            }}
+                          />
+                        </a>
+                      </p>
+                    ) : (
+                      <p className="public-profile-section-intro">
+                        This professional has not added a portfolio link yet.
+                      </p>
+                    )}
+                  </section>
                 </div>
 
-                <p className="public-profile-section-intro">
-                  Examples of the type of work this professional offers.
-                </p>
+                <aside className="public-profile-sidebar">
+                  <section className="public-profile-side-card">
+                    <h2>Professional overview</h2>
 
-                <div className="public-profile-portfolio">
-                  {professional.portfolio.map((item) => (
-                    <article
-                      className="public-profile-portfolio-card"
-                      key={item.number}
+                    <div className="public-profile-side-row">
+                      <span>
+                        <BriefcaseBusiness size={17} />
+                        Category
+                      </span>
+                      <strong>
+                        {professional.category || "Not specified"}
+                      </strong>
+                    </div>
+
+                    <div className="public-profile-side-row">
+                      <span>
+                        <MapPin size={17} />
+                        Location
+                      </span>
+                      <strong>
+                        {professional.location || "Not specified"}
+                      </strong>
+                    </div>
+
+                    <div className="public-profile-side-row">
+                      <span>
+                        <Clock3 size={17} />
+                        Experience
+                      </span>
+                      <strong>{experience}</strong>
+                    </div>
+
+                    {professional.service_area && (
+                      <div className="public-profile-side-row">
+                        <span>
+                          <MapPin size={17} />
+                          Service area
+                        </span>
+                        <strong>{professional.service_area}</strong>
+                      </div>
+                    )}
+                  </section>
+
+                  <section className="public-profile-help-card">
+                    <div>
+                      <MessageCircle size={22} />
+                    </div>
+                    <h2>Interested in working together?</h2>
+                    <p>
+                      Start a direct conversation with this professional
+                      through Abi Job.
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => void contactProfessional()}
+                      disabled={contacting}
                     >
-                      <div className={`public-profile-portfolio-art portfolio-art-${item.number}`}>
-                        <span>{item.number}</span>
-                        <BriefcaseBusiness size={31} />
-                      </div>
-                      <div>
-                        <h3>{item.title}</h3>
-                        <p>{item.category}</p>
-                      </div>
-                    </article>
-                  ))}
-                </div>
-                <p className="public-profile-demo-note">
-                  Portfolio previews are placeholders until professionals upload their actual work.
-                </p>
-              </section>
+                      {contacting ? "Connecting..." : "Connect"}
+                      <ArrowUpRight size={17} />
+                    </button>
+                  </section>
+                </aside>
+              </div>
 
-              <section className="public-profile-section">
-                <div className="public-profile-section-heading">
-                  <span>04</span>
-                  <h2>Experience</h2>
-                </div>
-
-                <div className="public-profile-work-history">
-                  {professional.workHistory.map((work) => (
-                    <article className="public-profile-work-item" key={work.role}>
-                      <div className="public-profile-work-icon">
-                        <BriefcaseBusiness size={19} />
-                      </div>
-                      <div>
-                        <h3>{work.role}</h3>
-                        <span>{work.period}</span>
-                        <p>{work.description}</p>
-                      </div>
-                    </article>
-                  ))}
-                </div>
-              </section>
-            </div>
-
-            <aside className="public-profile-sidebar">
-              <section className="public-profile-side-card">
-                <h2>Professional overview</h2>
-
-                <div className="public-profile-side-row">
-                  <span><BriefcaseBusiness size={17} /> Category</span>
-                  <strong>{professional.category}</strong>
-                </div>
-
-                <div className="public-profile-side-row">
-                  <span><MapPin size={17} /> Location</span>
-                  <strong>{professional.location}</strong>
-                </div>
-
-                <div className="public-profile-side-row">
-                  <span><Clock3 size={17} /> Experience</span>
-                  <strong>{professional.experience}</strong>
-                </div>
-
-                <div className="public-profile-side-row">
-                  <span><CalendarDays size={17} /> Availability</span>
-                  <strong>{professional.availability}</strong>
-                </div>
-              </section>
-
-              <section className="public-profile-side-card">
-                <h2>Skills and expertise</h2>
-                <div className="public-profile-skills">
-                  {professional.skills.map((skill) => (
-                    <span key={skill}>{skill}</span>
-                  ))}
-                </div>
-              </section>
-
-              <section className="public-profile-help-card">
-                <div><MessageCircle size={22} /></div>
-                <h2>Interested in working together?</h2>
-                <p>Sign in to Abi Job to connect with this professional.</p>
-                <Link href="/login">
-                  Sign in to connect <ArrowUpRight size={17} />
+              <div className="public-profile-bottom-link">
+                <Link href="/professionals">
+                  <ArrowLeft size={17} />
+                  Explore more professionals
                 </Link>
-              </section>
-            </aside>
-          </div>
-
-          <div className="public-profile-bottom-link">
-            <Link href="/professionals">
-              <ArrowLeft size={17} /> Explore more professionals
-            </Link>
-            <Link href="/register/professional">
-              Are you a professional? Join Abi Job <ArrowRight size={17} />
-            </Link>
-          </div>
+                <Link href="/register/professional">
+                  Are you a professional? Join Abi Job
+                  <ArrowRight size={17} />
+                </Link>
+              </div>
+            </>
+          )}
         </div>
       </main>
 
@@ -456,22 +476,20 @@ async function ProfessionalProfileContent({
   );
 }
 
-export default function ProfessionalProfilePage({
-  params,
-}: {
-  params: Promise<{ id: string }>;
-}) {
+export default function ProfessionalProfilePage() {
   return (
     <Suspense
       fallback={
         <main className="public-profile-page">
           <div className="public-profile-container">
-            <p>Loading professional profile...</p>
+            <section className="public-profile-section">
+              <p>Loading professional profile...</p>
+            </section>
           </div>
         </main>
       }
     >
-      <ProfessionalProfileContent params={params} />
+      <ProfessionalProfileContent />
     </Suspense>
   );
 }

@@ -1,8 +1,9 @@
 
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import Logo from "../../../components/Logo";
 import {
   Activity,
@@ -27,206 +28,482 @@ import {
   Settings,
   FileText,
   GraduationCap,
-  X,
-  Send,
+  RefreshCw,
 } from "lucide-react";
+import { createClient } from "@/lib/supabase/client";
 import "./opportunities.css";
 
-type Opportunity = {
-  id: number;
+type DatabaseJob = {
+  id: string;
+  employer_id: string;
   title: string;
-  company: string;
-  location: string;
-  type: string;
   category: string;
-  salary: string;
-  posted: string;
-  deadline: string;
+  location: string;
+  employment_type: string | null;
+  workplace_type: string | null;
+  salary_min: number | null;
+  salary_max: number | null;
+  salary_currency: string | null;
   description: string;
-  skills: string[];
-  featured: boolean;
-  match: number;
+  requirements: string | null;
+  responsibilities: string | null;
+  skills_required: string[];
+  application_deadline: string | null;
+  status: string;
+  created_at: string;
 };
 
-type Application = {
-  id: number;
-  jobId: number;
-  title: string;
+type Opportunity = DatabaseJob & {
   company: string;
-  location: string;
-  type: string;
-  salary: string;
-  appliedAt: string;
-  status: string;
+};
+
+type Profile = {
+  id: string;
+  role: string;
+  full_name: string | null;
+};
+
+type ApplicationRecord = {
+  job_id: string;
+  status: string | null;
 };
 
 const SAVED_JOBS_KEY = "abijob-professional-saved-jobs";
-const APPLICATIONS_KEY = "abijob-professional-applications";
 
-const opportunities: Opportunity[] = [
-  {
-    id: 1,
-    title: "Graphic Designer",
-    company: "Creative House Media",
-    location: "Aba, Abia State",
-    type: "Full-time",
-    category: "Design & Creative",
-    salary: "₦120,000 – ₦180,000",
-    posted: "2 days ago",
-    deadline: "Nov 15, 2026",
-    description:
-      "We are looking for a creative graphic designer to produce marketing materials, brand identities and engaging visual content.",
-    skills: ["CorelDRAW", "Photoshop", "Branding"],
-    featured: true,
-    match: 96,
-  },
-  {
-    id: 2,
-    title: "Junior Frontend Developer",
-    company: "Digital Solutions NG",
-    location: "Umuahia, Abia State",
-    type: "Full-time",
-    category: "Technology",
-    salary: "₦150,000 – ₦220,000",
-    posted: "3 days ago",
-    deadline: "Nov 20, 2026",
-    description:
-      "Join our development team to build responsive websites and modern digital products for local businesses.",
-    skills: ["HTML", "CSS", "JavaScript"],
-    featured: false,
-    match: 91,
-  },
-  {
-    id: 3,
-    title: "Brand Identity Designer",
-    company: "Made in Aba Studio",
-    location: "Ariaria, Aba",
-    type: "Contract",
-    category: "Design & Creative",
-    salary: "₦80,000 – ₦150,000",
-    posted: "4 days ago",
-    deadline: "Nov 12, 2026",
-    description:
-      "Create brand identities, logo systems and marketing designs for growing fashion and retail businesses.",
-    skills: ["Logo Design", "CorelDRAW", "Typography"],
-    featured: true,
-    match: 94,
-  },
-  {
-    id: 4,
-    title: "Social Media Designer",
-    company: "GrowthPoint Agency",
-    location: "Remote",
-    type: "Remote",
-    category: "Design & Creative",
-    salary: "₦70,000 – ₦110,000",
-    posted: "5 days ago",
-    deadline: "Nov 18, 2026",
-    description:
-      "Design social media graphics and campaign materials for brands across different industries.",
-    skills: ["Social Media", "Canva", "Graphic Design"],
-    featured: false,
-    match: 88,
-  },
-  {
-    id: 5,
-    title: "Website Design Assistant",
-    company: "Abia Business Hub",
-    location: "Aba, Abia State",
-    type: "Part-time",
-    category: "Technology",
-    salary: "₦60,000 – ₦90,000",
-    posted: "1 week ago",
-    deadline: "Nov 25, 2026",
-    description:
-      "Assist with website layouts, content updates and basic website maintenance for small businesses.",
-    skills: ["HTML", "CSS", "Figma"],
-    featured: false,
-    match: 85,
-  },
-];
+const categories = ["All categories"];
 
-const categories = [
-  "All categories",
-  "Design & Creative",
-  "Technology",
-  "Business & Administration",
-  "Marketing",
-  "Skilled Trades",
-];
+function getLocalDateString() {
+  const now = new Date();
+
+  return [
+    now.getFullYear(),
+    String(now.getMonth() + 1).padStart(2, "0"),
+    String(now.getDate()).padStart(2, "0"),
+  ].join("-");
+}
+
+function isDeadlinePassed(deadline: string | null) {
+  if (!deadline) return false;
+
+  return deadline.slice(0, 10) < getLocalDateString();
+}
+
+function formatDate(value: string | null) {
+  if (!value) return "Not specified";
+
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) return "Not specified";
+
+  return new Intl.DateTimeFormat("en-NG", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+  }).format(date);
+}
+
+function formatPostedDate(value: string) {
+  const timestamp = new Date(value).getTime();
+
+  if (Number.isNaN(timestamp)) return "Date unavailable";
+
+  const days = Math.max(
+    0,
+    Math.floor((Date.now() - timestamp) / (1000 * 60 * 60 * 24))
+  );
+
+  if (days === 0) return "Today";
+  if (days === 1) return "1 day ago";
+  if (days < 7) return `${days} days ago`;
+  if (days < 30) return `${Math.floor(days / 7)} weeks ago`;
+
+  return formatDate(value);
+}
+
+function formatSalary(job: DatabaseJob) {
+  if (job.salary_min === null && job.salary_max === null) {
+    return "Salary not specified";
+  }
+
+  const currency = (job.salary_currency || "NGN").toUpperCase();
+
+  const amount = (value: number) => {
+    const formatted = new Intl.NumberFormat("en-NG", {
+      maximumFractionDigits: 0,
+    }).format(value);
+
+    return currency === "NGN"
+      ? `₦${formatted}`
+      : `${currency} ${formatted}`;
+  };
+
+  if (job.salary_min !== null && job.salary_max !== null) {
+    return `${amount(job.salary_min)} – ${amount(job.salary_max)}`;
+  }
+
+  if (job.salary_min !== null) {
+    return `From ${amount(job.salary_min)}`;
+  }
+
+  return `Up to ${amount(job.salary_max as number)}`;
+}
+
+function formatJobType(job: DatabaseJob) {
+  const employment = job.employment_type
+    ? job.employment_type.replace(/_/g, " ")
+    : "Not specified";
+
+  const workplace = job.workplace_type
+    ? job.workplace_type.replace(/_/g, " ")
+    : "";
+
+  const formattedEmployment = employment.replace(/\b\w/g, (character) =>
+    character.toUpperCase()
+  );
+
+  if (!workplace) return formattedEmployment;
+
+  const formattedWorkplace = workplace.replace(/\b\w/g, (character) =>
+    character.toUpperCase()
+  );
+
+  return `${formattedEmployment} · ${formattedWorkplace}`;
+}
+
+function readSavedJobIds(): string[] {
+  try {
+    const stored = localStorage.getItem(SAVED_JOBS_KEY);
+
+    if (!stored) return [];
+
+    const parsed: unknown = JSON.parse(stored);
+
+    if (!Array.isArray(parsed)) return [];
+
+    // Support the current string-ID format and older object-based entries.
+    return parsed
+      .map((item: unknown) => {
+        if (typeof item === "string") return item;
+
+        if (
+          item &&
+          typeof item === "object" &&
+          "id" in item &&
+          typeof item.id === "string"
+        ) {
+          return item.id;
+        }
+
+        return null;
+      })
+      .filter((id): id is string => typeof id === "string");
+  } catch {
+    return [];
+  }
+}
 
 export default function ProfessionalOpportunitiesPage() {
+  const router = useRouter();
+  const supabase = useMemo(() => createClient(), []);
+
+  const [opportunities, setOpportunities] = useState<Opportunity[]>([]);
+  const [savedJobIds, setSavedJobIds] = useState<string[]>([]);
+  const [appliedJobIds, setAppliedJobIds] = useState<string[]>([]);
+
   const [search, setSearch] = useState("");
   const [category, setCategory] = useState("All categories");
   const [jobType, setJobType] = useState("All types");
-  const [sort, setSort] = useState("Best match");
-  const [savedJobs, setSavedJobs] = useState<Opportunity[]>([]);
-  const [applications, setApplications] = useState<Application[]>([]);
+  const [sort, setSort] = useState("Newest first");
   const [showFilters, setShowFilters] = useState(false);
-  const [selectedJob, setSelectedJob] = useState<Opportunity | null>(null);
+
+  const [fullName, setFullName] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
 
+  const showNotice = (message: string) => {
+    setNotice(message);
+  };
+
   useEffect(() => {
+    if (!notice) return;
+
+    const timeout = window.setTimeout(() => {
+      setNotice("");
+    }, 3500);
+
+    return () => window.clearTimeout(timeout);
+  }, [notice]);
+
+  const loadOpportunities = useCallback(async () => {
+    setLoading(true);
+    setError("");
+
     try {
-      const storedSavedJobs = localStorage.getItem(SAVED_JOBS_KEY);
-      const storedApplications = localStorage.getItem(APPLICATIONS_KEY);
+      const {
+        data: { user },
+        error: authError,
+      } = await supabase.auth.getUser();
 
-      if (storedSavedJobs) {
-        setSavedJobs(JSON.parse(storedSavedJobs));
+      if (authError || !user) {
+        router.replace(
+          `/login?next=${encodeURIComponent("/professional/opportunities")}`
+        );
+        return;
       }
 
-      if (storedApplications) {
-        setApplications(JSON.parse(storedApplications));
+      const { data: profile, error: profileError } = await supabase
+        .from("profiles")
+        .select("id, role, full_name")
+        .eq("id", user.id)
+        .single();
+
+      if (profileError || !profile) {
+        throw new Error(
+          "Your account profile could not be loaded. Please try again."
+        );
       }
-    } catch {
-      console.error("Unable to load saved opportunities or applications.");
+
+      const typedProfile = profile as Profile;
+
+      if (typedProfile.role !== "professional") {
+        if (typedProfile.role === "job_seeker") {
+          router.replace("/dashboard");
+        } else if (typedProfile.role === "employer") {
+          router.replace("/employer/dashboard");
+        } else if (typedProfile.role === "admin") {
+          router.replace("/admin");
+        } else {
+          router.replace("/login");
+        }
+
+        return;
+      }
+
+      setFullName(
+        typedProfile.full_name || user.email || "Professional"
+      );
+
+      const storedIds = readSavedJobIds();
+      setSavedJobIds(storedIds);
+
+      const [
+        { data: jobRows, error: jobsError },
+        { data: applicationRows, error: applicationsError },
+      ] = await Promise.all([
+        supabase
+          .from("jobs")
+          .select(
+            `
+              id,
+              employer_id,
+              title,
+              category,
+              location,
+              employment_type,
+              workplace_type,
+              salary_min,
+              salary_max,
+              salary_currency,
+              description,
+              requirements,
+              responsibilities,
+              skills_required,
+              application_deadline,
+              status,
+              created_at
+            `
+          )
+          .eq("status", "approved")
+          .order("created_at", { ascending: false }),
+
+        supabase
+          .from("job_applications")
+          .select("job_id, status")
+          .eq("applicant_id", user.id),
+      ]);
+
+      if (jobsError) {
+        throw new Error(
+          `Unable to load approved vacancies: ${jobsError.message}`
+        );
+      }
+
+      if (applicationsError) {
+        throw new Error(
+          `Unable to load your application history: ${applicationsError.message}`
+        );
+      }
+
+      const activeJobs = ((jobRows || []) as DatabaseJob[]).filter(
+        (job) => !isDeadlinePassed(job.application_deadline)
+      );
+
+      const employerIds = Array.from(
+        new Set(activeJobs.map((job) => job.employer_id).filter(Boolean))
+      );
+
+      let employerNames: Record<string, string> = {};
+
+      if (employerIds.length > 0) {
+        const { data: employerProfiles, error: employerError } =
+          await supabase
+            .from("profiles")
+            .select("id, full_name")
+            .in("id", employerIds);
+
+        if (employerError) {
+          console.error(
+            "Unable to load employer profile names:",
+            employerError
+          );
+        } else {
+          employerNames = Object.fromEntries(
+            (employerProfiles || []).map((item) => [
+              item.id,
+              item.full_name || "Abi Job Employer",
+            ])
+          );
+        }
+      }
+
+      const mappedJobs: Opportunity[] = activeJobs.map((job) => ({
+        ...job,
+        company: employerNames[job.employer_id] || "Abi Job Employer",
+      }));
+
+      setOpportunities(mappedJobs);
+
+      // Withdrawn applications should not be counted as active applications.
+      const activeApplications = (
+        (applicationRows || []) as ApplicationRecord[]
+      ).filter(
+        (application) =>
+          application.status?.toLowerCase() !== "withdrawn"
+      );
+
+      setAppliedJobIds(
+        Array.from(
+          new Set(activeApplications.map((application) => application.job_id))
+        )
+      );
+
+      // Remove saved IDs for vacancies that are no longer available.
+      const availableIds = new Set(mappedJobs.map((job) => job.id));
+      const validSavedIds = storedIds.filter((id) => availableIds.has(id));
+
+      setSavedJobIds(validSavedIds);
+
+      try {
+        localStorage.setItem(
+          SAVED_JOBS_KEY,
+          JSON.stringify(validSavedIds)
+        );
+      } catch {
+        console.error("Unable to synchronize saved opportunities.");
+      }
+    } catch (err) {
+      console.error("Professional opportunities loading error:", err);
+
+      setError(
+        err instanceof Error
+          ? err.message
+          : "Unable to load opportunities. Please try again."
+      );
+    } finally {
+      setLoading(false);
     }
-  }, []);
+  }, [supabase, router]);
+
+  useEffect(() => {
+    loadOpportunities();
+  }, [loadOpportunities]);
+
+  const availableCategories = useMemo(() => {
+    const uniqueCategories = Array.from(
+      new Set(
+        opportunities
+          .map((job) => job.category)
+          .filter((item): item is string => Boolean(item))
+      )
+    ).sort((a, b) => a.localeCompare(b));
+
+    return [...categories, ...uniqueCategories];
+  }, [opportunities]);
 
   const filteredOpportunities = useMemo(() => {
     let result = opportunities.filter((job) => {
-      const term = search.toLowerCase().trim();
+      const term = search.trim().toLowerCase();
 
-      const matchesSearch =
-        !term ||
-        job.title.toLowerCase().includes(term) ||
-        job.company.toLowerCase().includes(term) ||
-        job.location.toLowerCase().includes(term) ||
-        job.skills.some((skill) => skill.toLowerCase().includes(term));
+      const searchableText = [
+        job.title,
+        job.company,
+        job.location,
+        job.category,
+        job.description,
+        job.requirements || "",
+        job.responsibilities || "",
+        ...(job.skills_required || []),
+      ]
+        .join(" ")
+        .toLowerCase();
+
+      const matchesSearch = !term || searchableText.includes(term);
 
       const matchesCategory =
         category === "All categories" || job.category === category;
 
+      const normalizedEmployment = (job.employment_type || "")
+        .replace(/_/g, " ")
+        .toLowerCase();
+
+      const normalizedWorkplace = (job.workplace_type || "")
+        .replace(/_/g, " ")
+        .toLowerCase();
+
+      const selectedType = jobType
+        .replace(/_/g, " ")
+        .toLowerCase();
+
       const matchesType =
-        jobType === "All types" || job.type === jobType;
+        jobType === "All types" ||
+        normalizedEmployment === selectedType ||
+        normalizedWorkplace === selectedType;
 
       return matchesSearch && matchesCategory && matchesType;
     });
 
-    if (sort === "Best match") {
-      result = [...result].sort((a, b) => b.match - a.match);
-    } else if (sort === "Newest first") {
-      result = [...result].sort((a, b) => a.id - b.id);
+    if (sort === "Newest first") {
+      result = [...result].sort(
+        (a, b) =>
+          new Date(b.created_at).getTime() -
+          new Date(a.created_at).getTime()
+      );
+    } else if (sort === "Oldest first") {
+      result = [...result].sort(
+        (a, b) =>
+          new Date(a.created_at).getTime() -
+          new Date(b.created_at).getTime()
+      );
     }
 
     return result;
-  }, [search, category, jobType, sort]);
+  }, [opportunities, search, category, jobType, sort]);
 
-  function showNotice(message: string) {
-    setNotice(message);
-    window.setTimeout(() => setNotice(""), 3500);
-  }
+  function toggleSaved(jobId: string) {
+    const alreadySaved = savedJobIds.includes(jobId);
 
-  function toggleSaved(job: Opportunity) {
-    const alreadySaved = savedJobs.some((savedJob) => savedJob.id === job.id);
-
-    const updatedJobs = alreadySaved
-      ? savedJobs.filter((savedJob) => savedJob.id !== job.id)
-      : [...savedJobs, job];
+    const updatedIds = alreadySaved
+      ? savedJobIds.filter((id) => id !== jobId)
+      : [...savedJobIds, jobId];
 
     try {
-      localStorage.setItem(SAVED_JOBS_KEY, JSON.stringify(updatedJobs));
-      setSavedJobs(updatedJobs);
+      localStorage.setItem(
+        SAVED_JOBS_KEY,
+        JSON.stringify(updatedIds)
+      );
+
+      setSavedJobIds(updatedIds);
 
       showNotice(
         alreadySaved
@@ -238,50 +515,18 @@ export default function ProfessionalOpportunitiesPage() {
     }
   }
 
-  function applyForJob(job: Opportunity) {
-    const alreadyApplied = applications.some(
-      (application) => application.jobId === job.id
-    );
-
-    if (alreadyApplied) {
-      showNotice("You have already applied for this opportunity.");
-      return;
-    }
-
-    const newApplication: Application = {
-      id: Date.now(),
-      jobId: job.id,
-      title: job.title,
-      company: job.company,
-      location: job.location,
-      type: job.type,
-      salary: job.salary,
-      appliedAt: new Date().toISOString(),
-      status: "Under review",
-    };
-
-    const updatedApplications = [...applications, newApplication];
-
-    try {
-      localStorage.setItem(
-        APPLICATIONS_KEY,
-        JSON.stringify(updatedApplications)
-      );
-
-      setApplications(updatedApplications);
-      setSelectedJob(null);
-
-      showNotice("Your application has been submitted successfully.");
-    } catch {
-      showNotice("Unable to submit your application. Please try again.");
-    }
-  }
-
   function clearFilters() {
     setSearch("");
     setCategory("All categories");
     setJobType("All types");
   }
+
+  const initials = fullName
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part[0]?.toUpperCase())
+    .join("");
 
   return (
     <div className="po-page">
@@ -297,7 +542,11 @@ export default function ProfessionalOpportunitiesPage() {
             <LayoutDashboard size={18} /> Dashboard
           </Link>
 
-          <Link href="/professional/opportunities" className="active">
+          <Link
+            href="/professional/opportunities"
+            className="active"
+            aria-current="page"
+          >
             <BriefcaseBusiness size={18} /> Opportunities
           </Link>
 
@@ -335,10 +584,14 @@ export default function ProfessionalOpportunitiesPage() {
             <div className="po-help-icon">
               <Sparkles size={18} />
             </div>
+
             <h4>Grow your career</h4>
+
             <p>
-              Keep your profile updated to improve your opportunity matches.
+              Keep your profile updated to help employers understand your
+              skills and experience.
             </p>
+
             <Link href="/professional/profile">
               Complete profile <ChevronRight size={13} />
             </Link>
@@ -363,9 +616,12 @@ export default function ProfessionalOpportunitiesPage() {
             </Link>
 
             <div className="po-user">
-              <div className="po-user-avatar">MN</div>
+              <div className="po-user-avatar">
+                {initials || <UserRound size={18} />}
+              </div>
+
               <div className="po-user-info">
-                <strong>Micah Nwaezeaku</strong>
+                <strong>{fullName || "Professional"}</strong>
                 <span>Professional account</span>
               </div>
             </div>
@@ -378,10 +634,12 @@ export default function ProfessionalOpportunitiesPage() {
               <span className="po-eyebrow">
                 <Sparkles size={14} /> YOUR NEXT OPPORTUNITY STARTS HERE
               </span>
+
               <h1>Find your next opportunity</h1>
+
               <p>
-                Discover jobs, contracts and projects that match your skills
-                and professional interests.
+                Discover approved vacancies that match your skills and
+                professional interests.
               </p>
             </div>
           </section>
@@ -406,13 +664,50 @@ export default function ProfessionalOpportunitiesPage() {
             </div>
           )}
 
+          {error && (
+            <div
+              role="alert"
+              style={{
+                padding: "15px 17px",
+                marginBottom: "18px",
+                borderRadius: "10px",
+                background: "#fff0ed",
+                color: "#9d3022",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                flexWrap: "wrap",
+                gap: "12px",
+              }}
+            >
+              <span>{error}</span>
+
+              <button
+                type="button"
+                onClick={loadOpportunities}
+                style={{
+                  border: 0,
+                  background: "transparent",
+                  color: "inherit",
+                  fontWeight: 700,
+                  cursor: "pointer",
+                }}
+              >
+                Try again
+              </button>
+            </div>
+          )}
+
           <section className="po-search-panel">
             <div className="po-search-field">
               <Search size={19} />
+
               <input
+                type="search"
                 value={search}
-                onChange={(e) => setSearch(e.target.value)}
+                onChange={(event) => setSearch(event.target.value)}
                 placeholder="Job title, company or skill..."
+                aria-label="Search opportunities"
               />
             </div>
 
@@ -420,23 +715,30 @@ export default function ProfessionalOpportunitiesPage() {
 
             <div className="po-category-field">
               <BriefcaseBusiness size={17} />
+
               <select
                 value={category}
-                onChange={(e) => setCategory(e.target.value)}
+                onChange={(event) => setCategory(event.target.value)}
+                aria-label="Filter by category"
               >
-                {categories.map((item) => (
-                  <option key={item}>{item}</option>
+                {availableCategories.map((item) => (
+                  <option key={item} value={item}>
+                    {item}
+                  </option>
                 ))}
               </select>
+
               <ChevronDown size={15} />
             </div>
 
             <button
               className="po-search-button"
               type="button"
-              onClick={() => setShowFilters(!showFilters)}
+              onClick={() => setShowFilters((current) => !current)}
+              aria-expanded={showFilters}
             >
-              <Search size={16} /> Find opportunities
+              <SlidersHorizontal size={16} />
+              {showFilters ? "Hide filters" : "More filters"}
             </button>
           </section>
 
@@ -444,16 +746,19 @@ export default function ProfessionalOpportunitiesPage() {
             <section className="po-extra-filters">
               <div>
                 <label htmlFor="po-job-type">Opportunity type</label>
+
                 <select
                   id="po-job-type"
                   value={jobType}
-                  onChange={(e) => setJobType(e.target.value)}
+                  onChange={(event) => setJobType(event.target.value)}
                 >
-                  <option>All types</option>
-                  <option>Full-time</option>
-                  <option>Part-time</option>
-                  <option>Contract</option>
-                  <option>Remote</option>
+                  <option value="All types">All types</option>
+                  <option value="Full-time">Full-time</option>
+                  <option value="Part-time">Part-time</option>
+                  <option value="Contract">Contract</option>
+                  <option value="Remote">Remote</option>
+                  <option value="Hybrid">Hybrid</option>
+                  <option value="On-site">On-site</option>
                 </select>
               </div>
 
@@ -472,9 +777,10 @@ export default function ProfessionalOpportunitiesPage() {
               <div className="po-stat-icon green">
                 <BriefcaseBusiness size={19} />
               </div>
+
               <div>
-                <strong>{opportunities.length}</strong>
-                <span>Available in this preview</span>
+                <strong>{loading ? "—" : opportunities.length}</strong>
+                <span>Available opportunities</span>
               </div>
             </div>
 
@@ -482,8 +788,9 @@ export default function ProfessionalOpportunitiesPage() {
               <div className="po-stat-icon orange">
                 <Bookmark size={19} />
               </div>
+
               <div>
-                <strong>{savedJobs.length}</strong>
+                <strong>{savedJobIds.length}</strong>
                 <span>Saved opportunities</span>
               </div>
             </div>
@@ -492,9 +799,10 @@ export default function ProfessionalOpportunitiesPage() {
               <div className="po-stat-icon purple">
                 <Activity size={19} />
               </div>
+
               <div>
-                <strong>{applications.length}</strong>
-                <span>Applications submitted</span>
+                <strong>{loading ? "—" : appliedJobIds.length}</strong>
+                <span>Jobs you've applied for</span>
               </div>
             </div>
           </section>
@@ -502,44 +810,79 @@ export default function ProfessionalOpportunitiesPage() {
           <section className="po-results-section">
             <div className="po-results-heading">
               <div>
-                <h2>Recommended opportunities</h2>
+                <h2>Available opportunities</h2>
+
                 <p>
-                  Opportunities selected based on your professional profile.
+                  Browse vacancies published by approved employers on Abi Job.
                 </p>
               </div>
 
               <div className="po-sort">
                 <SlidersHorizontal size={15} />
+
                 <select
                   value={sort}
-                  onChange={(e) => setSort(e.target.value)}
+                  onChange={(event) => setSort(event.target.value)}
+                  aria-label="Sort opportunities"
                 >
-                  <option>Best match</option>
-                  <option>Newest first</option>
+                  <option value="Newest first">Newest first</option>
+                  <option value="Oldest first">Oldest first</option>
                 </select>
               </div>
             </div>
 
             <div className="po-results-layout">
               <div className="po-job-list">
-                {filteredOpportunities.length === 0 ? (
+                {loading ? (
+                  <div className="po-empty">
+                    <RefreshCw size={28} />
+                    <h3>Loading opportunities</h3>
+                    <p>Fetching approved vacancies from Abi Job.</p>
+                  </div>
+                ) : error ? (
+                  <div className="po-empty">
+                    <RefreshCw size={28} />
+                    <h3>Unable to load opportunities</h3>
+                    <p>Check your connection and try again.</p>
+
+                    <button
+                      type="button"
+                      onClick={loadOpportunities}
+                    >
+                      Try again
+                    </button>
+                  </div>
+                ) : filteredOpportunities.length === 0 ? (
                   <div className="po-empty">
                     <Search size={28} />
-                    <h3>No opportunities found</h3>
-                    <p>Try changing your search or filters.</p>
-                    <button type="button" onClick={clearFilters}>
-                      Clear search
-                    </button>
+
+                    <h3>
+                      {opportunities.length === 0
+                        ? "No active vacancies available"
+                        : "No opportunities found"}
+                    </h3>
+
+                    <p>
+                      {opportunities.length === 0
+                        ? "Approved vacancies will appear here when employers publish them."
+                        : "Try changing your search or filters."}
+                    </p>
+
+                    {(search ||
+                      category !== "All categories" ||
+                      jobType !== "All types") && (
+                      <button
+                        type="button"
+                        onClick={clearFilters}
+                      >
+                        Clear search
+                      </button>
+                    )}
                   </div>
                 ) : (
                   filteredOpportunities.map((job) => {
-                    const isSaved = savedJobs.some(
-                      (savedJob) => savedJob.id === job.id
-                    );
-
-                    const hasApplied = applications.some(
-                      (application) => application.jobId === job.id
-                    );
+                    const isSaved = savedJobIds.includes(job.id);
+                    const hasApplied = appliedJobIds.includes(job.id);
 
                     return (
                       <article className="po-job-card" key={job.id}>
@@ -551,12 +894,8 @@ export default function ProfessionalOpportunitiesPage() {
                           <div className="po-job-heading">
                             <div className="po-job-title-row">
                               <h3>{job.title}</h3>
-                              {job.featured && (
-                                <span className="po-featured">
-                                  Featured
-                                </span>
-                              )}
                             </div>
+
                             <p>{job.company}</p>
                           </div>
 
@@ -565,12 +904,13 @@ export default function ProfessionalOpportunitiesPage() {
                               isSaved ? "saved" : ""
                             }`}
                             type="button"
-                            onClick={() => toggleSaved(job)}
+                            onClick={() => toggleSaved(job.id)}
                             aria-label={
                               isSaved
                                 ? "Remove saved opportunity"
                                 : "Save opportunity"
                             }
+                            aria-pressed={isSaved}
                           >
                             {isSaved ? (
                               <BookmarkCheck size={19} />
@@ -582,13 +922,18 @@ export default function ProfessionalOpportunitiesPage() {
 
                         <div className="po-job-meta">
                           <span>
-                            <MapPin size={14} /> {job.location}
+                            <MapPin size={14} />
+                            {job.location}
                           </span>
+
                           <span>
-                            <Clock3 size={14} /> {job.type}
+                            <Clock3 size={14} />
+                            {formatJobType(job)}
                           </span>
+
                           <span>
-                            <Wallet size={14} /> {job.salary}
+                            <Wallet size={14} />
+                            {formatSalary(job)}
                           </span>
                         </div>
 
@@ -596,33 +941,48 @@ export default function ProfessionalOpportunitiesPage() {
                           {job.description}
                         </p>
 
-                        <div className="po-job-skills">
-                          {job.skills.map((skill) => (
-                            <span key={skill}>{skill}</span>
-                          ))}
-                        </div>
+                        {job.skills_required?.length > 0 && (
+                          <div className="po-job-skills">
+                            {job.skills_required.slice(0, 8).map((skill) => (
+                              <span key={skill}>{skill}</span>
+                            ))}
+                          </div>
+                        )}
 
                         <div className="po-job-footer">
                           <div className="po-job-posted">
-                            <span>Posted {job.posted}</span>
                             <span>
-                              <CalendarDays size={13} /> Deadline:{" "}
-                              {job.deadline}
+                              Posted {formatPostedDate(job.created_at)}
+                            </span>
+
+                            <span>
+                              <CalendarDays size={13} />
+                              Deadline: {formatDate(job.application_deadline)}
                             </span>
                           </div>
 
                           <div className="po-job-actions">
-                            <span className="po-match">
-                              <CheckCircle2 size={13} /> {job.match}% match
-                            </span>
+                            {hasApplied && (
+                              <span className="po-match">
+                                <CheckCircle2 size={13} />
+                                Applied
+                              </span>
+                            )}
 
-                            <button
+                            <Link
+                              href={
+                                hasApplied
+                                  ? "/professional/applications"
+                                  : `/jobs/${job.id}/apply`
+                              }
                               className="po-apply-button"
-                              type="button"
-                              onClick={() => setSelectedJob(job)}
                             >
-                              View opportunity <ArrowUpRight size={15} />
-                            </button>
+                              {hasApplied
+                                ? "My applications"
+                                : "View opportunity"}
+
+                              <ArrowUpRight size={15} />
+                            </Link>
                           </div>
                         </div>
                       </article>
@@ -636,40 +996,49 @@ export default function ProfessionalOpportunitiesPage() {
                   <div className="po-side-card-icon">
                     <Sparkles size={19} />
                   </div>
-                  <h3>Your opportunity match</h3>
+
+                  <h3>Strengthen your profile</h3>
+
                   <p>
-                    Your profile is matching well with available opportunities.
+                    Keep your skills, experience and professional information
+                    updated so employers can better understand what you offer.
                   </p>
-                  <div className="po-match-progress">
-                    <div>
-                      <span style={{ width: "86%" }} />
-                    </div>
-                    <strong>86%</strong>
-                  </div>
+
                   <Link href="/professional/profile">
-                    Improve your profile <ArrowUpRight size={14} />
+                    Update your profile <ArrowUpRight size={14} />
                   </Link>
                 </div>
 
                 <div className="po-side-card">
-                  <h3>Popular categories</h3>
+                  <h3>Opportunity categories</h3>
+
                   <div className="po-category-list">
-                    {[
-                      ["Design & Creative", "18 opportunities"],
-                      ["Technology", "14 opportunities"],
-                      ["Marketing", "9 opportunities"],
-                      ["Skilled Trades", "12 opportunities"],
-                    ].map(([name, count]) => (
-                      <button
-                        key={name}
-                        type="button"
-                        onClick={() => setCategory(name)}
-                        className={category === name ? "selected" : ""}
-                      >
-                        <span>{name}</span>
-                        <small>{count}</small>
-                      </button>
-                    ))}
+                    {availableCategories
+                      .filter((item) => item !== "All categories")
+                      .map((name) => {
+                        const count = opportunities.filter(
+                          (job) => job.category === name
+                        ).length;
+
+                        return (
+                          <button
+                            key={name}
+                            type="button"
+                            onClick={() => setCategory(name)}
+                            className={category === name ? "selected" : ""}
+                          >
+                            <span>{name}</span>
+
+                            <small>
+                              {count} {count === 1 ? "vacancy" : "vacancies"}
+                            </small>
+                          </button>
+                        );
+                      })}
+
+                    {availableCategories.length <= 1 && (
+                      <p>No vacancy categories available yet.</p>
+                    )}
                   </div>
                 </div>
 
@@ -677,12 +1046,15 @@ export default function ProfessionalOpportunitiesPage() {
                   <div className="po-tip-icon">
                     <CheckCircle2 size={18} />
                   </div>
+
                   <h3>Career tip</h3>
+
                   <p>
                     Add relevant skills and portfolio samples to your profile.
-                    Employers are more likely to notice a detailed professional
-                    profile.
+                    Employers need clear information about your abilities and
+                    experience.
                   </p>
+
                   <Link href="/professional/profile">
                     Update my profile <ChevronRight size={14} />
                   </Link>
@@ -692,221 +1064,6 @@ export default function ProfessionalOpportunitiesPage() {
           </section>
         </div>
       </main>
-
-      {selectedJob && (
-        <div
-          role="presentation"
-          onClick={() => setSelectedJob(null)}
-          style={{
-            position: "fixed",
-            inset: 0,
-            zIndex: 1000,
-            background: "rgba(10, 25, 17, 0.65)",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            padding: "20px",
-            overflowY: "auto",
-          }}
-        >
-          <section
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="po-detail-title"
-            onClick={(e) => e.stopPropagation()}
-            style={{
-              background: "#fff",
-              width: "100%",
-              maxWidth: "650px",
-              maxHeight: "90vh",
-              overflowY: "auto",
-              borderRadius: "18px",
-              padding: "28px",
-              color: "#17251d",
-            }}
-          >
-            <div
-              style={{
-                display: "flex",
-                justifyContent: "space-between",
-                alignItems: "flex-start",
-                gap: "15px",
-              }}
-            >
-              <div>
-                <span
-                  style={{
-                    color: "#176b45",
-                    fontSize: "12px",
-                    fontWeight: 800,
-                    textTransform: "uppercase",
-                  }}
-                >
-                  Opportunity details
-                </span>
-                <h2
-                  id="po-detail-title"
-                  style={{ margin: "8px 0", fontSize: "25px" }}
-                >
-                  {selectedJob.title}
-                </h2>
-                <p style={{ margin: 0, color: "#68756c" }}>
-                  {selectedJob.company}
-                </p>
-              </div>
-
-              <button
-                type="button"
-                onClick={() => setSelectedJob(null)}
-                aria-label="Close opportunity details"
-                style={{
-                  border: 0,
-                  background: "#f1f4f1",
-                  borderRadius: "50%",
-                  width: "38px",
-                  height: "38px",
-                  cursor: "pointer",
-                  flexShrink: 0,
-                }}
-              >
-                <X size={19} />
-              </button>
-            </div>
-
-            <div
-              style={{
-                display: "flex",
-                flexWrap: "wrap",
-                gap: "15px",
-                margin: "22px 0",
-                color: "#536258",
-                fontSize: "14px",
-              }}
-            >
-              <span><MapPin size={15} /> {selectedJob.location}</span>
-              <span><Clock3 size={15} /> {selectedJob.type}</span>
-              <span><Wallet size={15} /> {selectedJob.salary}</span>
-            </div>
-
-            <div style={{ borderTop: "1px solid #e5eae4", paddingTop: "20px" }}>
-              <h3>About this opportunity</h3>
-              <p style={{ lineHeight: 1.7, color: "#536258" }}>
-                {selectedJob.description}
-              </p>
-
-              <h3 style={{ marginTop: "22px" }}>Required skills</h3>
-              <div
-                style={{
-                  display: "flex",
-                  flexWrap: "wrap",
-                  gap: "8px",
-                }}
-              >
-                {selectedJob.skills.map((skill) => (
-                  <span
-                    key={skill}
-                    style={{
-                      background: "#e7f2e9",
-                      color: "#176b45",
-                      padding: "7px 11px",
-                      borderRadius: "20px",
-                      fontSize: "13px",
-                      fontWeight: 600,
-                    }}
-                  >
-                    {skill}
-                  </span>
-                ))}
-              </div>
-
-              <div
-                style={{
-                  background: "#f7f8f3",
-                  borderRadius: "12px",
-                  padding: "16px",
-                  marginTop: "22px",
-                  display: "grid",
-                  gridTemplateColumns: "1fr 1fr",
-                  gap: "14px",
-                }}
-              >
-                <div>
-                  <small style={{ color: "#68756c" }}>Application deadline</small>
-                  <strong style={{ display: "block", marginTop: "5px" }}>
-                    {selectedJob.deadline}
-                  </strong>
-                </div>
-                <div>
-                  <small style={{ color: "#68756c" }}>Your match</small>
-                  <strong style={{ display: "block", marginTop: "5px" }}>
-                    {selectedJob.match}%
-                  </strong>
-                </div>
-              </div>
-            </div>
-
-            <div
-              style={{
-                display: "flex",
-                flexWrap: "wrap",
-                gap: "10px",
-                marginTop: "24px",
-              }}
-            >
-              <button
-                type="button"
-                className="po-apply-button"
-                onClick={() => applyForJob(selectedJob)}
-                disabled={applications.some(
-                  (application) => application.jobId === selectedJob.id
-                )}
-                style={{
-                  opacity: applications.some(
-                    (application) => application.jobId === selectedJob.id
-                  )
-                    ? 0.6
-                    : 1,
-                  cursor: applications.some(
-                    (application) => application.jobId === selectedJob.id
-                  )
-                    ? "not-allowed"
-                    : "pointer",
-                }}
-              >
-                {applications.some(
-                  (application) => application.jobId === selectedJob.id
-                ) ? (
-                  <>
-                    <CheckCircle2 size={16} /> Already applied
-                  </>
-                ) : (
-                  <>
-                    <Send size={16} /> Apply for this opportunity
-                  </>
-                )}
-              </button>
-
-              <button
-                type="button"
-                className="po-clear-filter"
-                onClick={() => toggleSaved(selectedJob)}
-              >
-                {savedJobs.some(
-                  (job) => job.id === selectedJob.id
-                ) ? (
-                  <>
-                    <BookmarkCheck size={16} /> Saved
-                  </>
-                ) : (
-                  <>
-                    <Bookmark size={16} /> Save opportunity
-                  </>
-                )}
-              </button>
-            </div>
-          </section>
-        </div>
-      )}
     </div>
   );
 }

@@ -1,7 +1,13 @@
 
 "use client";
 
-import { useEffect, useRef, useState, type ChangeEvent } from "react";
+import {
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ChangeEvent,
+} from "react";
 import Link from "next/link";
 import Logo from "../../../components/Logo";
 import { createClient } from "../../../lib/supabase/client";
@@ -27,6 +33,8 @@ import {
   UserRound,
   X,
   Trash2,
+  Eye,
+  EyeOff,
 } from "lucide-react";
 import "./profile.css";
 
@@ -49,6 +57,7 @@ type ProfileData = {
   availability: string;
   photo: string;
   experiences: Experience[];
+  isPublic: boolean;
 };
 
 type ExtraProfileData = {
@@ -70,12 +79,13 @@ const initialProfile: ProfileData = {
   availability: "Available for work",
   photo: "",
   experiences: [],
+  isPublic: false,
 };
 
 const STORAGE_BUCKET = "abi-job-profile-files";
 
 export default function ProfessionalProfilePage() {
-  const supabase = createClient();
+  const supabase = useMemo(() => createClient(), []);
 
   const [profile, setProfile] = useState<ProfileData>(initialProfile);
   const [newSkill, setNewSkill] = useState("");
@@ -139,7 +149,9 @@ export default function ProfessionalProfilePage() {
         const { data: professional, error: professionalError } =
           await supabase
             .from("professional_profiles")
-            .select("category, skills, service_area, profile_data")
+            .select(
+              "category, skills, service_area, profile_data, is_public"
+            )
             .eq("user_id", user.id)
             .maybeSingle();
 
@@ -182,6 +194,7 @@ export default function ProfessionalProfilePage() {
           experiences: Array.isArray(extra.experiences)
             ? extra.experiences
             : [],
+          isPublic: professional?.is_public === true,
         };
 
         if (!active) return;
@@ -222,6 +235,7 @@ export default function ProfessionalProfilePage() {
     }));
 
     setSaved(false);
+    setError("");
   }
 
   function addSkill() {
@@ -229,12 +243,22 @@ export default function ProfessionalProfilePage() {
 
     if (!value) return;
 
+    if (value.length > 80) {
+      alert("A skill cannot exceed 80 characters.");
+      return;
+    }
+
     const alreadyExists = profile.skills.some(
       (skill) => skill.toLowerCase() === value.toLowerCase()
     );
 
     if (alreadyExists) {
       alert("This skill has already been added.");
+      return;
+    }
+
+    if (profile.skills.length >= 30) {
+      alert("You can add a maximum of 30 skills.");
       return;
     }
 
@@ -254,8 +278,10 @@ export default function ProfessionalProfilePage() {
 
     if (!file) return;
 
-    if (!file.type.startsWith("image/")) {
-      alert("Please select a valid image.");
+    const allowedTypes = ["image/jpeg", "image/png", "image/webp"];
+
+    if (!allowedTypes.includes(file.type)) {
+      alert("Please select a JPEG, PNG or WebP image.");
       event.target.value = "";
       return;
     }
@@ -301,24 +327,49 @@ export default function ProfessionalProfilePage() {
   }
 
   function saveExperience() {
-    if (!experienceForm.role.trim() || !experienceForm.company.trim()) {
+    const role = experienceForm.role.trim();
+    const company = experienceForm.company.trim();
+    const description = experienceForm.description.trim();
+
+    if (!role || !company) {
       alert("Please enter the job title and organisation.");
       return;
     }
+
+    if (role.length > 120 || company.length > 150) {
+      alert("The job title or organisation name is too long.");
+      return;
+    }
+
+    if (description.length > 1500) {
+      alert("The experience description cannot exceed 1,500 characters.");
+      return;
+    }
+
+    const cleanedExperience = {
+      role,
+      company,
+      description,
+    };
 
     if (editingExperience !== null) {
       updateProfile(
         "experiences",
         profile.experiences.map((experience) =>
           experience.id === editingExperience
-            ? { ...experience, ...experienceForm }
+            ? { ...experience, ...cleanedExperience }
             : experience
         )
       );
     } else {
+      if (profile.experiences.length >= 20) {
+        alert("You can add a maximum of 20 experience entries.");
+        return;
+      }
+
       const newExperience: Experience = {
         id: Date.now(),
-        ...experienceForm,
+        ...cleanedExperience,
       };
 
       updateProfile("experiences", [
@@ -342,12 +393,56 @@ export default function ProfessionalProfilePage() {
     );
   }
 
+  function validateProfileForPublishing(): string | null {
+    if (!profile.fullName.trim()) {
+      return "Add your full name before publishing your professional profile.";
+    }
+
+    if (!profile.professionalTitle.trim()) {
+      return "Add your professional title before publishing your profile.";
+    }
+
+    if (!profile.location.trim()) {
+      return "Add your location or service area before publishing your profile.";
+    }
+
+    if (!profile.bio.trim()) {
+      return "Add a professional introduction before publishing your profile.";
+    }
+
+    if (profile.skills.length === 0) {
+      return "Add at least one skill before publishing your profile.";
+    }
+
+    return null;
+  }
+
+  function validateWebsite(): string | null {
+    const website = profile.website.trim();
+
+    if (!website) return null;
+
+    try {
+      const parsed = new URL(website);
+
+      if (!["http:", "https:"].includes(parsed.protocol)) {
+        return "Your portfolio URL must begin with http:// or https://.";
+      }
+
+      return null;
+    } catch {
+      return "Enter a valid portfolio URL, including https://.";
+    }
+  }
+
   async function saveProfile() {
     if (!hydrated || saving) return;
 
     setSaving(true);
     setError("");
     setSaved(false);
+
+    let uploadedPhotoPath = "";
 
     try {
       const {
@@ -360,6 +455,32 @@ export default function ProfessionalProfilePage() {
       if (!user) {
         window.location.replace("/login");
         return;
+      }
+
+      if (
+        profile.fullName.trim().length > 150 ||
+        profile.professionalTitle.trim().length > 120 ||
+        profile.location.trim().length > 200 ||
+        profile.phone.trim().length > 40 ||
+        profile.bio.trim().length > 3000
+      ) {
+        throw new Error(
+          "One or more profile fields exceed the permitted length."
+        );
+      }
+
+      const websiteError = validateWebsite();
+
+      if (websiteError) {
+        throw new Error(websiteError);
+      }
+
+      if (profile.isPublic) {
+        const publishingError = validateProfileForPublishing();
+
+        if (publishingError) {
+          throw new Error(publishingError);
+        }
       }
 
       let newPhotoPath = photoPath;
@@ -377,7 +498,7 @@ export default function ProfessionalProfilePage() {
         const { error: uploadError } = await supabase.storage
           .from(STORAGE_BUCKET)
           .upload(uploadPath, pendingPhoto, {
-            upsert: true,
+            upsert: false,
             contentType: pendingPhoto.type,
             cacheControl: "3600",
           });
@@ -385,6 +506,7 @@ export default function ProfessionalProfilePage() {
         if (uploadError) throw uploadError;
 
         newPhotoPath = uploadPath;
+        uploadedPhotoPath = uploadPath;
       }
 
       const { error: personalError } = await supabase
@@ -418,6 +540,7 @@ export default function ProfessionalProfilePage() {
             skills: profile.skills,
             service_area: profile.location.trim(),
             profile_data: profileData,
+            is_public: profile.isPublic,
           },
           { onConflict: "user_id" }
         );
@@ -437,7 +560,7 @@ export default function ProfessionalProfilePage() {
         signedPhoto = signedData.signedUrl;
       }
 
-      const updatedProfile = {
+      const updatedProfile: ProfileData = {
         ...profile,
         photo: signedPhoto,
         email: user.email || profile.email,
@@ -455,6 +578,19 @@ export default function ProfessionalProfilePage() {
       }
     } catch (err) {
       console.error("Professional profile save error:", err);
+
+      if (uploadedPhotoPath) {
+        const { error: cleanupError } = await supabase.storage
+          .from(STORAGE_BUCKET)
+          .remove([uploadedPhotoPath]);
+
+        if (cleanupError) {
+          console.error(
+            "Unable to clean up an uploaded profile image:",
+            cleanupError
+          );
+        }
+      }
 
       setError(
         err instanceof Error
@@ -694,7 +830,7 @@ export default function ProfessionalProfilePage() {
           )}
 
           {saved && (
-            <div className="pp-save-notice">
+            <div className="pp-save-notice" role="status">
               <CheckCircle2 size={17} />
               Your profile has been saved successfully.
             </div>
@@ -724,21 +860,30 @@ export default function ProfessionalProfilePage() {
                       )}
                     </div>
 
-                    <button
+                    <label
+                      htmlFor="professional-profile-photo-input"
                       className="pp-avatar-edit"
-                      type="button"
-                      onClick={() => photoInputRef.current?.click()}
                       aria-label="Change profile picture"
                       title="Change profile picture"
+                      style={{
+                        cursor: saving ? "not-allowed" : "pointer",
+                        pointerEvents: saving ? "none" : "auto",
+                        opacity: saving ? 0.6 : 1,
+                      }}
                     >
                       <Camera size={14} />
-                    </button>
+                    </label>
 
                     <input
+                      id="professional-profile-photo-input"
                       ref={photoInputRef}
                       type="file"
-                      accept="image/*"
-                      onChange={handlePhotoChange}
+                      accept="image/jpeg,image/png,image/webp"
+                      onChange={(event) => {
+                        handlePhotoChange(event);
+                        event.currentTarget.value = "";
+                      }}
+                      disabled={saving}
                       style={{ display: "none" }}
                     />
                   </div>
@@ -746,14 +891,16 @@ export default function ProfessionalProfilePage() {
                   <div className="pp-profile-name">
                     <h2>{profile.fullName || "Your name"}</h2>
                     <p>
-                      {profile.professionalTitle || "Add your professional title"}
+                      {profile.professionalTitle ||
+                        "Add your professional title"}
                     </p>
                   </div>
                 </div>
 
                 <div className="pp-profile-meta">
                   <span>
-                    <MapPin size={14} /> {profile.location || "Add your location"}
+                    <MapPin size={14} />{" "}
+                    {profile.location || "Add your location"}
                   </span>
                   <span>
                     <ShieldCheck size={14} /> Professional account
@@ -778,6 +925,7 @@ export default function ProfessionalProfilePage() {
                     <label htmlFor="pp-name">Full name</label>
                     <input
                       id="pp-name"
+                      maxLength={150}
                       value={profile.fullName}
                       onChange={(e) =>
                         updateProfile("fullName", e.target.value)
@@ -789,6 +937,7 @@ export default function ProfessionalProfilePage() {
                     <label htmlFor="pp-title">Professional title</label>
                     <input
                       id="pp-title"
+                      maxLength={120}
                       value={profile.professionalTitle}
                       onChange={(e) =>
                         updateProfile("professionalTitle", e.target.value)
@@ -811,6 +960,7 @@ export default function ProfessionalProfilePage() {
                     <label htmlFor="pp-phone">Phone number</label>
                     <input
                       id="pp-phone"
+                      maxLength={40}
                       value={profile.phone}
                       onChange={(e) =>
                         updateProfile("phone", e.target.value)
@@ -822,6 +972,7 @@ export default function ProfessionalProfilePage() {
                     <label htmlFor="pp-location">Location</label>
                     <input
                       id="pp-location"
+                      maxLength={200}
                       value={profile.location}
                       onChange={(e) =>
                         updateProfile("location", e.target.value)
@@ -833,6 +984,7 @@ export default function ProfessionalProfilePage() {
                     <label htmlFor="pp-website">Portfolio or website</label>
                     <input
                       id="pp-website"
+                      type="url"
                       value={profile.website}
                       onChange={(e) =>
                         updateProfile("website", e.target.value)
@@ -847,13 +999,14 @@ export default function ProfessionalProfilePage() {
                     </label>
                     <textarea
                       id="pp-bio"
+                      maxLength={3000}
                       value={profile.bio}
                       onChange={(e) => updateProfile("bio", e.target.value)}
-                      placeholder="Tell employers about yourself..."
+                      placeholder="Tell people about your professional experience and services..."
                     />
                     <span className="pp-field-hint">
                       Briefly describe your experience, strengths and the
-                      value you offer.
+                      services you offer.
                     </span>
                   </div>
                 </div>
@@ -879,6 +1032,7 @@ export default function ProfessionalProfilePage() {
                         type="button"
                         onClick={() => removeSkill(skill)}
                         aria-label={`Remove ${skill}`}
+                        disabled={saving}
                       >
                         <X size={12} />
                       </button>
@@ -893,6 +1047,7 @@ export default function ProfessionalProfilePage() {
                 <div className="pp-add-skill-row">
                   <input
                     value={newSkill}
+                    maxLength={80}
                     onChange={(e) => setNewSkill(e.target.value)}
                     onKeyDown={(e) => {
                       if (e.key === "Enter") {
@@ -901,12 +1056,14 @@ export default function ProfessionalProfilePage() {
                       }
                     }}
                     placeholder="Enter a skill..."
+                    disabled={saving}
                   />
 
                   <button
                     className="pp-add-skill"
                     type="button"
                     onClick={addSkill}
+                    disabled={saving}
                   >
                     <Plus size={14} /> Add skill
                   </button>
@@ -949,6 +1106,7 @@ export default function ProfessionalProfilePage() {
                           type="button"
                           className="pp-text-action"
                           onClick={() => openEditExperience(experience)}
+                          disabled={saving}
                         >
                           Edit
                         </button>
@@ -957,6 +1115,7 @@ export default function ProfessionalProfilePage() {
                           type="button"
                           className="pp-text-action"
                           onClick={() => deleteExperience(experience.id)}
+                          disabled={saving}
                         >
                           <Trash2 size={13} /> Remove
                         </button>
@@ -973,6 +1132,7 @@ export default function ProfessionalProfilePage() {
                   className="pp-add-skill pp-add-experience"
                   type="button"
                   onClick={openAddExperience}
+                  disabled={saving}
                 >
                   <Plus size={14} /> Add experience
                 </button>
@@ -997,6 +1157,7 @@ export default function ProfessionalProfilePage() {
                       <label htmlFor="experience-role">Job title / Role</label>
                       <input
                         id="experience-role"
+                        maxLength={120}
                         value={experienceForm.role}
                         onChange={(e) =>
                           setExperienceForm({
@@ -1014,6 +1175,7 @@ export default function ProfessionalProfilePage() {
                       </label>
                       <input
                         id="experience-company"
+                        maxLength={150}
                         value={experienceForm.company}
                         onChange={(e) =>
                           setExperienceForm({
@@ -1031,6 +1193,7 @@ export default function ProfessionalProfilePage() {
                       </label>
                       <textarea
                         id="experience-description"
+                        maxLength={1500}
                         value={experienceForm.description}
                         onChange={(e) =>
                           setExperienceForm({
@@ -1074,7 +1237,7 @@ export default function ProfessionalProfilePage() {
                 <div className="pp-card-header">
                   <div>
                     <h2>Online presence</h2>
-                    <p>Help employers discover more of your work.</p>
+                    <p>Help people discover more of your work.</p>
                   </div>
                   <Globe size={19} />
                 </div>
@@ -1083,6 +1246,7 @@ export default function ProfessionalProfilePage() {
                   <label htmlFor="pp-portfolio">Portfolio URL</label>
                   <input
                     id="pp-portfolio"
+                    type="url"
                     value={profile.website}
                     onChange={(e) =>
                       updateProfile("website", e.target.value)
@@ -1097,6 +1261,7 @@ export default function ProfessionalProfilePage() {
                   className="pp-button"
                   type="button"
                   onClick={cancelChanges}
+                  disabled={saving}
                 >
                   Cancel
                 </button>
@@ -1175,6 +1340,7 @@ export default function ProfessionalProfilePage() {
                   onChange={(e) =>
                     updateProfile("availability", e.target.value)
                   }
+                  disabled={saving}
                 >
                   <option>Available for work</option>
                   <option>Open to opportunities</option>
@@ -1200,12 +1366,131 @@ export default function ProfessionalProfilePage() {
                 <h3>Profile visibility</h3>
 
                 <div className="pp-tip">
-                  <strong>Make a strong first impression</strong>
+                  <strong>Control who can discover your services</strong>
                   <p>
-                    A complete profile helps employers understand your skills,
-                    experience and professional interests.
+                    Choose whether your professional profile appears in the
+                    public Find Professionals directory.
                   </p>
                 </div>
+
+                <div
+                  style={{
+                    marginTop: "16px",
+                    padding: "15px",
+                    borderRadius: "12px",
+                    border: "1px solid #e2e9e2",
+                    background: profile.isPublic ? "#f0f8f1" : "#f7f8f6",
+                  }}
+                >
+                  <div
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "10px",
+                      marginBottom: "12px",
+                    }}
+                  >
+                    {profile.isPublic ? (
+                      <Eye size={19} color="#176b45" />
+                    ) : (
+                      <EyeOff size={19} color="#66736a" />
+                    )}
+
+                    <div style={{ flex: 1 }}>
+                      <strong
+                        style={{
+                          display: "block",
+                          fontSize: "14px",
+                          color: "#17251d",
+                        }}
+                      >
+                        {profile.isPublic
+                          ? "Public profile"
+                          : "Private profile"}
+                      </strong>
+
+                      <span
+                        style={{
+                          display: "block",
+                          fontSize: "12px",
+                          color: "#66736a",
+                          marginTop: "3px",
+                        }}
+                      >
+                        {profile.isPublic
+                          ? "Your profile can appear in Find Professionals."
+                          : "Your profile is hidden from the public directory."}
+                      </span>
+                    </div>
+                  </div>
+
+                  <label
+                    htmlFor="pp-public-profile"
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "10px",
+                      cursor: saving ? "not-allowed" : "pointer",
+                      fontSize: "13px",
+                      fontWeight: 600,
+                      color: "#176b45",
+                    }}
+                  >
+                    <input
+                      id="pp-public-profile"
+                      type="checkbox"
+                      checked={profile.isPublic}
+                      onChange={(e) =>
+                        updateProfile("isPublic", e.target.checked)
+                      }
+                      disabled={saving}
+                      style={{
+                        width: "17px",
+                        height: "17px",
+                        accentColor: "#176b45",
+                      }}
+                    />
+                    Show my profile in Find Professionals
+                  </label>
+
+                  <p
+                    style={{
+                      fontSize: "12px",
+                      lineHeight: 1.6,
+                      color: "#66736a",
+                      margin: "12px 0 0",
+                    }}
+                  >
+                    Your name, professional title, location, introduction and
+                    skills may be displayed publicly. Your email address and
+                    phone number are not returned by the public directory.
+                    Save your changes to apply this setting.
+                  </p>
+                </div>
+
+                {profile.isPublic && (
+                  <div
+                    style={{
+                      marginTop: "12px",
+                      display: "flex",
+                      alignItems: "flex-start",
+                      gap: "8px",
+                      fontSize: "12px",
+                      lineHeight: 1.5,
+                      color: "#66736a",
+                    }}
+                  >
+                    <ShieldCheck
+                      size={16}
+                      color="#176b45"
+                      style={{ flexShrink: 0 }}
+                    />
+                    <span>
+                      You can hide your profile again at any time by turning
+                      off this setting and saving.
+                    </span>
+                  </div>
+                )}
               </section>
             </aside>
           </div>

@@ -1,7 +1,13 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useMemo, useState, type FormEvent } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+  type FormEvent,
+} from "react";
 import { useRouter } from "next/navigation";
 import {
   Activity,
@@ -27,7 +33,13 @@ import Logo from "../../../components/Logo";
 import { createClient } from "@/lib/supabase/client";
 import "./interviews.css";
 
-type InterviewStatus = "scheduled" | "completed" | "cancelled";
+type InterviewStatus =
+  | "scheduled"
+  | "completed"
+  | "cancelled"
+  | "rescheduled";
+
+type InterviewType = "online" | "live_chat" | "in_person" | "phone";
 
 type Interview = {
   id: string;
@@ -36,7 +48,7 @@ type Interview = {
   applicant_id: string;
   scheduled_at: string;
   duration_minutes: number;
-  interview_type: string;
+  interview_type: InterviewType;
   meeting_link: string | null;
   location: string | null;
   notes: string | null;
@@ -58,7 +70,7 @@ type InterviewForm = {
   applicationId: string;
   scheduledAt: string;
   duration: string;
-  interviewType: string;
+  interviewType: InterviewType;
   meetingLink: string;
   location: string;
   notes: string;
@@ -86,7 +98,11 @@ const employerLinks = [
 
 function toLocalDateTime(value: string) {
   const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) return "";
+
   const offset = date.getTimezoneOffset() * 60000;
+
   return new Date(date.getTime() - offset).toISOString().slice(0, 16);
 }
 
@@ -121,7 +137,31 @@ function formatTime(value: string) {
 function getStatusLabel(status: string) {
   if (status === "completed") return "Completed";
   if (status === "cancelled") return "Cancelled";
+  if (status === "rescheduled") return "Rescheduled";
   return "Scheduled";
+}
+
+function getInterviewTypeLabel(type: string) {
+  if (type === "live_chat") return "Abi Job Live Room";
+  if (type === "online") return "Google Meet";
+  if (type === "in_person") return "In-person";
+  if (type === "phone") return "Phone";
+  return "Interview";
+}
+
+function isValidGoogleMeetUrl(value: string) {
+  try {
+    const url = new URL(value.trim());
+
+    return (
+      url.protocol === "https:" &&
+      url.hostname.toLowerCase() === "meet.google.com" &&
+      !url.username &&
+      !url.password
+    );
+  } catch {
+    return false;
+  }
 }
 
 export default function EmployerInterviewsPage() {
@@ -179,6 +219,7 @@ export default function EmployerInterviewsPage() {
         } else {
           router.replace("/login");
         }
+
         return;
       }
 
@@ -287,6 +328,7 @@ export default function EmployerInterviewsPage() {
       const loadedInterviews: Interview[] = (interviewRows || []).map(
         (interview) => ({
           ...interview,
+          interview_type: interview.interview_type as InterviewType,
           status: interview.status as InterviewStatus,
           applicant_name:
             interviewApplicantNames.get(interview.applicant_id) ||
@@ -300,6 +342,7 @@ export default function EmployerInterviewsPage() {
       setInterviews(loadedInterviews);
     } catch (err) {
       console.error("Error loading employer interviews:", err);
+
       setError(
         err instanceof Error
           ? err.message
@@ -311,17 +354,25 @@ export default function EmployerInterviewsPage() {
   }, [router, supabase]);
 
   useEffect(() => {
-    loadInterviews();
+    void loadInterviews();
   }, [loadInterviews]);
 
   const filteredInterviews = interviews.filter((interview) => {
     if (activeFilter === "all") return true;
+    if (activeFilter === "scheduled") {
+      return (
+        interview.status === "scheduled" ||
+        interview.status === "rescheduled"
+      );
+    }
+
     return interview.status === activeFilter;
   });
 
   const upcomingCount = interviews.filter(
     (interview) =>
-      interview.status === "scheduled" &&
+      (interview.status === "scheduled" ||
+        interview.status === "rescheduled") &&
       new Date(interview.scheduled_at).getTime() >= Date.now()
   ).length;
 
@@ -333,7 +384,10 @@ export default function EmployerInterviewsPage() {
     (interview) => interview.status === "cancelled"
   ).length;
 
-  function updateForm(field: keyof InterviewForm, value: string) {
+  function updateForm<K extends keyof InterviewForm>(
+    field: K,
+    value: InterviewForm[K]
+  ) {
     setForm((current) => ({ ...current, [field]: value }));
   }
 
@@ -343,7 +397,18 @@ export default function EmployerInterviewsPage() {
   }
 
   function editInterview(interview: Interview) {
+    if (
+      interview.status !== "scheduled" &&
+      interview.status !== "rescheduled"
+    ) {
+      setError("Only active interviews can be rescheduled.");
+      return;
+    }
+
+    setError("");
+    setSuccess("");
     setEditingInterviewId(interview.id);
+
     setForm({
       applicationId: interview.application_id,
       scheduledAt: toLocalDateTime(interview.scheduled_at),
@@ -362,6 +427,8 @@ export default function EmployerInterviewsPage() {
     setError("");
     setSuccess("");
 
+    if (saving) return;
+
     if (!form.applicationId) {
       setError("Select a shortlisted applicant first.");
       return;
@@ -374,36 +441,63 @@ export default function EmployerInterviewsPage() {
 
     const scheduledDate = new Date(form.scheduledAt);
 
-    if (Number.isNaN(scheduledDate.getTime())) {
-      setError("The selected interview date is invalid.");
-      return;
-    }
-
-    if (scheduledDate.getTime() < Date.now() && !editingInterviewId) {
-      setError("Please choose a future date and time.");
+    if (
+      Number.isNaN(scheduledDate.getTime()) ||
+      scheduledDate.getTime() <= Date.now()
+    ) {
+      setError("Please choose a valid future interview date and time.");
       return;
     }
 
     if (
-      form.interviewType === "online" &&
-      form.meetingLink.trim() === ""
+      !["online", "live_chat", "in_person", "phone"].includes(
+        form.interviewType
+      )
     ) {
-      setError("Add the online meeting link.");
+      setError("Choose a valid interview method.");
       return;
+    }
+
+    if (form.interviewType === "online") {
+      if (!form.meetingLink.trim()) {
+        setError("Add the Google Meet link.");
+        return;
+      }
+
+      if (!isValidGoogleMeetUrl(form.meetingLink)) {
+        setError(
+          "Enter a valid Google Meet URL beginning with https://meet.google.com/."
+        );
+        return;
+      }
     }
 
     if (
       form.interviewType === "in_person" &&
-      form.location.trim() === ""
+      !form.location.trim()
     ) {
       setError("Add the interview location.");
       return;
     }
 
+    if (form.location.trim().length > 500) {
+      setError("The interview location is too long.");
+      return;
+    }
+
+    if (form.notes.trim().length > 3000) {
+      setError("Additional notes cannot exceed 3,000 characters.");
+      return;
+    }
+
     const duration = Number(form.duration);
 
-    if (!Number.isInteger(duration) || duration < 10 || duration > 480) {
-      setError("Interview duration must be between 10 and 480 minutes.");
+    if (
+      !Number.isInteger(duration) ||
+      duration < 15 ||
+      duration > 480
+    ) {
+      setError("Interview duration must be between 15 and 480 minutes.");
       return;
     }
 
@@ -423,34 +517,57 @@ export default function EmployerInterviewsPage() {
         (application) => application.id === form.applicationId
       );
 
-      if (!selectedApplication && !editingInterviewId) {
+      const existingInterview = editingInterviewId
+        ? interviews.find((item) => item.id === editingInterviewId)
+        : null;
+
+      if (editingInterviewId) {
+        if (!existingInterview) {
+          throw new Error("The interview could not be found. Refresh and try again.");
+        }
+
+        if (
+          existingInterview.employer_id !== user.id ||
+          (existingInterview.status !== "scheduled" &&
+            existingInterview.status !== "rescheduled")
+        ) {
+          throw new Error(
+            "This interview can no longer be rescheduled."
+          );
+        }
+      } else if (!selectedApplication) {
         throw new Error(
           "That shortlisted application could not be found. Refresh and try again."
         );
       }
 
-      const interviewData = {
-        application_id: form.applicationId,
-        employer_id: user.id,
-        applicant_id:
-          selectedApplication?.applicant_id ||
-          interviews.find((item) => item.id === editingInterviewId)
-            ?.applicant_id,
-        scheduled_at: scheduledDate.toISOString(),
-        duration_minutes: duration,
-        interview_type: form.interviewType,
-        meeting_link: form.meetingLink.trim() || null,
-        location: form.location.trim() || null,
-        notes: form.notes.trim() || null,
-        status: "scheduled",
-      };
+      const applicantId =
+        selectedApplication?.applicant_id || existingInterview?.applicant_id;
 
-      if (!interviewData.applicant_id) {
+      if (!applicantId) {
         throw new Error("The applicant could not be identified.");
       }
 
+      const interviewData = {
+        application_id: form.applicationId,
+        employer_id: user.id,
+        applicant_id: applicantId,
+        scheduled_at: scheduledDate.toISOString(),
+        duration_minutes: duration,
+        interview_type: form.interviewType,
+        meeting_link:
+          form.interviewType === "online"
+            ? form.meetingLink.trim()
+            : null,
+        location:
+          form.interviewType === "in_person"
+            ? form.location.trim()
+            : null,
+        notes: form.notes.trim() || null,
+      };
+
       if (editingInterviewId) {
-        const { error: updateError } = await supabase
+        const { data: updatedInterview, error: updateError } = await supabase
           .from("interviews")
           .update({
             scheduled_at: interviewData.scheduled_at,
@@ -459,28 +576,45 @@ export default function EmployerInterviewsPage() {
             meeting_link: interviewData.meeting_link,
             location: interviewData.location,
             notes: interviewData.notes,
-            status: "scheduled",
+            status: "rescheduled",
           })
           .eq("id", editingInterviewId)
-          .eq("employer_id", user.id);
+          .eq("employer_id", user.id)
+          .in("status", ["scheduled", "rescheduled"])
+          .select("id")
+          .maybeSingle();
 
         if (updateError) throw updateError;
+
+        if (!updatedInterview) {
+          throw new Error(
+            "The interview was not updated. It may have changed status. Refresh and try again."
+          );
+        }
 
         setSuccess("Interview rescheduled successfully.");
       } else {
         const { error: insertError } = await supabase
           .from("interviews")
-          .insert(interviewData);
+          .insert({
+            ...interviewData,
+            status: "scheduled",
+          });
 
         if (insertError) throw insertError;
 
-        setSuccess("Interview scheduled successfully.");
+        setSuccess(
+          form.interviewType === "live_chat"
+            ? "Abi Job Live Room interview scheduled successfully."
+            : "Interview scheduled successfully."
+        );
       }
 
       resetForm();
       await loadInterviews();
     } catch (err) {
       console.error("Error saving interview:", err);
+
       setError(
         err instanceof Error
           ? err.message
@@ -495,6 +629,34 @@ export default function EmployerInterviewsPage() {
     interview: Interview,
     status: InterviewStatus
   ) {
+    if (updatingId) return;
+
+    if (
+      status === "completed" &&
+      interview.status !== "scheduled" &&
+      interview.status !== "rescheduled"
+    ) {
+      setError("Only active interviews can be marked as completed.");
+      return;
+    }
+
+    if (
+      status === "cancelled" &&
+      interview.status !== "scheduled" &&
+      interview.status !== "rescheduled"
+    ) {
+      setError("Only active interviews can be cancelled.");
+      return;
+    }
+
+    if (
+      status === "scheduled" &&
+      interview.status !== "cancelled"
+    ) {
+      setError("Only cancelled interviews can be restored.");
+      return;
+    }
+
     const confirmation =
       status === "cancelled"
         ? "Are you sure you want to cancel this interview?"
@@ -509,23 +671,53 @@ export default function EmployerInterviewsPage() {
     setSuccess("");
 
     try {
-      const { error: updateError } = await supabase
+      const {
+        data: { user },
+        error: authError,
+      } = await supabase.auth.getUser();
+
+      if (authError || !user) {
+        throw new Error("Your session has expired. Please sign in again.");
+      }
+
+      let query = supabase
         .from("interviews")
         .update({ status })
         .eq("id", interview.id)
-        .eq("employer_id", interview.employer_id);
+        .eq("employer_id", user.id);
+
+      if (status === "scheduled") {
+        query = query.eq("status", "cancelled");
+      } else {
+        query = query.in("status", ["scheduled", "rescheduled"]);
+      }
+
+      const { data, error: updateError } = await query
+        .select("id")
+        .maybeSingle();
 
       if (updateError) throw updateError;
 
+      if (!data) {
+        throw new Error(
+          "The interview status was not changed. Refresh and check its current status."
+        );
+      }
+
       setInterviews((current) =>
         current.map((item) =>
-          item.id === interview.id ? { ...item, status } : item
+          item.id === interview.id
+            ? { ...item, status }
+            : item
         )
       );
 
-      setSuccess(`Interview marked as ${getStatusLabel(status).toLowerCase()}.`);
+      setSuccess(
+        `Interview marked as ${getStatusLabel(status).toLowerCase()}.`
+      );
     } catch (err) {
       console.error("Error updating interview:", err);
+
       setError(
         err instanceof Error
           ? err.message
@@ -628,15 +820,15 @@ export default function EmployerInterviewsPage() {
               <span className="interviews-eyebrow">RECRUITMENT</span>
               <h1>Interviews</h1>
               <p>
-                Schedule meetings and keep track of every interview with your
-                shortlisted applicants.
+                Schedule Google Meet, live chat, phone and in-person
+                interviews with shortlisted applicants.
               </p>
             </div>
 
             <button
               type="button"
               className="interviews-refresh-button"
-              onClick={loadInterviews}
+              onClick={() => void loadInterviews()}
               disabled={loading}
             >
               <RefreshCw size={16} />
@@ -781,22 +973,34 @@ export default function EmployerInterviewsPage() {
                             <Video size={15} />
                           ) : interview.interview_type === "phone" ? (
                             <MessageCircle size={15} />
+                          ) : interview.interview_type === "live_chat" ? (
+                            <MessageCircle size={15} />
                           ) : (
                             <MapPin size={15} />
                           )}
-                          {interview.interview_type.replace("_", " ")}
+                          {getInterviewTypeLabel(interview.interview_type)}
                         </span>
                       </div>
+
+                      {interview.interview_type === "live_chat" && (
+                        <Link
+                          className="interview-meeting-link"
+                          href={`/interviews/${interview.id}`}
+                        >
+                          <MessageCircle size={15} />
+                          Open Abi Job Live Room
+                        </Link>
+                      )}
 
                       {interview.meeting_link && (
                         <a
                           className="interview-meeting-link"
                           href={interview.meeting_link}
                           target="_blank"
-                          rel="noreferrer"
+                          rel="noopener noreferrer"
                         >
                           <Video size={15} />
-                          Open meeting link
+                          Open Google Meet
                         </a>
                       )}
 
@@ -818,49 +1022,58 @@ export default function EmployerInterviewsPage() {
                           View applicant
                         </Link>
 
-                        <Link href="/employer/messages">
-                          Message
-                        </Link>
+                        <Link href="/employer/messages">Message</Link>
 
-                        {interview.status !== "cancelled" &&
-                          interview.status !== "completed" && (
-                            <>
-                              <button
-                                type="button"
-                                onClick={() => editInterview(interview)}
-                              >
-                                Reschedule
-                              </button>
-                              <button
-                                type="button"
-                                className="interview-complete-action"
-                                disabled={updatingId === interview.id}
-                                onClick={() =>
-                                  updateInterviewStatus(interview, "completed")
-                                }
-                              >
-                                {updatingId === interview.id
-                                  ? "Saving..."
-                                  : "Complete"}
-                              </button>
-                              <button
-                                type="button"
-                                className="interview-cancel-action"
-                                disabled={updatingId === interview.id}
-                                onClick={() =>
-                                  updateInterviewStatus(interview, "cancelled")
-                                }
-                              >
-                                Cancel
-                              </button>
-                            </>
-                          )}
+                        {(interview.status === "scheduled" ||
+                          interview.status === "rescheduled") && (
+                          <>
+                            <button
+                              type="button"
+                              onClick={() => editInterview(interview)}
+                            >
+                              Reschedule
+                            </button>
+
+                            <button
+                              type="button"
+                              className="interview-complete-action"
+                              disabled={updatingId === interview.id}
+                              onClick={() =>
+                                void updateInterviewStatus(
+                                  interview,
+                                  "completed"
+                                )
+                              }
+                            >
+                              {updatingId === interview.id
+                                ? "Saving..."
+                                : "Complete"}
+                            </button>
+
+                            <button
+                              type="button"
+                              className="interview-cancel-action"
+                              disabled={updatingId === interview.id}
+                              onClick={() =>
+                                void updateInterviewStatus(
+                                  interview,
+                                  "cancelled"
+                                )
+                              }
+                            >
+                              Cancel
+                            </button>
+                          </>
+                        )}
 
                         {interview.status === "cancelled" && (
                           <button
                             type="button"
                             onClick={() =>
-                              updateInterviewStatus(interview, "scheduled")
+                              void updateInterviewStatus(
+                                interview,
+                                "scheduled"
+                              )
                             }
                             disabled={updatingId === interview.id}
                           >
@@ -881,7 +1094,9 @@ export default function EmployerInterviewsPage() {
                 </div>
                 <div>
                   <h2>
-                    {editingInterviewId ? "Reschedule interview" : "Schedule interview"}
+                    {editingInterviewId
+                      ? "Reschedule interview"
+                      : "Schedule interview"}
                   </h2>
                   <p>
                     {editingInterviewId
@@ -892,7 +1107,9 @@ export default function EmployerInterviewsPage() {
               </div>
 
               <form onSubmit={handleSaveInterview}>
-                <label htmlFor="interview-applicant">Shortlisted applicant</label>
+                <label htmlFor="interview-applicant">
+                  Shortlisted applicant
+                </label>
                 <select
                   id="interview-applicant"
                   value={form.applicationId}
@@ -903,11 +1120,13 @@ export default function EmployerInterviewsPage() {
                   disabled={Boolean(editingInterviewId)}
                 >
                   <option value="">Select an applicant</option>
+
                   {shortlistedApplications.map((application) => (
                     <option key={application.id} value={application.id}>
                       {application.applicant_name} — {application.job_title}
                     </option>
                   ))}
+
                   {editingInterviewId &&
                     !shortlistedApplications.some(
                       (application) =>
@@ -919,12 +1138,13 @@ export default function EmployerInterviewsPage() {
                     )}
                 </select>
 
-                {shortlistedApplications.length === 0 && !editingInterviewId && (
-                  <p className="interviews-field-hint">
-                    You need at least one shortlisted applicant before you can
-                    schedule an interview.
-                  </p>
-                )}
+                {shortlistedApplications.length === 0 &&
+                  !editingInterviewId && (
+                    <p className="interviews-field-hint">
+                      You need at least one shortlisted applicant before you
+                      can schedule an interview.
+                    </p>
+                  )}
 
                 <label htmlFor="interview-date">Date and time</label>
                 <input
@@ -951,24 +1171,31 @@ export default function EmployerInterviewsPage() {
                   <option value="60">1 hour</option>
                   <option value="90">1 hour 30 minutes</option>
                   <option value="120">2 hours</option>
+                  <option value="180">3 hours</option>
+                  <option value="240">4 hours</option>
+                  <option value="480">8 hours</option>
                 </select>
 
-                <label htmlFor="interview-type">Interview type</label>
+                <label htmlFor="interview-type">Interview method</label>
                 <select
                   id="interview-type"
                   value={form.interviewType}
                   onChange={(event) =>
-                    updateForm("interviewType", event.target.value)
+                    updateForm(
+                      "interviewType",
+                      event.target.value as InterviewType
+                    )
                   }
                 >
-                  <option value="online">Online interview</option>
+                  <option value="online">Google Meet</option>
+                  <option value="live_chat">Abi Job Live Room</option>
                   <option value="in_person">In-person interview</option>
                   <option value="phone">Phone interview</option>
                 </select>
 
                 {form.interviewType === "online" && (
                   <>
-                    <label htmlFor="interview-link">Meeting link</label>
+                    <label htmlFor="interview-link">Google Meet link</label>
                     <input
                       id="interview-link"
                       type="url"
@@ -977,13 +1204,31 @@ export default function EmployerInterviewsPage() {
                       onChange={(event) =>
                         updateForm("meetingLink", event.target.value)
                       }
+                      required
                     />
+                    <p className="interviews-field-hint">
+                      Create the meeting in Google Meet and paste its
+                      invitation link here.
+                    </p>
                   </>
+                )}
+
+                {form.interviewType === "live_chat" && (
+                  <div className="interviews-field-hint">
+                    <strong>Abi Job Live Room</strong>
+                    <p>
+                      A private text interview room will be available to you
+                      and the invited applicant after you schedule this
+                      interview. Both participants must sign in to Abi Job.
+                    </p>
+                  </div>
                 )}
 
                 {form.interviewType === "in_person" && (
                   <>
-                    <label htmlFor="interview-location">Interview location</label>
+                    <label htmlFor="interview-location">
+                      Interview location
+                    </label>
                     <input
                       id="interview-location"
                       type="text"
@@ -992,6 +1237,8 @@ export default function EmployerInterviewsPage() {
                       onChange={(event) =>
                         updateForm("location", event.target.value)
                       }
+                      required
+                      maxLength={500}
                     />
                   </>
                 )}
@@ -1000,6 +1247,7 @@ export default function EmployerInterviewsPage() {
                 <textarea
                   id="interview-notes"
                   rows={4}
+                  maxLength={3000}
                   placeholder="Instructions, documents to bring, or other details..."
                   value={form.notes}
                   onChange={(event) =>
@@ -1019,7 +1267,10 @@ export default function EmployerInterviewsPage() {
                   >
                     {saving ? (
                       <>
-                        <LoaderCircle size={17} className="interviews-spinner" />
+                        <LoaderCircle
+                          size={17}
+                          className="interviews-spinner"
+                        />
                         Saving...
                       </>
                     ) : (

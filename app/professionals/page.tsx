@@ -2,13 +2,13 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Header from "../../components/Header";
 import Footer from "../../components/Footer";
+import { createClient } from "@/lib/supabase/client";
 import {
   Search,
   MapPin,
-  Star,
   BriefcaseBusiness,
   ArrowUpRight,
   ArrowRight,
@@ -20,156 +20,49 @@ import {
 import "./professionals.css";
 
 type Professional = {
-  id: number;
-  name: string;
-  profession: string;
-  category: string;
-  location: string;
-  experience: string;
-  rating: number;
-  reviews: number;
-  description: string;
-  skills: string[];
-  initials: string;
-  featured?: boolean;
+  user_id: string;
+  full_name: string | null;
+  location: string | null;
+  headline: string | null;
+  about: string | null;
+  profile_skills: string[] | null;
+  category: string | null;
+  professional_skills: string[] | null;
+  experience_years: number | null;
+  professional_bio: string | null;
+  service_area: string | null;
+  portfolio_url: string | null;
 };
 
-const professionals: Professional[] = [
-  {
-    id: 1,
-    name: "Chinedu Okafor",
-    profession: "Graphic Designer",
-    category: "Creative & Design",
-    location: "Aba",
-    experience: "4 years experience",
-    rating: 4.9,
-    reviews: 28,
-    description:
-      "Creative designer specialising in brand identity, business graphics, advertising designs and digital content.",
-    skills: ["Brand Identity", "CorelDRAW", "Social Media Design"],
-    initials: "CO",
-    featured: true,
-  },
-  {
-    id: 2,
-    name: "Amara Nwosu",
-    profession: "Fashion Designer",
-    category: "Fashion & Tailoring",
-    location: "Ariaria, Aba",
-    experience: "6 years experience",
-    rating: 4.8,
-    reviews: 34,
-    description:
-      "Fashion designer creating beautiful ready-to-wear outfits, traditional attire and custom clothing.",
-    skills: ["Fashion Design", "Tailoring", "Styling"],
-    initials: "AN",
-    featured: true,
-  },
-  {
-    id: 3,
-    name: "Emeka Eze",
-    profession: "Professional Barber",
-    category: "Beauty & Personal Care",
-    location: "Osisioma",
-    experience: "5 years experience",
-    rating: 4.7,
-    reviews: 19,
-    description:
-      "Experienced barber offering modern haircuts, grooming, beard styling and professional hair care.",
-    skills: ["Haircuts", "Beard Grooming", "Hair Styling"],
-    initials: "EE",
-  },
-  {
-    id: 4,
-    name: "Blessing Kalu",
-    profession: "Makeup Artist",
-    category: "Beauty & Personal Care",
-    location: "Umuahia",
-    experience: "3 years experience",
-    rating: 4.9,
-    reviews: 16,
-    description:
-      "Professional makeup artist for weddings, special events, photoshoots and everyday beauty.",
-    skills: ["Bridal Makeup", "Beauty", "Photoshoot Makeup"],
-    initials: "BK",
-  },
-  {
-    id: 5,
-    name: "Ikenna Nwachukwu",
-    profession: "Web Developer",
-    category: "Technology",
-    location: "Aba",
-    experience: "3 years experience",
-    rating: 4.8,
-    reviews: 22,
-    description:
-      "Web developer building responsive websites and digital solutions for individuals and businesses.",
-    skills: ["React", "Next.js", "Web Design"],
-    initials: "IN",
-  },
-  {
-    id: 6,
-    name: "Ngozi Umeh",
-    profession: "Caterer",
-    category: "Food & Hospitality",
-    location: "Umuahia",
-    experience: "7 years experience",
-    rating: 4.9,
-    reviews: 41,
-    description:
-      "Experienced caterer providing delicious meals, event catering and food services for all occasions.",
-    skills: ["Event Catering", "Meal Preparation", "Small Chops"],
-    initials: "NU",
-  },
-  {
-    id: 7,
-    name: "Obinna Aja",
-    profession: "Electrician",
-    category: "Technical Services",
-    location: "Aba",
-    experience: "8 years experience",
-    rating: 4.7,
-    reviews: 25,
-    description:
-      "Qualified electrical technician handling domestic wiring, electrical installations and repairs.",
-    skills: ["Electrical Wiring", "Installation", "Repairs"],
-    initials: "OA",
-  },
-  {
-    id: 8,
-    name: "Esther Otti",
-    profession: "Photographer",
-    category: "Creative & Design",
-    location: "Arochukwu",
-    experience: "4 years experience",
-    rating: 4.8,
-    reviews: 18,
-    description:
-      "Creative photographer covering portraits, celebrations, product photography and events.",
-    skills: ["Portraits", "Event Photography", "Editing"],
-    initials: "EO",
-  },
-];
+function getInitials(name: string) {
+  return name
+    .trim()
+    .split(/\s+/)
+    .slice(0, 2)
+    .map((part) => part[0]?.toUpperCase() ?? "")
+    .join("");
+}
 
-const categories = [
-  "All categories",
-  "Creative & Design",
-  "Fashion & Tailoring",
-  "Beauty & Personal Care",
-  "Technology",
-  "Food & Hospitality",
-  "Technical Services",
-];
+function getExperience(years: number | null) {
+  if (years === null || years < 0) return "Not specified";
+  if (years === 0) return "Less than 1 year";
+  return `${years} ${years === 1 ? "year" : "years"} experience`;
+}
 
-const locations = [
-  "All Abia",
-  "Aba",
-  "Umuahia",
-  "Osisioma",
-  "Arochukwu",
-];
+function getSkills(person: Professional) {
+  return Array.from(
+    new Set([
+      ...(person.professional_skills ?? []),
+      ...(person.profile_skills ?? []),
+    ])
+  ).filter((skill) => typeof skill === "string" && skill.trim());
+}
 
 export default function ProfessionalsPage() {
+  const [professionals, setProfessionals] = useState<Professional[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState("");
+
   const [search, setSearch] = useState("");
   const [category, setCategory] = useState("All categories");
   const [location, setLocation] = useState("All Abia");
@@ -177,30 +70,105 @@ export default function ProfessionalsPage() {
     useState<Professional | null>(null);
   const [showFilters, setShowFilters] = useState(false);
 
+  const supabase = useMemo(() => createClient(), []);
+
+  useEffect(() => {
+    let active = true;
+
+    async function loadProfessionals() {
+      setLoading(true);
+      setLoadError("");
+
+      const { data, error } = await supabase.rpc(
+        "get_public_professionals",
+        { p_professional_id: null }
+      );
+
+      if (!active) return;
+
+      if (error) {
+        console.error("Public professionals loading failed:", error);
+        setLoadError(
+          "We couldn't load professionals at the moment. Please try again."
+        );
+        setProfessionals([]);
+        setLoading(false);
+        return;
+      }
+
+      const records = Array.isArray(data)
+        ? (data as Professional[])
+        : [];
+
+      setProfessionals(records);
+      setLoading(false);
+    }
+
+    void loadProfessionals();
+
+    return () => {
+      active = false;
+    };
+  }, [supabase]);
+
+  const categories = useMemo(() => {
+    const available = Array.from(
+      new Set(
+        professionals
+          .map((person) => person.category?.trim())
+          .filter((value): value is string => Boolean(value))
+      )
+    ).sort((a, b) => a.localeCompare(b));
+
+    return ["All categories", ...available];
+  }, [professionals]);
+
+  const locations = useMemo(() => {
+    const available = Array.from(
+      new Set(
+        professionals
+          .map((person) => person.location?.trim())
+          .filter((value): value is string => Boolean(value))
+      )
+    ).sort((a, b) => a.localeCompare(b));
+
+    return ["All Abia", ...available];
+  }, [professionals]);
+
   const filteredProfessionals = useMemo(() => {
     const query = search.trim().toLowerCase();
 
     return professionals.filter((person) => {
+      const name = person.full_name ?? "";
+      const headline = person.headline ?? "";
+      const categoryName = person.category ?? "";
+      const description =
+        person.professional_bio ?? person.about ?? "";
+      const skills = getSkills(person);
+
       const matchesSearch =
         !query ||
-        person.name.toLowerCase().includes(query) ||
-        person.profession.toLowerCase().includes(query) ||
-        person.category.toLowerCase().includes(query) ||
-        person.skills.some((skill) =>
+        name.toLowerCase().includes(query) ||
+        headline.toLowerCase().includes(query) ||
+        categoryName.toLowerCase().includes(query) ||
+        description.toLowerCase().includes(query) ||
+        skills.some((skill) =>
           skill.toLowerCase().includes(query)
         );
 
       const matchesCategory =
         category === "All categories" ||
-        person.category === category;
+        categoryName === category;
 
       const matchesLocation =
         location === "All Abia" ||
-        person.location.toLowerCase().includes(location.toLowerCase());
+        (person.location ?? "")
+          .toLowerCase()
+          .includes(location.toLowerCase());
 
       return matchesSearch && matchesCategory && matchesLocation;
     });
-  }, [search, category, location]);
+  }, [professionals, search, category, location]);
 
   function clearFilters() {
     setSearch("");
@@ -294,6 +262,7 @@ export default function ProfessionalsPage() {
                 placeholder="Search skills, professions or names"
                 value={search}
                 onChange={(event) => setSearch(event.target.value)}
+                aria-label="Search professionals"
               />
             </div>
 
@@ -390,7 +359,9 @@ export default function ProfessionalsPage() {
                   <span>DISCOVER LOCAL TALENT</span>
                   <h2>Skilled professionals</h2>
                   <p>
-                    {filteredProfessionals.length} professionals found
+                    {loading
+                      ? "Loading public profiles..."
+                      : `${filteredProfessionals.length} professionals found`}
                   </p>
                 </div>
 
@@ -404,68 +375,103 @@ export default function ProfessionalsPage() {
                 </button>
               </div>
 
-              {filteredProfessionals.length > 0 ? (
+              {loading ? (
+                <div className="professionals-empty-state" role="status">
+                  <div>
+                    <UserRound size={28} />
+                  </div>
+                  <h3>Loading professionals</h3>
+                  <p>
+                    Please wait while we retrieve public professional
+                    profiles.
+                  </p>
+                </div>
+              ) : loadError ? (
+                <div className="professionals-empty-state" role="alert">
+                  <div>
+                    <Search size={28} />
+                  </div>
+                  <h3>Unable to load professionals</h3>
+                  <p>{loadError}</p>
+                  <button
+                    type="button"
+                    onClick={() => window.location.reload()}
+                  >
+                    Try again
+                  </button>
+                </div>
+              ) : filteredProfessionals.length > 0 ? (
                 <div className="professionals-grid">
-                  {filteredProfessionals.map((person) => (
-                    <article
-                      className="professional-card"
-                      key={person.id}
-                    >
-                      {person.featured && (
-                        <span className="professional-featured">
-                          FEATURED
-                        </span>
-                      )}
+                  {filteredProfessionals.map((person) => {
+                    const name =
+                      person.full_name?.trim() || "Professional";
+                    const headline =
+                      person.headline?.trim() ||
+                      person.category ||
+                      "Skilled Professional";
+                    const description =
+                      person.professional_bio?.trim() ||
+                      person.about?.trim() ||
+                      "This professional has not added an introduction yet.";
+                    const skills = getSkills(person);
+                    const experience = getExperience(
+                      person.experience_years
+                    );
 
-                      <div className="professional-card-top">
-                        <div className="professional-avatar">
-                          {person.initials}
-                        </div>
-
-                        <div className="professional-rating">
-                          <Star size={15} fill="currentColor" />
-                          <strong>{person.rating}</strong>
-                          <span>({person.reviews})</span>
-                        </div>
-                      </div>
-
-                      <div className="professional-card-info">
-                        <h3>{person.name}</h3>
-                        <span className="professional-role">
-                          {person.profession}
-                        </span>
-
-                        <p>{person.description}</p>
-                      </div>
-
-                      <div className="professional-skills">
-                        {person.skills.map((skill) => (
-                          <span key={skill}>{skill}</span>
-                        ))}
-                      </div>
-
-                      <div className="professional-meta">
-                        <span>
-                          <MapPin size={15} />
-                          {person.location}
-                        </span>
-
-                        <span>
-                          <BriefcaseBusiness size={15} />
-                          {person.experience}
-                        </span>
-                      </div>
-
-                      <button
-                        type="button"
-                        className="professional-view-button"
-                        onClick={() => setSelectedProfessional(person)}
+                    return (
+                      <article
+                        className="professional-card"
+                        key={person.user_id}
                       >
-                        View profile
-                        <ArrowUpRight size={17} />
-                      </button>
-                    </article>
-                  ))}
+                        <div className="professional-card-top">
+                          <div className="professional-avatar">
+                            {getInitials(name)}
+                          </div>
+                        </div>
+
+                        <div className="professional-card-info">
+                          <h3>{name}</h3>
+                          <span className="professional-role">
+                            {headline}
+                          </span>
+
+                          <p>{description}</p>
+                        </div>
+
+                        {skills.length > 0 && (
+                          <div className="professional-skills">
+                            {skills.slice(0, 5).map((skill) => (
+                              <span key={skill}>{skill}</span>
+                            ))}
+                          </div>
+                        )}
+
+                        <div className="professional-meta">
+                          {person.location && (
+                            <span>
+                              <MapPin size={15} />
+                              {person.location}
+                            </span>
+                          )}
+
+                          <span>
+                            <BriefcaseBusiness size={15} />
+                            {experience}
+                          </span>
+                        </div>
+
+                        <Link
+                          href={`/professionals/${encodeURIComponent(
+                            person.user_id
+                          )}`}
+                          className="professional-view-button"
+                        >
+                          View profile
+                          <ArrowUpRight size={17} />
+                        </Link>
+                      </article>
+                    );
+                  })}
                 </div>
               ) : (
                 <div className="professionals-empty-state">
@@ -473,16 +479,28 @@ export default function ProfessionalsPage() {
                     <Search size={28} />
                   </div>
 
-                  <h3>No professionals found</h3>
+                  <h3>
+                    {professionals.length === 0
+                      ? "No public professionals yet"
+                      : "No professionals found"}
+                  </h3>
 
                   <p>
-                    We couldn't find anyone matching your search.
-                    Try another profession, skill or location.
+                    {professionals.length === 0
+                      ? "There are currently no professional profiles available for public viewing. Professionals who enable public visibility will appear here."
+                      : "We couldn't find anyone matching your search. Try another profession, skill or location."}
                   </p>
 
-                  <button type="button" onClick={clearFilters}>
-                    Clear filters
-                  </button>
+                  {professionals.length > 0 && (
+                    <button type="button" onClick={clearFilters}>
+                      Clear filters
+                    </button>
+                  )}
+
+                  <Link href="/register/professional">
+                    Are you a professional? Create your profile
+                    <ArrowRight size={17} />
+                  </Link>
                 </div>
               )}
             </div>
@@ -608,7 +626,9 @@ export default function ProfessionalsPage() {
             </button>
 
             <div className="professional-details-avatar">
-              {selectedProfessional.initials}
+              {getInitials(
+                selectedProfessional.full_name || "Professional"
+              )}
             </div>
 
             <span className="professional-details-eyebrow">
@@ -616,56 +636,63 @@ export default function ProfessionalsPage() {
             </span>
 
             <h2 id="professional-details-title">
-              {selectedProfessional.name}
+              {selectedProfessional.full_name || "Professional"}
             </h2>
 
             <p className="professional-details-role">
-              {selectedProfessional.profession}
+              {selectedProfessional.headline ||
+                selectedProfessional.category ||
+                "Skilled Professional"}
             </p>
-
-            <div className="professional-details-rating">
-              <Star size={16} fill="currentColor" />
-              {selectedProfessional.rating} rating
-              ({selectedProfessional.reviews} reviews)
-            </div>
 
             <div className="professional-details-section">
               <h3>About this professional</h3>
-              <p>{selectedProfessional.description}</p>
+              <p>
+                {selectedProfessional.professional_bio ||
+                  selectedProfessional.about ||
+                  "No introduction has been added yet."}
+              </p>
             </div>
 
             <div className="professional-details-section">
-              <h3>Skills and services</h3>
-
+              <h3>Skills and expertise</h3>
               <div className="professional-skills">
-                {selectedProfessional.skills.map((skill) => (
-                  <span key={skill}>{skill}</span>
-                ))}
+                {getSkills(selectedProfessional).length > 0 ? (
+                  getSkills(selectedProfessional).map((skill) => (
+                    <span key={skill}>{skill}</span>
+                  ))
+                ) : (
+                  <p>No skills have been added yet.</p>
+                )}
               </div>
             </div>
 
             <div className="professional-details-section">
               <h3>Experience</h3>
-              <p>{selectedProfessional.experience}</p>
+              <p>
+                {getExperience(
+                  selectedProfessional.experience_years
+                )}
+              </p>
             </div>
 
             <div className="professional-details-section">
               <h3>Location</h3>
-              <p>{selectedProfessional.location}, Abia State</p>
+              <p>
+                {selectedProfessional.location || "Not specified"}
+              </p>
             </div>
 
             <Link
-              href="/login"
+              href={`/professionals/${encodeURIComponent(
+                selectedProfessional.user_id
+              )}`}
               className="professional-contact-button"
               onClick={() => setSelectedProfessional(null)}
             >
-              Sign in to connect
+              View full profile
               <ArrowRight size={18} />
             </Link>
-
-            <p className="professional-contact-note">
-              Sign in to contact professionals through Abi Job.
-            </p>
           </section>
         </div>
       )}

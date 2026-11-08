@@ -2,8 +2,10 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import Logo from "../../../components/Logo";
+import { createClient } from "../../../lib/supabase/client";
 import {
   ArrowLeft,
   ArrowRight,
@@ -19,14 +21,24 @@ import {
 } from "lucide-react";
 import "./applications.css";
 
+type DatabaseApplicationStatus =
+  | "submitted"
+  | "under_review"
+  | "shortlisted"
+  | "rejected"
+  | "hired"
+  | "withdrawn";
+
 type ApplicationStatus =
+  | "Submitted"
   | "Under review"
   | "Shortlisted"
-  | "Interview"
-  | "Rejected";
+  | "Rejected"
+  | "Hired"
+  | "Withdrawn";
 
 type Application = {
-  id: number;
+  id: string;
   role: string;
   company: string;
   location: string;
@@ -35,89 +47,325 @@ type Application = {
   applied: string;
   status: ApplicationStatus;
   description: string;
+  coverLetter: string;
+  hasCv: boolean;
 };
 
-const initialApplications: Application[] = [
-  {
-    id: 1,
-    role: "Fashion Designer",
-    company: "Made in Aba Studio",
-    location: "Ariaria, Aba",
-    type: "Full-time",
-    salary: "₦80,000 – ₦120,000/month",
-    applied: "Oct 28, 2026",
-    status: "Shortlisted",
-    description:
-      "Looking for a creative fashion designer with strong garment construction, pattern making and finishing skills.",
-  },
-  {
-    id: 2,
-    role: "Graphic Designer",
-    company: "Creative Edge Media",
-    location: "Umuahia, Abia",
-    type: "Full-time",
-    salary: "₦70,000 – ₦100,000/month",
-    applied: "Oct 25, 2026",
-    status: "Under review",
-    description:
-      "Create visual designs for digital campaigns, print materials and brand identity projects.",
-  },
-  {
-    id: 3,
-    role: "Frontend Developer",
-    company: "Digital Solutions NG",
-    location: "Remote",
-    type: "Remote",
-    salary: "₦150,000 – ₦250,000/month",
-    applied: "Oct 20, 2026",
-    status: "Interview",
-    description:
-      "Build responsive web interfaces and work with a development team to deliver digital products.",
-  },
-  {
-    id: 4,
-    role: "Production Assistant",
-    company: "Aba Fashion House",
-    location: "Osisioma, Aba",
-    type: "Contract",
-    salary: "₦60,000/month",
-    applied: "Oct 16, 2026",
-    status: "Rejected",
-    description:
-      "Assist the production team with clothing preparation, quality checks and daily operations.",
-  },
-];
+type JobRow = {
+  id: string;
+  employer_id: string;
+  title: string | null;
+  category: string | null;
+  location: string | null;
+  employment_type: string | null;
+  workplace_type: string | null;
+  salary_min: number | null;
+  salary_max: number | null;
+  salary_currency: string | null;
+  description: string | null;
+};
+
+type ApplicationRow = {
+  id: string;
+  job_id: string;
+  status: string | null;
+  created_at: string;
+  cover_letter: string | null;
+  cv_path: string | null;
+};
+
+type ProfileRow = {
+  id: string;
+  full_name: string | null;
+};
 
 const filters = [
   "All",
+  "Submitted",
   "Under review",
   "Shortlisted",
-  "Interview",
+  "Hired",
   "Rejected",
+  "Withdrawn",
 ] as const;
 
+const STATUS_LABELS: Record<DatabaseApplicationStatus, ApplicationStatus> = {
+  submitted: "Submitted",
+  under_review: "Under review",
+  shortlisted: "Shortlisted",
+  rejected: "Rejected",
+  hired: "Hired",
+  withdrawn: "Withdrawn",
+};
+
+function normalizeStatus(value: string | null): ApplicationStatus {
+  if (
+    value &&
+    Object.prototype.hasOwnProperty.call(STATUS_LABELS, value)
+  ) {
+    return STATUS_LABELS[value as DatabaseApplicationStatus];
+  }
+
+  return "Submitted";
+}
+
 function StatusIcon({ status }: { status: ApplicationStatus }) {
-  if (status === "Shortlisted") return <CheckCircle2 size={15} />;
-  if (status === "Interview") return <CalendarDays size={15} />;
-  if (status === "Rejected") return <XCircle size={15} />;
+  if (status === "Shortlisted" || status === "Hired") {
+    return <CheckCircle2 size={15} />;
+  }
+
+  if (status === "Rejected" || status === "Withdrawn") {
+    return <XCircle size={15} />;
+  }
+
   return <Clock3 size={15} />;
 }
 
+function getInitials(name: string) {
+  const parts = name.trim().split(/\s+/).filter(Boolean);
+
+  if (parts.length === 0) return "P";
+  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+
+  return `${parts[0][0]}${parts[parts.length - 1][0]}`.toUpperCase();
+}
+
+function formatDate(value: string) {
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) return "Date unavailable";
+
+  return new Intl.DateTimeFormat("en-NG", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+  }).format(date);
+}
+
+function formatSalary(
+  minimum: number | null,
+  maximum: number | null,
+  currency: string | null
+) {
+  if (minimum == null && maximum == null) {
+    return "Salary not specified";
+  }
+
+  const currencyCode = currency || "NGN";
+
+  const formatter = new Intl.NumberFormat("en-NG", {
+    style: "currency",
+    currency: currencyCode,
+    maximumFractionDigits: 0,
+  });
+
+  if (minimum != null && maximum != null) {
+    return minimum === maximum
+      ? formatter.format(minimum)
+      : `${formatter.format(minimum)} – ${formatter.format(maximum)}`;
+  }
+
+  if (minimum != null) return `From ${formatter.format(minimum)}`;
+
+  return `Up to ${formatter.format(maximum as number)}`;
+}
+
+function formatEmploymentType(
+  employmentType: string | null,
+  workplaceType: string | null
+) {
+  const values = [employmentType, workplaceType]
+    .filter(Boolean)
+    .map((value) =>
+      String(value)
+        .replaceAll("_", " ")
+        .replace(/\b\w/g, (letter) => letter.toUpperCase())
+    );
+
+  return values.length > 0 ? [...new Set(values)].join(" · ") : "Not specified";
+}
+
 export default function ProfessionalApplicationsPage() {
-  const [applications] = useState(initialApplications);
+  const router = useRouter();
+  const supabase = useMemo(() => createClient(), []);
+
+  const [applications, setApplications] = useState<Application[]>([]);
   const [activeFilter, setActiveFilter] = useState<string>("All");
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedApplication, setSelectedApplication] =
     useState<Application | null>(null);
 
+  const [fullName, setFullName] = useState("Professional");
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+
+  const loadApplications = useCallback(async () => {
+    setLoading(true);
+    setError("");
+
+    try {
+      const {
+        data: { user },
+        error: authError,
+      } = await supabase.auth.getUser();
+
+      if (authError || !user) {
+        router.replace("/login");
+        return;
+      }
+
+      const { data: profile, error: profileError } = await supabase
+        .from("profiles")
+        .select("id, role, full_name")
+        .eq("id", user.id)
+        .maybeSingle();
+
+      if (profileError) {
+        throw new Error("We could not verify your account. Please try again.");
+      }
+
+      if (!profile) {
+        router.replace("/login");
+        return;
+      }
+
+      if (profile.role !== "professional") {
+        const destination =
+          profile.role === "job_seeker"
+            ? "/dashboard"
+            : profile.role === "employer"
+              ? "/employer/dashboard"
+              : profile.role === "admin"
+                ? "/admin"
+                : "/login";
+
+        router.replace(destination);
+        return;
+      }
+
+      setFullName(profile.full_name?.trim() || "Professional");
+
+      const { data: applicationRows, error: applicationsError } =
+        await supabase
+          .from("job_applications")
+          .select(
+            "id, job_id, status, created_at, cover_letter, cv_path"
+          )
+          .eq("applicant_id", user.id)
+          .order("created_at", { ascending: false });
+
+      if (applicationsError) {
+        throw new Error(
+          "Your applications could not be loaded. Please refresh the page."
+        );
+      }
+
+      const rows = (applicationRows || []) as ApplicationRow[];
+
+      if (rows.length === 0) {
+        setApplications([]);
+        return;
+      }
+
+      const jobIds = [
+        ...new Set(rows.map((application) => application.job_id).filter(Boolean)),
+      ];
+
+      const { data: jobRows, error: jobsError } = await supabase
+        .from("jobs")
+        .select(
+          "id, employer_id, title, category, location, employment_type, workplace_type, salary_min, salary_max, salary_currency, description"
+        )
+        .in("id", jobIds);
+
+      if (jobsError) {
+        // Keep the application history visible even if vacancy details
+        // are unavailable because of the current vacancy access policy.
+        console.warn("Application vacancy details could not be loaded.");
+      }
+
+      const jobs = (jobRows || []) as JobRow[];
+      const jobMap = new Map(jobs.map((job) => [job.id, job]));
+
+      const employerIds = [
+        ...new Set(jobs.map((job) => job.employer_id).filter(Boolean)),
+      ];
+
+      let employerMap = new Map<string, string>();
+
+      if (employerIds.length > 0) {
+        const { data: employerRows, error: employersError } = await supabase
+          .from("profiles")
+          .select("id, full_name")
+          .in("id", employerIds);
+
+        if (!employersError && employerRows) {
+          employerMap = new Map(
+            (employerRows as ProfileRow[]).map((employer) => [
+              employer.id,
+              employer.full_name?.trim() || "Employer",
+            ])
+          );
+        }
+      }
+
+      const mappedApplications: Application[] = rows.map((application) => {
+        const job = jobMap.get(application.job_id);
+
+        return {
+          id: application.id,
+          role: job?.title || "Vacancy details unavailable",
+          company: job
+            ? employerMap.get(job.employer_id) || "Employer"
+            : "Employer",
+          location: job?.location || "Location unavailable",
+          type: formatEmploymentType(
+            job?.employment_type || null,
+            job?.workplace_type || null
+          ),
+          salary: job
+            ? formatSalary(
+                job.salary_min,
+                job.salary_max,
+                job.salary_currency
+              )
+            : "Salary unavailable",
+          applied: formatDate(application.created_at),
+          status: normalizeStatus(application.status),
+          description:
+            job?.description || "The original vacancy description is unavailable.",
+          coverLetter: application.cover_letter || "",
+          hasCv: Boolean(application.cv_path),
+        };
+      });
+
+      setApplications(mappedApplications);
+    } catch (loadError) {
+      console.error("Professional applications loading error:", loadError);
+
+      setError(
+        loadError instanceof Error
+          ? loadError.message
+          : "Something went wrong while loading your applications."
+      );
+    } finally {
+      setLoading(false);
+    }
+  }, [router, supabase]);
+
+  useEffect(() => {
+    void loadApplications();
+  }, [loadApplications]);
+
   const filteredApplications = useMemo(() => {
+    const query = searchQuery.trim().toLowerCase();
+
     return applications.filter((application) => {
       const matchesFilter =
         activeFilter === "All" || application.status === activeFilter;
 
-      const query = searchQuery.toLowerCase();
-
       const matchesSearch =
+        !query ||
         application.role.toLowerCase().includes(query) ||
         application.company.toLowerCase().includes(query) ||
         application.location.toLowerCase().includes(query);
@@ -126,8 +374,10 @@ export default function ProfessionalApplicationsPage() {
     });
   }, [applications, activeFilter, searchQuery]);
 
-  const countStatus = (status: string) =>
+  const countStatus = (status: ApplicationStatus) =>
     applications.filter((item) => item.status === status).length;
+
+  const initials = getInitials(fullName);
 
   return (
     <main className="professional-applications">
@@ -159,6 +409,11 @@ export default function ProfessionalApplicationsPage() {
             </span>
           </Link>
 
+          <Link href="/interviews">
+            <CalendarDays size={19} />
+            <span>My interviews</span>
+          </Link>
+
           <Link href="/professional/experience">
             <CheckCircle2 size={19} />
             <span>Experience</span>
@@ -167,7 +422,6 @@ export default function ProfessionalApplicationsPage() {
           <Link href="/professional/messages">
             <BriefcaseBusiness size={19} />
             <span>Messages</span>
-            <span className="professional-applications-nav-count">2</span>
           </Link>
 
           <Link href="/professional/notifications">
@@ -192,10 +446,10 @@ export default function ProfessionalApplicationsPage() {
             href="/professional/profile"
             className="professional-applications-profile-link"
           >
-            <div className="professional-applications-avatar">SP</div>
+            <div className="professional-applications-avatar">{initials}</div>
             <div>
               <strong>My profile</strong>
-              <span>Professional account</span>
+              <span>{fullName}</span>
             </div>
           </Link>
         </div>
@@ -228,8 +482,9 @@ export default function ProfessionalApplicationsPage() {
             <Link
               href="/professional/profile"
               className="professional-applications-top-avatar"
+              aria-label="My profile"
             >
-              SP
+              {initials}
             </Link>
           </div>
         </header>
@@ -270,7 +525,7 @@ export default function ProfessionalApplicationsPage() {
               </div>
               <div>
                 <span>Total applications</span>
-                <strong>{applications.length}</strong>
+                <strong>{loading ? "—" : applications.length}</strong>
               </div>
             </div>
 
@@ -280,7 +535,9 @@ export default function ProfessionalApplicationsPage() {
               </div>
               <div>
                 <span>Under review</span>
-                <strong>{countStatus("Under review")}</strong>
+                <strong>
+                  {loading ? "—" : countStatus("Under review")}
+                </strong>
               </div>
             </div>
 
@@ -290,7 +547,9 @@ export default function ProfessionalApplicationsPage() {
               </div>
               <div>
                 <span>Shortlisted</span>
-                <strong>{countStatus("Shortlisted")}</strong>
+                <strong>
+                  {loading ? "—" : countStatus("Shortlisted")}
+                </strong>
               </div>
             </div>
 
@@ -299,8 +558,8 @@ export default function ProfessionalApplicationsPage() {
                 <CalendarDays size={20} />
               </div>
               <div>
-                <span>Interviews</span>
-                <strong>{countStatus("Interview")}</strong>
+                <span>Hired</span>
+                <strong>{loading ? "—" : countStatus("Hired")}</strong>
               </div>
             </div>
           </div>
@@ -309,10 +568,10 @@ export default function ProfessionalApplicationsPage() {
             <div className="professional-applications-list-heading">
               <div>
                 <h2>Application history</h2>
-                <p>Review and manage your submitted applications.</p>
+                <p>Review the applications you have submitted.</p>
               </div>
               <span className="professional-applications-results">
-                {filteredApplications.length} results
+                {loading ? "Loading..." : `${filteredApplications.length} results`}
               </span>
             </div>
 
@@ -324,6 +583,7 @@ export default function ProfessionalApplicationsPage() {
                   placeholder="Search job title, company or location..."
                   value={searchQuery}
                   onChange={(event) => setSearchQuery(event.target.value)}
+                  aria-label="Search applications"
                 />
               </div>
 
@@ -347,14 +607,33 @@ export default function ProfessionalApplicationsPage() {
             </div>
 
             <div className="professional-applications-list">
-              {filteredApplications.length > 0 ? (
+              {loading ? (
+                <div className="professional-applications-empty">
+                  <div>
+                    <Clock3 size={26} />
+                  </div>
+                  <h3>Loading your applications</h3>
+                  <p>Please wait while we retrieve your application history.</p>
+                </div>
+              ) : error ? (
+                <div className="professional-applications-empty">
+                  <div>
+                    <XCircle size={26} />
+                  </div>
+                  <h3>Unable to load applications</h3>
+                  <p>{error}</p>
+                  <button type="button" onClick={() => void loadApplications()}>
+                    Try again
+                  </button>
+                </div>
+              ) : filteredApplications.length > 0 ? (
                 filteredApplications.map((application) => (
                   <article
                     className="professional-application-card"
                     key={application.id}
                   >
                     <div className="professional-application-company-icon">
-                      {application.company.charAt(0)}
+                      {application.company.charAt(0).toUpperCase()}
                     </div>
 
                     <div className="professional-application-details">
@@ -393,9 +672,7 @@ export default function ProfessionalApplicationsPage() {
                         <strong>{application.salary}</strong>
                         <button
                           type="button"
-                          onClick={() =>
-                            setSelectedApplication(application)
-                          }
+                          onClick={() => setSelectedApplication(application)}
                         >
                           View details <ArrowRight size={15} />
                         </button>
@@ -408,19 +685,31 @@ export default function ProfessionalApplicationsPage() {
                   <div>
                     <Search size={26} />
                   </div>
-                  <h3>No applications found</h3>
+                  <h3>
+                    {applications.length === 0
+                      ? "No applications yet"
+                      : "No applications found"}
+                  </h3>
                   <p>
-                    Try changing your search or selecting another status.
+                    {applications.length === 0
+                      ? "When you apply for an approved vacancy, your application will appear here."
+                      : "Try changing your search or selecting another status."}
                   </p>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setSearchQuery("");
-                      setActiveFilter("All");
-                    }}
-                  >
-                    Clear filters
-                  </button>
+                  {applications.length === 0 ? (
+                    <Link href="/professional/opportunities">
+                      Find opportunities <ArrowRight size={15} />
+                    </Link>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSearchQuery("");
+                        setActiveFilter("All");
+                      }}
+                    >
+                      Clear filters
+                    </button>
+                  )}
                 </div>
               )}
             </div>
@@ -484,8 +773,22 @@ export default function ProfessionalApplicationsPage() {
             </div>
 
             <div className="professional-application-modal-salary">
-              <span>Expected salary</span>
+              <span>Salary listed</span>
               <strong>{selectedApplication.salary}</strong>
+            </div>
+
+            {selectedApplication.coverLetter && (
+              <div className="professional-application-modal-description">
+                <h3>Your cover letter</h3>
+                <p>{selectedApplication.coverLetter}</p>
+              </div>
+            )}
+
+            <div className="professional-application-modal-salary">
+              <span>CV submitted</span>
+              <strong>
+                {selectedApplication.hasCv ? "Yes" : "No CV recorded"}
+              </strong>
             </div>
 
             <button
