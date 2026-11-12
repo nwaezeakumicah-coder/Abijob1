@@ -3,7 +3,7 @@ import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient as createServerSupabaseClient } from "@/lib/supabase/server";
 
-export const runtime = "nodejs";
+
 
 const allowedRoles = ["job_seeker", "professional", "employer"] as const;
 const allowedIntervals = ["monthly", "yearly"] as const;
