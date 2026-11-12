@@ -1,3 +1,4 @@
+
 "use client";
 
 import { FormEvent, useState, useTransition } from "react";
@@ -18,16 +19,24 @@ export default function InviteAdminForm() {
     const formData = new FormData(form);
 
     setMessage("");
+    setSuccess(false);
 
     startTransition(async () => {
-      const result = await inviteAdministrator(formData);
+      try {
+        const result = await inviteAdministrator(formData);
 
-      setSuccess(result.success);
-      setMessage(result.message);
+        setSuccess(result.success);
+        setMessage(result.message);
 
-      if (result.success) {
-        form.reset();
-        router.refresh();
+        if (result.success) {
+          form.reset();
+          router.refresh();
+        }
+      } catch {
+        setSuccess(false);
+        setMessage(
+          "An unexpected error occurred. Please try again."
+        );
       }
     });
   }
@@ -39,7 +48,9 @@ export default function InviteAdminForm() {
           <span className="admin-accounts-eyebrow">
             TEAM ACCESS
           </span>
+
           <h2>Add an administrator</h2>
+
           <p>
             Invite a trusted person to help manage the Abi Job platform.
           </p>
@@ -58,6 +69,7 @@ export default function InviteAdminForm() {
             type="email"
             placeholder="example@email.com"
             autoComplete="email"
+            maxLength={254}
             required
           />
         </div>
@@ -94,14 +106,16 @@ export default function InviteAdminForm() {
             success ? "success" : "error"
           }`}
           role="status"
+          aria-live="polite"
         >
           {message}
         </div>
       )}
 
       <p className="admin-invite-note">
-        The invited person will receive an email from Supabase. Their
-        administrator record will remain pending until you activate it.
+        The invited person will receive an email containing a secure
+        acceptance link. Their administrator account becomes active
+        after they accept the invitation and complete verification.
       </p>
     </section>
   );

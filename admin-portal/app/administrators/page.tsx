@@ -2,6 +2,7 @@ import AdminShell from "../../components/AdminShell";
 import { getActiveAdmin } from "../../lib/admin-auth";
 import { createAdminClient } from "../../lib/supabase/admin";
 import InviteAdminForm from "./InviteAdminForm";
+import AdminAccountActions from "./AdminAccountActions";
 import "./admins.css";
 
 export const dynamic = "force-dynamic";
@@ -41,7 +42,7 @@ function statusClass(status: string) {
 
   if (value === "active") return "admin-account-status active";
 
-  if (value === "suspended" || value === "inactive") {
+  if (["suspended", "revoked", "inactive"].includes(value)) {
     return "admin-account-status suspended";
   }
 
@@ -53,15 +54,14 @@ export default async function AdminAccountsPage() {
   const canManage = currentAdmin.permissions.includes("admins.manage");
   const isSuperAdmin = currentAdmin.role === "super_admin";
 
-  if (!canManage) {
+  if (!canManage || !isSuperAdmin) {
     return (
       <AdminShell>
         <main className="admin-accounts-page">
           <div className="admin-accounts-empty">
             <h2>Access restricted</h2>
             <p>
-              Only administrators with the required permission can access
-              administrator account management.
+              Only the Super Admin can access administrator account management.
             </p>
           </div>
         </main>
@@ -82,12 +82,20 @@ export default async function AdminAccountsPage() {
     (account) => account.status?.toLowerCase() === "active"
   ).length;
 
-  const suspendedCount = accounts.filter((account) =>
-    ["suspended", "inactive"].includes(account.status?.toLowerCase())
+  const suspendedCount = accounts.filter(
+    (account) =>
+      ["suspended", "inactive"].includes(account.status?.toLowerCase())
   ).length;
 
   const pendingCount = accounts.filter(
-    (account) => account.status?.toLowerCase() === "pending"
+    (account) =>
+      ["invited", "pending_approval"].includes(
+        account.status?.toLowerCase()
+      )
+  ).length;
+
+  const revokedCount = accounts.filter(
+    (account) => account.status?.toLowerCase() === "revoked"
   ).length;
 
   const roleCounts = accounts.reduce<Record<string, number>>(
@@ -124,7 +132,7 @@ export default async function AdminAccountsPage() {
           </div>
         </header>
 
-        {isSuperAdmin && <InviteAdminForm />}
+        <InviteAdminForm />
 
         <section className="admin-accounts-summary">
           <article className="admin-account-stat">
@@ -142,13 +150,19 @@ export default async function AdminAccountsPage() {
           <article className="admin-account-stat">
             <span>Pending invitations</span>
             <strong>{pendingCount}</strong>
-            <small>Accounts awaiting activation</small>
+            <small>Invited or awaiting approval</small>
           </article>
 
           <article className="admin-account-stat">
-            <span>Suspended or inactive</span>
+            <span>Suspended accounts</span>
             <strong>{suspendedCount}</strong>
-            <small>Accounts not marked active</small>
+            <small>Accounts temporarily disabled</small>
+          </article>
+
+          <article className="admin-account-stat">
+            <span>Revoked accounts</span>
+            <strong>{revokedCount}</strong>
+            <small>Accounts with permanently revoked access</small>
           </article>
         </section>
 
@@ -157,7 +171,8 @@ export default async function AdminAccountsPage() {
             <div>
               <h2>Administrator directory</h2>
               <p>
-                These records determine who is recognised as an administrator.
+                Change roles, suspend access, reactivate suspended accounts,
+                or revoke access.
               </p>
             </div>
 
@@ -188,12 +203,14 @@ export default async function AdminAccountsPage() {
                     <th>Account status</th>
                     <th>Authentication link</th>
                     <th>Account ID</th>
+                    <th>Management actions</th>
                   </tr>
                 </thead>
 
                 <tbody>
                   {accounts.map((account) => {
-                    const isCurrentAdmin = account.id === currentAdmin.id;
+                    const isCurrentAdmin =
+                      account.id === currentAdmin.id;
 
                     return (
                       <tr key={account.id}>
@@ -248,6 +265,15 @@ export default async function AdminAccountsPage() {
                           <code className="admin-account-id">
                             {account.id}
                           </code>
+                        </td>
+
+                        <td>
+                          <AdminAccountActions
+                            adminId={account.id}
+                            role={account.role}
+                            status={account.status}
+                            disabled={isCurrentAdmin}
+                          />
                         </td>
                       </tr>
                     );

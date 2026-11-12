@@ -536,3 +536,97 @@
     width: 100%;
   }
 }
+
+
+
+.admin-account-actions {
+  display: flex;
+  min-width: 220px;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 9px;
+}
+
+.admin-account-action-role {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.admin-account-action-role select {
+  min-height: 34px;
+  max-width: 150px;
+  padding: 5px 8px;
+  border: 1px solid #d8e2db;
+  border-radius: 7px;
+  background: #fff;
+  color: #263a2e;
+  font-size: 11px;
+}
+
+.admin-account-action-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.admin-action-button {
+  min-height: 32px;
+  padding: 6px 10px;
+  border: 1px solid #dce5dd;
+  border-radius: 7px;
+  background: #f8faf7;
+  color: #263a2e;
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.admin-action-button:hover:not(:disabled) {
+  background: #edf4ee;
+}
+
+.admin-action-button.warning {
+  border-color: #f0dfb9;
+  background: #fff8e9;
+  color: #956719;
+}
+
+.admin-action-button.success {
+  border-color: #b8dfc5;
+  background: #effaf2;
+  color: #176b45;
+}
+
+.admin-action-button.danger {
+  border-color: #f0caca;
+  background: #fff3f3;
+  color: #a52c2c;
+}
+
+.admin-action-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.admin-account-protected {
+  color: #78837b;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.admin-action-feedback {
+  max-width: 250px;
+  color: #78837b;
+  font-size: 11px;
+  line-height: 1.5;
+  white-space: normal;
+}
+
+.admin-action-feedback.success {
+  color: #176b45;
+}
+
+.admin-action-feedback.error {
+  color: #a52c2c;
+}
