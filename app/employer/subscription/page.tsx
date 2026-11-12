@@ -54,12 +54,22 @@ type TransactionRecord = {
   created_at: string;
 };
 
+type SummaryTransaction = {
+  amount_kobo: number;
+  currency: string;
+  status: string;
+  paid_at: string | null;
+  created_at: string;
+};
+
 type PlanRecord = {
   billing_interval: string;
   amount_kobo: number;
   trial_days: number;
   trial_access_percent: number;
 };
+
+const SUCCESS_STATUSES = ["success", "successful", "paid"];
 
 const money = (amountKobo: number, currency = "NGN") =>
   new Intl.NumberFormat("en-NG", {
@@ -92,8 +102,25 @@ const getDaysRemaining = (dateValue: string | null) => {
   return Math.max(0, Math.ceil((expiry - Date.now()) / 86400000));
 };
 
+const normalizeStatus = (status: string | null | undefined) =>
+  (status || "").toLowerCase().trim();
+
+const isSuccessfulStatus = (status: string | null | undefined) =>
+  SUCCESS_STATUSES.includes(normalizeStatus(status));
+
+const getTransactionStatusClass = (status: string) => {
+  const normalized = normalizeStatus(status);
+
+  if (isSuccessfulStatus(normalized)) return "success";
+  if (["failed", "cancelled", "canceled"].includes(normalized)) {
+    return "failed";
+  }
+
+  return "pending";
+};
+
 const readableStatus = (status: string) => {
-  const normalized = status.toLowerCase().replaceAll("_", " ");
+  const normalized = normalizeStatus(status).replaceAll("_", " ");
 
   return normalized.replace(/\b\w/g, (letter) => letter.toUpperCase());
 };
@@ -119,9 +146,13 @@ const getInitials = (name: string) => {
     .join("");
 };
 
+const getTransactionDate = (transaction: {
+  paid_at: string | null;
+  created_at: string;
+}) => transaction.paid_at || transaction.created_at;
+
 export default function EmployerSubscriptionPage() {
   const router = useRouter();
-
   const supabase = useMemo(() => createClient(), []);
 
   const [loading, setLoading] = useState(true);
@@ -132,6 +163,9 @@ export default function EmployerSubscriptionPage() {
   const [subscription, setSubscription] =
     useState<SubscriptionRecord | null>(null);
   const [transactions, setTransactions] = useState<TransactionRecord[]>([]);
+  const [summaryTransactions, setSummaryTransactions] = useState<
+    SummaryTransaction[]
+  >([]);
   const [plans, setPlans] = useState<PlanRecord[]>([]);
 
   const loadBillingData = useCallback(
@@ -151,9 +185,7 @@ export default function EmployerSubscriptionPage() {
         } = await supabase.auth.getUser();
 
         if (authError || !user) {
-          router.replace(
-            "/login?redirect=%2Femployer%2Fsubscription"
-          );
+          router.replace("/login?redirect=%2Femployer%2Fsubscription");
           return;
         }
 
@@ -185,6 +217,7 @@ export default function EmployerSubscriptionPage() {
           { data: employerProfile, error: employerError },
           { data: subscriptionRows, error: subscriptionError },
           { data: transactionRows, error: transactionError },
+          { data: summaryRows, error: summaryError },
           { data: planRows, error: planError },
         ] = await Promise.all([
           supabase
@@ -203,6 +236,7 @@ export default function EmployerSubscriptionPage() {
             .order("created_at", { ascending: false })
             .limit(1),
 
+          // The visible payment history is intentionally limited to 10.
           supabase
             .from("payment_transactions")
             .select(
@@ -211,6 +245,15 @@ export default function EmployerSubscriptionPage() {
             .eq("user_id", user.id)
             .order("created_at", { ascending: false })
             .limit(10),
+
+          // Fetch all successful NGN records separately for the lifetime total.
+          // This prevents the summary from being limited to the latest 10 rows.
+          supabase
+            .from("payment_transactions")
+            .select("amount_kobo, currency, status, paid_at, created_at")
+            .eq("user_id", user.id)
+            .eq("currency", "NGN")
+            .in("status", SUCCESS_STATUSES),
 
           supabase
             .from("subscription_plans")
@@ -223,18 +266,19 @@ export default function EmployerSubscriptionPage() {
         if (employerError) throw employerError;
         if (subscriptionError) throw subscriptionError;
         if (transactionError) throw transactionError;
+        if (summaryError) throw summaryError;
         if (planError) throw planError;
 
-        setBusinessName(
-          employerProfile?.business_name || "Your business"
-        );
+        setBusinessName(employerProfile?.business_name || "Your business");
 
         setSubscription(
           (subscriptionRows?.[0] as SubscriptionRecord) || null
         );
 
-        setTransactions(
-          (transactionRows || []) as TransactionRecord[]
+        setTransactions((transactionRows || []) as TransactionRecord[]);
+
+        setSummaryTransactions(
+          (summaryRows || []) as SummaryTransaction[]
         );
 
         setPlans((planRows || []) as PlanRecord[]);
@@ -253,7 +297,7 @@ export default function EmployerSubscriptionPage() {
   );
 
   useEffect(() => {
-    loadBillingData();
+    void loadBillingData();
   }, [loadBillingData]);
 
   const isTrial =
@@ -272,11 +316,18 @@ export default function EmployerSubscriptionPage() {
     subscription?.billing_interval
   );
 
-  const paidTransactions = transactions.filter(
-    (transaction) => transaction.status.toLowerCase() === "success"
+  // The summary uses every successful NGN payment, not only the visible 10.
+  const paidTransactions = summaryTransactions.filter(
+    (transaction) =>
+      isSuccessfulStatus(transaction.status) &&
+      transaction.currency?.toUpperCase() === "NGN"
   );
 
-  const latestSuccessfulPayment = paidTransactions[0] || null;
+  const latestSuccessfulPayment = [...paidTransactions].sort(
+    (a, b) =>
+      new Date(getTransactionDate(b)).getTime() -
+      new Date(getTransactionDate(a)).getTime()
+  )[0] || null;
 
   const totalPaid = paidTransactions.reduce(
     (total, transaction) =>
@@ -295,6 +346,24 @@ export default function EmployerSubscriptionPage() {
           )
         ? "attention"
         : "pending";
+
+  const monthlyPlan = plans.find(
+    (plan) => normalizeInterval(plan.billing_interval) === "monthly"
+  );
+
+  const yearlyPlan = plans.find(
+    (plan) => normalizeInterval(plan.billing_interval) === "yearly"
+  );
+
+  const annualSavings =
+    monthlyPlan && yearlyPlan
+      ? monthlyPlan.amount_kobo * 12 - yearlyPlan.amount_kobo
+      : null;
+
+  const maximumTrialDays = Math.max(
+    0,
+    ...plans.map((plan) => Number(plan.trial_days || 0))
+  );
 
   if (loading) {
     return (
@@ -407,7 +476,7 @@ export default function EmployerSubscriptionPage() {
             <button
               type="button"
               className="employer-subscription-refresh"
-              onClick={() => loadBillingData(true)}
+              onClick={() => void loadBillingData(true)}
               disabled={refreshing}
               aria-label="Refresh billing information"
             >
@@ -456,7 +525,7 @@ export default function EmployerSubscriptionPage() {
                 <p>{error}</p>
                 <button
                   type="button"
-                  onClick={() => loadBillingData(true)}
+                  onClick={() => void loadBillingData(true)}
                 >
                   Try again
                 </button>
@@ -477,7 +546,7 @@ export default function EmployerSubscriptionPage() {
                       <h2>
                         {subscription
                           ? isTrial
-                            ? "30-Day Free Trial"
+                            ? `${trialDaysRemaining >= 0 ? "Free Trial" : "Subscription"}`
                             : currentInterval === "yearly"
                               ? "Annual Plan"
                               : currentInterval === "monthly"
@@ -529,7 +598,9 @@ export default function EmployerSubscriptionPage() {
                               100,
                               Math.max(
                                 0,
-                                ((30 - trialDaysRemaining) / 30) * 100
+                                ((maximumTrialDays - trialDaysRemaining) /
+                                  Math.max(1, maximumTrialDays)) *
+                                  100
                               )
                             )}%`,
                           }}
@@ -587,10 +658,7 @@ export default function EmployerSubscriptionPage() {
                     <span>Latest successful payment</span>
                     <strong>
                       {latestSuccessfulPayment
-                        ? formatDate(
-                            latestSuccessfulPayment.paid_at ||
-                              latestSuccessfulPayment.created_at
-                          )
+                        ? formatDate(getTransactionDate(latestSuccessfulPayment))
                         : "No successful payment yet"}
                     </strong>
                   </div>
@@ -620,7 +688,9 @@ export default function EmployerSubscriptionPage() {
                     interval: "yearly",
                     name: "Annual",
                     description:
-                      "Save ₦1,200 compared with monthly billing",
+                      annualSavings !== null && annualSavings > 0
+                        ? `Save ${money(annualSavings)} compared with monthly billing`
+                        : "Annual billing",
                     suffix: "/ year",
                   },
                 ].map((plan) => {
@@ -669,7 +739,9 @@ export default function EmployerSubscriptionPage() {
 
                       <div className="employer-subscription-plan-trial">
                         <CheckCircle2 size={16} />
-                        30-day free trial for eligible verified accounts
+                        {databasePlan?.trial_days
+                          ? `${databasePlan.trial_days}-day free trial for eligible verified accounts`
+                          : "Trial eligibility depends on your account and plan"}
                       </div>
 
                       {databasePlan ? (
@@ -731,59 +803,66 @@ export default function EmployerSubscriptionPage() {
                         </thead>
 
                         <tbody>
-                          {transactions.map((transaction) => (
-                            <tr key={transaction.id}>
-                              <td>
-                                <strong>
-                                  {transaction.billing_interval
-                                    .charAt(0)
-                                    .toUpperCase() +
-                                    transaction.billing_interval.slice(1)}{" "}
-                                  subscription
-                                </strong>
+                          {transactions.map((transaction) => {
+                            const successful = isSuccessfulStatus(
+                              transaction.status
+                            );
+                            const statusStyle = getTransactionStatusClass(
+                              transaction.status
+                            );
 
-                                <span>
-                                  {transaction.provider_reference ||
-                                    transaction.provider ||
-                                    "Payment"}
-                                </span>
-                              </td>
+                            return (
+                              <tr key={transaction.id}>
+                                <td>
+                                  <strong>
+                                    {transaction.billing_interval
+                                      .charAt(0)
+                                      .toUpperCase() +
+                                      transaction.billing_interval.slice(1)}{" "}
+                                    subscription
+                                  </strong>
 
-                              <td>
-                                {formatDate(
-                                  transaction.paid_at ||
-                                    transaction.created_at
-                                )}
-                              </td>
+                                  <span>
+                                    {transaction.provider_reference ||
+                                      transaction.provider ||
+                                      "Payment"}
+                                  </span>
+                                </td>
 
-                              <td>
-                                <strong>
-                                  {money(
-                                    Number(transaction.amount_kobo),
-                                    transaction.currency || "NGN"
+                                <td>
+                                  {formatDate(
+                                    transaction.paid_at ||
+                                      transaction.created_at
                                   )}
-                                </strong>
-                              </td>
+                                </td>
 
-                              <td>
-                                <span
-                                  className={`employer-transaction-status ${transaction.status.toLowerCase()}`}
-                                >
-                                  {transaction.status.toLowerCase() ===
-                                  "success" ? (
-                                    <CheckCircle2 size={14} />
-                                  ) : transaction.status.toLowerCase() ===
-                                    "failed" ? (
-                                    <XCircle size={14} />
-                                  ) : (
-                                    <Clock3 size={14} />
-                                  )}
+                                <td>
+                                  <strong>
+                                    {money(
+                                      Number(transaction.amount_kobo),
+                                      transaction.currency || "NGN"
+                                    )}
+                                  </strong>
+                                </td>
 
-                                  {readableStatus(transaction.status)}
-                                </span>
-                              </td>
-                            </tr>
-                          ))}
+                                <td>
+                                  <span
+                                    className={`employer-transaction-status ${statusStyle}`}
+                                  >
+                                    {successful ? (
+                                      <CheckCircle2 size={14} />
+                                    ) : statusStyle === "failed" ? (
+                                      <XCircle size={14} />
+                                    ) : (
+                                      <Clock3 size={14} />
+                                    )}
+
+                                    {readableStatus(transaction.status)}
+                                  </span>
+                                </td>
+                              </tr>
+                            );
+                          })}
                         </tbody>
                       </table>
                     </div>
@@ -809,7 +888,9 @@ export default function EmployerSubscriptionPage() {
                   <div className="employer-subscription-help-row">
                     <CalendarDays size={17} />
                     <span>
-                      30-day trial for eligible verified accounts
+                      {maximumTrialDays > 0
+                        ? `${maximumTrialDays}-day trial may be available to eligible accounts`
+                        : "Trial availability depends on your account and plan"}
                     </span>
                   </div>
 

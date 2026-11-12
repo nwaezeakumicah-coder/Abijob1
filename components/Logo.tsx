@@ -54,7 +54,7 @@ export default function Logo({
   }
 
   return (
-    <Link href={href} aria-label="Abi Job homepage">
+    <Link href={href} aria-label="Abijob homepage">
       {content}
     </Link>
   );
