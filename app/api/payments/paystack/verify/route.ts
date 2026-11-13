@@ -52,10 +52,11 @@ export async function POST(request: Request) {
         console.error("Authenticated payment recovery rejected:", reference, recovery.error);
         return jsonResponse({ error: recovery.error ?? "Payment record not found." }, 404);
       }
-      payment = recovery.payment;
+      payment = recovery.payment as NonNullable<typeof foundPayment>;
       console.info("Recovered missing payment during authenticated verification:", reference);
     }
 
+    if (!payment) return jsonResponse({ error: "Payment record could not be recovered." }, 404);
     if (payment.user_id !== user.id) return jsonResponse({ error: "Payment does not belong to this account." }, 403);
     if (payment.status === "successful") {
       return jsonResponse({ success: true, alreadyProcessed: true, message: "Payment has already been verified and activated." });
