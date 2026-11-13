@@ -1,6 +1,7 @@
+
 import { NextRequest, NextResponse } from "next/server";
-import type { EmailOtpType } from "@supabase/supabase-js";
 import { createClient } from "../../../lib/supabase/server";
+import { createAdminClient } from "../../../lib/supabase/admin";
 
 export async function GET(request: NextRequest) {
   const loginUrl = new URL("/login", request.url);
@@ -8,42 +9,37 @@ export async function GET(request: NextRequest) {
   try {
     const supabase = await createClient();
 
-    const code = request.nextUrl.searchParams.get("code");
-    const tokenHash = request.nextUrl.searchParams.get("token_hash");
-    const type = request.nextUrl.searchParams.get("type");
+    const {
+      data: { user },
+      error: authError,
+    } = await supabase.auth.getUser();
 
-    let authenticationError = false;
+    if (authError || !user || !user.email) {
+      loginUrl.searchParams.set(
+        "error",
+        "authentication-required"
+      );
 
-    if (code) {
-      const { error } =
-        await supabase.auth.exchangeCodeForSession(code);
-
-      authenticationError = Boolean(error);
-    } else if (tokenHash && type) {
-      const allowedTypes: EmailOtpType[] = [
-        "invite",
-        "magiclink",
-        "signup",
-        "recovery",
-        "email",
-        "email_change",
-      ];
-
-      if (!allowedTypes.includes(type as EmailOtpType)) {
-        authenticationError = true;
-      } else {
-        const { error } = await supabase.auth.verifyOtp({
-          token_hash: tokenHash,
-          type: type as EmailOtpType,
-        });
-
-        authenticationError = Boolean(error);
-      }
-    } else {
-      authenticationError = true;
+      return NextResponse.redirect(loginUrl);
     }
 
-    if (authenticationError) {
+    const adminClient = createAdminClient();
+
+    const { data: administrator, error: administratorError } =
+      await adminClient
+        .from("platform_admins")
+        .select("id, email, role, status")
+        .eq("auth_user_id", user.id)
+        .maybeSingle();
+
+    if (administratorError) {
+      console.error(
+        "Administrator completion lookup failed:",
+        administratorError
+      );
+
+      await supabase.auth.signOut();
+
       loginUrl.searchParams.set(
         "error",
         "authentication-failed"
@@ -52,11 +48,31 @@ export async function GET(request: NextRequest) {
       return NextResponse.redirect(loginUrl);
     }
 
+    // This route only allows accounts that are already active.
+    // It never activates invitations.
+    if (
+      !administrator ||
+      administrator.status !== "active" ||
+      administrator.email?.toLowerCase() !== user.email.toLowerCase()
+    ) {
+      await supabase.auth.signOut();
+
+      loginUrl.searchParams.set(
+        "error",
+        "not-authorized"
+      );
+
+      return NextResponse.redirect(loginUrl);
+    }
+
     return NextResponse.redirect(
-      new URL("/auth/complete", request.url)
+      new URL("/dashboard", request.url)
     );
   } catch (error) {
-    console.error("Admin authentication callback failed:", error);
+    console.error(
+      "Administrator authentication completion failed:",
+      error
+    );
 
     loginUrl.searchParams.set(
       "error",
