@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import "./globals.css";
+import NotificationCenter from "@/components/NotificationCenter";
 
 export const metadata: Metadata = {
   metadataBase: new URL("https://abijob.ng"),
@@ -36,7 +37,10 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body>{children}</body>
+      <body>
+        {children}
+        <NotificationCenter />
+      </body>
     </html>
   );
 }
