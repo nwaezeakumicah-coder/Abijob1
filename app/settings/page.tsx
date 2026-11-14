@@ -481,7 +481,7 @@ export default function SettingsPage() {
 
           <div className="settings-sidebar-footer">
             <span className="settings-status-dot" />
-            Abi Job platform
+            Abijob platform
             <span>v1.0</span>
           </div>
         </div>
@@ -636,7 +636,7 @@ export default function SettingsPage() {
                   <div className="settings-info-note">
                     <div><Check size={17} /></div>
                     <p>
-                      Your preferences help Abi Job organise the
+                      Your preferences help Abijob organise the
                       opportunities you see. They do not change your
                       registered profile details.
                     </p>
@@ -849,7 +849,7 @@ export default function SettingsPage() {
                     </div>
                     <div>
                       <h3>Sign out</h3>
-                      <p>End your current Abi Job account session.</p>
+                      <p>End your current Abijob account session.</p>
                       <button
                         type="button"
                         className="settings-text-action"
@@ -866,7 +866,7 @@ export default function SettingsPage() {
                   <div className="settings-info-note">
                     <div><ShieldCheck size={17} /></div>
                     <p>
-                      Always sign out when using Abi Job on a shared
+                      Always sign out when using Abijob on a shared
                       or public device.
                     </p>
                   </div>
@@ -951,7 +951,7 @@ export default function SettingsPage() {
             <div className="settings-confirm-icon">
               <LogOut size={24} />
             </div>
-            <h2 id="settings-logout-title">Sign out of Abi Job?</h2>
+            <h2 id="settings-logout-title">Sign out of Abijob?</h2>
             <p>
               You will be signed out of your account and returned to
               the login page.
