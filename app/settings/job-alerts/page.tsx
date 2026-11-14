@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import type { FormEvent } from "react";
 import Link from "next/link";
 import Header from "../../../components/Header";
 import Footer from "../../../components/Footer";
@@ -34,7 +35,7 @@ export default function JobAlertsSettingsPage() {
       if (!active) return;
       if (prefError) setError("Your alert preferences could not be loaded.");
       setUserId(id);
-      setCategories(Array.from(new Set((jobs || []).map((j: {category:string|null}) => j.category?.trim()).filter((v): v is string => Boolean(v))).sort());
+      setCategories(Array.from(new Set((jobs || []).map((j: { category: string | null }) => j.category?.trim()).filter((v): v is string => Boolean(v)))).sort());
       if (prefs) {
         setSelectedCategories(prefs.categories || []);
         setSelectedLocations(prefs.locations || []);
@@ -50,7 +51,7 @@ export default function JobAlertsSettingsPage() {
     setter(selected.includes(value) ? selected.filter((item) => item !== value) : [...selected, value]);
   }
 
-  async function save(event: React.FormEvent<HTMLFormElement>) {
+  async function save(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setSaving(true); setMessage(""); setError("");
     const { error: saveError } = await supabase.from("job_alert_preferences").upsert({
