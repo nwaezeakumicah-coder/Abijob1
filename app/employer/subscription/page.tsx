@@ -787,7 +787,7 @@ export default function EmployerSubscriptionPage() {
                       </div>
                       <strong>No payment history yet</strong>
                       <p>
-                        Payments made through Abi Job will appear here.
+                        Payments made through Abijob will appear here.
                       </p>
                     </div>
                   ) : (
@@ -920,7 +920,7 @@ export default function EmployerSubscriptionPage() {
 
           <footer className="employer-dashboard-footer">
             <span>
-              © {new Date().getFullYear()} Abi Job. All rights reserved.
+              © {new Date().getFullYear()} Abijob. All rights reserved.
             </span>
             <span>Subscription & Billing</span>
           </footer>
