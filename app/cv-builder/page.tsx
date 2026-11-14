@@ -792,7 +792,7 @@ export default function CVBuilderPage() {
         <div className="cv-loading-card">
           <Image
             src="/images/abijob-logo-green.png"
-            alt="Abi Job"
+            alt="Abijob"
             width={142}
             height={48}
             priority
@@ -811,7 +811,7 @@ export default function CVBuilderPage() {
         <div className="cv-loading-card">
           <Image
             src="/images/abijob-logo-green.png"
-            alt="Abi Job"
+            alt="Abijob"
             width={142}
             height={48}
             priority
@@ -841,7 +841,7 @@ export default function CVBuilderPage() {
           <Link href="/" className="cv-brand">
             <Image
               src="/images/abijob-logo-green.png"
-              alt="Abi Job"
+              alt="Abijob"
               width={142}
               height={48}
               priority
@@ -1732,7 +1732,7 @@ export default function CVBuilderPage() {
               )}
             </div>
 
-            <div className="cv-paper-footer">Created with Abi Job</div>
+            <div className="cv-paper-footer">Created with Abijob</div>
           </article>
 
           <div className="cv-preview-note">
@@ -1756,7 +1756,7 @@ export default function CVBuilderPage() {
       </div>
 
       <footer className="cv-builder-footer">
-        <span>© 2026 Abi Job. Opportunity starts here.</span>
+        <span>© 2026 Abijob. Opportunity starts here.</span>
         <Link href="/jobs">
           Explore opportunities <ArrowRight size={14} />
         </Link>
