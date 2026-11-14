@@ -324,7 +324,7 @@ export default function EmployerApplicantsPage() {
             const name =
               application.applicant_name?.trim() ||
               applicantProfile?.full_name?.trim() ||
-              "Abi Job Applicant";
+              "Abijob Applicant";
 
             const statusValue = String(application.status || "submitted");
 
@@ -504,7 +504,7 @@ export default function EmployerApplicantsPage() {
 
     if (!newTab) {
       setError(
-        "Your browser blocked the CV window. Please allow pop-ups for Abi Job and try again."
+        "Your browser blocked the CV window. Please allow pop-ups for Abijob and try again."
       );
       setOpeningCvId(null);
       return;
@@ -630,7 +630,7 @@ export default function EmployerApplicantsPage() {
 
           <Link href="/" className="applicants-back-link">
             <ArrowLeft size={16} />
-            Back to Abi Job
+            Back to Abijob
           </Link>
         </div>
       </aside>
