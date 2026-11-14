@@ -920,7 +920,9 @@ export default function InterviewPracticePage() {
                 <textarea
                   rows={8}
                   value={answer}
-                  onChange={(event) =>
+                  onChange={(event) => {
+                    setAiFeedback("");
+                    setFeedbackError("");
                     setAnswers((current) => ({
                       ...current,
                       [currentQuestion]: event.target.value,
