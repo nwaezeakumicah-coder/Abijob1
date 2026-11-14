@@ -58,7 +58,8 @@ export default function DashboardPage() {
   const router = useRouter();
 
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [savedJobs, setSavedJobs] = useState<number[]>([]);
+  const [savedJobsCount, setSavedJobsCount] = useState(0);
+  const [applicationCount, setApplicationCount] = useState(0);
   const [userName, setUserName] = useState("Job seeker");
   const [profile, setProfile] = useState<JobSeekerProfile | null>(null);
   const [loading, setLoading] = useState(true);
@@ -116,6 +117,32 @@ export default function DashboardPage() {
             setUserName(profileData.full_name.trim());
           }
         }
+
+        const [
+          { count: applications, error: applicationsError },
+          { count: saved, error: savedError },
+        ] = await Promise.all([
+          supabase
+            .from("job_applications")
+            .select("id", { count: "exact", head: true })
+            .eq("applicant_id", user.id),
+          supabase
+            .from("saved_jobs")
+            .select("id", { count: "exact", head: true })
+            .eq("user_id", user.id),
+        ]);
+
+        if (applicationsError) {
+          console.warn("Application count could not be loaded:", applicationsError);
+        } else if (active) {
+          setApplicationCount(applications ?? 0);
+        }
+
+        if (savedError) {
+          console.warn("Saved jobs count could not be loaded:", savedError);
+        } else if (active) {
+          setSavedJobsCount(saved ?? 0);
+        }
       } catch (error) {
         console.error("Job seeker dashboard loading error:", error);
 
@@ -165,14 +192,6 @@ export default function DashboardPage() {
         : profileCompletion > 0
           ? "In progress"
           : "Not started";
-
-  function toggleSavedJob(id: number) {
-    setSavedJobs((current) =>
-      current.includes(id)
-        ? current.filter((jobId) => jobId !== id)
-        : [...current, id]
-    );
-  }
 
   return (
     <main className="dashboard-page">
@@ -459,8 +478,8 @@ export default function DashboardPage() {
                 </div>
               </div>
 
-              <strong>—</strong>
-              <p>Application statistics will appear here.</p>
+              <strong>{loading ? "—" : applicationCount}</strong>
+              <p>Applications you've submitted.</p>
             </article>
 
             <article className="dashboard-stat-card">
@@ -471,20 +490,20 @@ export default function DashboardPage() {
                 </div>
               </div>
 
-              <strong>{savedJobs.length}</strong>
-              <p>Saved during this page session only.</p>
+              <strong>{loading ? "—" : savedJobsCount}</strong>
+              <p>Opportunities saved to your account.</p>
             </article>
 
             <article className="dashboard-stat-card">
               <div className="dashboard-stat-top">
-                <span>Profile views</span>
+                <span>CV status</span>
                 <div className="dashboard-stat-icon purple">
-                  <Users size={20} />
+                  <FileText size={20} />
                 </div>
               </div>
 
-              <strong>—</strong>
-              <p>Employer view tracking is not connected yet.</p>
+              <strong>{loading ? "—" : profile?.cv_path ? "Uploaded" : "Not uploaded"}</strong>
+              <p>Keep your CV ready when applying for opportunities.</p>
             </article>
 
             <article className="dashboard-stat-card">
