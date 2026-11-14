@@ -325,6 +325,9 @@ export default function InterviewPracticePage() {
   const [started, setStarted] = useState(false);
   const [showGuidance, setShowGuidance] = useState(false);
   const [showFeedback, setShowFeedback] = useState(false);
+  const [isReviewingAnswer, setIsReviewingAnswer] = useState(false);
+  const [aiFeedback, setAiFeedback] = useState("");
+  const [feedbackError, setFeedbackError] = useState("");
   const [completed, setCompleted] = useState(false);
 
   const dashboardPath =
@@ -489,11 +492,39 @@ export default function InterviewPracticePage() {
     }
   };
 
-  const getFeedback = () => {
-    if (!answer.trim()) return;
+  const getFeedback = async () => {
+    if (!answer.trim() || isReviewingAnswer) return;
 
+    setIsReviewingAnswer(true);
+    setFeedbackError("");
+    setAiFeedback("");
     setShowFeedback(true);
     setShowGuidance(false);
+
+    try {
+      const response = await fetch("/api/career/ai-assist", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          mode: "interview-review",
+          context: JSON.stringify({
+            role: accountRole,
+            jobTitle: jobTitle || "Not specified",
+            experienceLevel,
+            interviewType: session.title,
+            question: question.question,
+            answer,
+          }),
+        }),
+      });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error || "The interview coach is unavailable.");
+      setAiFeedback(result.result);
+    } catch (error) {
+      setFeedbackError(error instanceof Error ? error.message : "Could not review your answer. Please try again.");
+    } finally {
+      setIsReviewingAnswer(false);
+    }
   };
 
   const restartSession = () => {
@@ -889,12 +920,14 @@ export default function InterviewPracticePage() {
                 <textarea
                   rows={8}
                   value={answer}
-                  onChange={(event) =>
+                  onChange={(event) => {
+                    setAiFeedback("");
+                    setFeedbackError("");
                     setAnswers((current) => ({
                       ...current,
                       [currentQuestion]: event.target.value,
-                    }))
-                  }
+                    }));
+                  }}
                   placeholder="Write your answer here. Try to use a real example from your experience..."
                 />
 
@@ -918,10 +951,10 @@ export default function InterviewPracticePage() {
                   type="button"
                   className="interview-feedback-button"
                   onClick={getFeedback}
-                  disabled={!answer.trim()}
+                  disabled={!answer.trim() || isReviewingAnswer}
                 >
                   <Sparkles size={16} />
-                  Review my answer
+                  {isReviewingAnswer ? "Reviewing..." : "AI review my answer"}
                 </button>
               </div>
 
@@ -939,9 +972,16 @@ export default function InterviewPracticePage() {
               {showFeedback && (
                 <div className="interview-feedback-panel">
                   <div>
-                    <CheckCircle2 size={18} />
-                    <strong>Your answer review checklist</strong>
+                    <Sparkles size={18} />
+                    <strong>Abi Job AI interview review</strong>
                   </div>
+
+                  {isReviewingAnswer && <p>Reviewing your answer against the question and role...</p>}
+                  {feedbackError && <p role="alert">{feedbackError}</p>}
+                  {aiFeedback && <div className="interview-ai-feedback" aria-live="polite">{aiFeedback}</div>}
+
+                  <div className="interview-feedback-divider" />
+                  <strong>Your self-review checklist</strong>
 
                   <p>
                     Read your answer again and check each of these points
@@ -973,9 +1013,7 @@ export default function InterviewPracticePage() {
                   </div>
 
                   <small>
-                    This is a self-review checklist and general practice
-                    guidance. It is not an AI evaluation or an assessment of
-                    your actual answer.
+                    AI feedback is a coaching aid, not a hiring decision. Never include sensitive personal information in your answers.
                   </small>
                 </div>
               )}

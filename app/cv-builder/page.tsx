@@ -269,6 +269,7 @@ export default function CVBuilderPage() {
   const [loadError, setLoadError] = useState("");
   const [photoError, setPhotoError] = useState("");
   const [isSaving, setIsSaving] = useState(false);
+  const [isGeneratingSummary, setIsGeneratingSummary] = useState(false);
 
   const dashboardHref = getDashboardPath(accountType);
 
@@ -624,34 +625,39 @@ export default function CVBuilderPage() {
     );
   }, [data]);
 
-  const generateSummary = () => {
+  const generateSummary = async () => {
     if (!data.professionalTitle.trim() && !data.skills.trim()) {
-      setSummaryMessage(
-        "Add your professional title and skills first so the assistant can suggest a relevant summary."
-      );
+      setSummaryMessage("Add your professional title and skills first.");
       return;
     }
 
-    const skills = data.skills
-      .split(/[\n,]+/)
-      .map((skill) => skill.trim())
-      .filter(Boolean)
-      .slice(0, 4);
+    setIsGeneratingSummary(true);
+    setSummaryMessage("");
 
-    const skillText =
-      skills.length > 0
-        ? ` Key skills include ${skills.join(", ")}.`
-        : "";
-
-    const suggestion = `Motivated ${
-      data.professionalTitle.trim() || "professional"
-    } committed to delivering quality work and contributing to team success. Brings a practical approach to problem-solving, a willingness to learn, and a commitment to continuous improvement.${skillText}`;
-
-    updateField("summary", suggestion);
-
-    setSummaryMessage(
-      "A writing suggestion has been added. Review it and make sure it accurately represents your experience."
-    );
+    try {
+      const response = await fetch("/api/career/ai-assist", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          mode: "cv-summary",
+          context: JSON.stringify({
+            professionalTitle: data.professionalTitle,
+            skills: data.skills,
+            experience: data.experience.map(({ jobTitle, company, description }) => ({ jobTitle, company, description })),
+            education: data.education.map(({ qualification, institution }) => ({ qualification, institution })),
+            existingSummary: data.summary,
+          }),
+        }),
+      });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error || "The CV writing assistant is unavailable.");
+      updateField("summary", result.result);
+      setSummaryMessage("AI summary drafted. Review every detail and edit anything that does not accurately describe you.");
+    } catch (error) {
+      setSummaryMessage(error instanceof Error ? error.message : "Could not generate a summary. Please try again.");
+    } finally {
+      setIsGeneratingSummary(false);
+    }
   };
 
   const loadSample = () => {
@@ -1114,9 +1120,10 @@ export default function CVBuilderPage() {
               className="cv-ai-button"
               onClick={generateSummary}
               type="button"
+              disabled={isGeneratingSummary}
             >
               <Sparkles size={16} />
-              Suggest a summary
+              {isGeneratingSummary ? "Writing your summary..." : "Generate with AI"}
             </button>
 
             {summaryMessage && (
@@ -1126,8 +1133,7 @@ export default function CVBuilderPage() {
             )}
 
             <p className="cv-feature-note">
-              This is a basic writing suggestion, not an AI-generated or
-              independently verified CV. Review it before using it.
+              AI writing assistance uses only the details you provide. Review all generated content for accuracy before applying.
             </p>
           </div>
 
