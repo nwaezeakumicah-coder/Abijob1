@@ -269,6 +269,7 @@ export default function CVBuilderPage() {
   const [loadError, setLoadError] = useState("");
   const [photoError, setPhotoError] = useState("");
   const [isSaving, setIsSaving] = useState(false);
+  const [cloudSaveError, setCloudSaveError] = useState("");
 
   const dashboardHref = getDashboardPath(accountType);
 
@@ -386,6 +387,24 @@ export default function CVBuilderPage() {
           }
         }
 
+        // Prefer the cloud draft when it is newer than the browser copy.
+        const { data: cloudDraft, error: cloudLoadError } = await createClient()
+          .from("cv_documents")
+          .select("data, template, updated_at")
+          .eq("user_id", user.id)
+          .maybeSingle();
+
+        if (cloudLoadError) {
+          console.warn("CV cloud draft could not be loaded; using the browser backup:", cloudLoadError);
+        } else if (cloudDraft && cloudDraft.data && typeof cloudDraft.data === "object") {
+          const cloudUpdatedAt = asText(cloudDraft.updated_at);
+          if (!savedAt || (cloudUpdatedAt && cloudUpdatedAt > savedAt)) {
+            savedData = sanitizeCVData(cloudDraft.data);
+            if (isValidTemplate(cloudDraft.template)) savedTemplate = cloudDraft.template;
+            savedAt = cloudUpdatedAt;
+          }
+        }
+
         if (!active) return;
 
         setData({
@@ -430,41 +449,61 @@ export default function CVBuilderPage() {
     };
   }, [router]);
 
-  // Debounced local browser autosave.
+  // Keep a browser backup and synchronise the user's private CV draft to Supabase.
   useEffect(() => {
     if (!isHydrated || !storageKey) return;
 
     setIsSaving(true);
-
     const timeout = window.setTimeout(() => {
-      const savedAt = new Date().toISOString();
+      void (async () => {
+        const savedAt = new Date().toISOString();
+        let localSaved = false;
 
-      try {
-        window.localStorage.setItem(
-          storageKey,
-          JSON.stringify({
-            version: 2,
-            data,
-            template,
-            savedAt,
-          })
-        );
+        try {
+          window.localStorage.setItem(
+            storageKey,
+            JSON.stringify({ version: 3, data, template, savedAt })
+          );
+          localSaved = true;
+        } catch (error) {
+          console.error("CV Builder local backup failed:", error);
+        }
 
-        setLastSaved(savedAt);
-        setSummaryMessage((current) =>
-          current.startsWith("Your browser could not save")
-            ? ""
-            : current
-        );
-      } catch (error) {
-        console.error("CV Builder autosave failed:", error);
-        setSummaryMessage(
-          "Your browser could not save this draft. Remove or replace the photograph, or free some browser storage, then try again."
-        );
-      } finally {
-        setIsSaving(false);
-      }
-    }, 500);
+        try {
+          const supabase = createClient();
+          const { data: { user }, error: authError } = await supabase.auth.getUser();
+          if (authError || !user) throw authError || new Error("Your session has expired.");
+
+          const { error } = await supabase
+            .from("cv_documents")
+            .upsert({
+              user_id: user.id,
+              title: data.professionalTitle.trim() || "My CV",
+              data,
+              template,
+              updated_at: savedAt,
+            }, { onConflict: "user_id" });
+
+          if (error) throw error;
+
+          setCloudSaveError("");
+          setLastSaved(savedAt);
+          setSummaryMessage((current) =>
+            current.startsWith("Your browser could not save") ||
+            current.startsWith("Cloud save")
+              ? ""
+              : current
+          );
+        } catch (error) {
+          console.error("CV cloud autosave failed:", error);
+          setCloudSaveError("Cloud save is temporarily unavailable. Your latest changes are kept in this browser; try again when your connection is restored.");
+          if (localSaved) setLastSaved(savedAt);
+          else setSummaryMessage("Your CV could not be saved. Check your connection and browser storage, then try again.");
+        } finally {
+          setIsSaving(false);
+        }
+      })();
+    }, 700);
 
     return () => window.clearTimeout(timeout);
   }, [data, template, storageKey, isHydrated]);
@@ -1130,6 +1169,11 @@ export default function CVBuilderPage() {
             {summaryMessage && (
               <p className="cv-summary-message" role="status">
                 {summaryMessage}
+              </p>
+            )}
+            {cloudSaveError && (
+              <p className="cv-summary-message" role="status">
+                {cloudSaveError}
               </p>
             )}
 
