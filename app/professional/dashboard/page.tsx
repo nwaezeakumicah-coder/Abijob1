@@ -960,7 +960,7 @@ export default function ProfessionalDashboardPage() {
           </div>
 
           <footer className="pd-footer">
-            <span>Abi Job · Professional workspace</span>
+            <span>Abijob · Professional workspace</span>
             <span>Opportunity starts here.</span>
           </footer>
         </div>
