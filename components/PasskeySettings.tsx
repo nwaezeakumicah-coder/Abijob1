@@ -62,13 +62,25 @@ export default function PasskeySettings() {
         ];
 
         setFactors(verifiedFactors);
+        const defaultFactor = verifiedFactors[0];
         setFactorId((current) =>
           verifiedFactors.some((factor) => factor.id === current)
             ? current
-            : verifiedFactors[0]?.id ?? ""
+            : defaultFactor?.id ?? ""
         );
         setNeedsMfa(true);
         setPasskeys([]);
+
+        // Keep the step-up check, but remove an unnecessary extra click for
+        // users who have exactly one authenticator-app factor.
+        if (verifiedFactors.length === 1 && defaultFactor?.factor_type === "totp") {
+          const { data: challenge, error: challengeError } =
+            await supabase.auth.mfa.challenge({ factorId: defaultFactor.id });
+          if (challengeError) throw challengeError;
+          setChallengeId(challenge.id);
+          setMessage("Enter the current code from your authenticator app.");
+        }
+
         setLoading(false);
         return;
       }
@@ -272,41 +284,45 @@ export default function PasskeySettings() {
           <div className="abj-passkey-mfa-heading">
             <LockKeyhole size={19} />
             <div>
-              <strong id="abj-passkey-mfa-title">Verify it’s you to manage passkeys</strong>
-              <p>Your account has an additional security factor. Complete this check to create or manage passkeys.</p>
+              <strong id="abj-passkey-mfa-title">Confirm it’s you</strong>
+              <p>Enter your existing security code to manage passkeys. This check appears only because you enabled extra account protection.</p>
             </div>
           </div>
 
           {factors.length ? (
             <>
-              <label htmlFor="abj-passkey-factor">Verification method</label>
-              <select
-                id="abj-passkey-factor"
-                value={factorId}
-                onChange={(event) => {
-                  setFactorId(event.target.value);
-                  setChallengeId("");
-                  setVerificationCode("");
-                  setMessage("");
-                }}
-                disabled={working}
-              >
-                {factors.map((factor) => (
-                  <option key={factor.id} value={factor.id}>
-                    {factor.factor_type === "totp"
-                      ? `Authenticator app · ${factor.friendly_name || "TOTP"}`
-                      : `SMS · ${factor.phone || factor.friendly_name || "Verified phone"}`}
-                  </option>
-                ))}
-              </select>
+              {factors.length > 1 && (
+                <>
+                  <label htmlFor="abj-passkey-factor">Verification method</label>
+                  <select
+                    id="abj-passkey-factor"
+                    value={factorId}
+                    onChange={(event) => {
+                      setFactorId(event.target.value);
+                      setChallengeId("");
+                      setVerificationCode("");
+                      setMessage("");
+                    }}
+                    disabled={working}
+                  >
+                    {factors.map((factor) => (
+                      <option key={factor.id} value={factor.id}>
+                        {factor.factor_type === "totp"
+                          ? `Authenticator app · ${factor.friendly_name || "TOTP"}`
+                          : `SMS · ${factor.phone || factor.friendly_name || "Verified phone"}`}
+                      </option>
+                    ))}
+                  </select>
+                </>
+              )}
 
               {!challengeId ? (
                 <button type="button" className="abj-passkey-add" onClick={() => void startMfaChallenge()} disabled={working || !factorId}>
-                  {working ? "Please wait…" : factors.find((factor) => factor.id === factorId)?.factor_type === "phone" ? "Send verification code" : "Continue with authenticator"}
+                  {working ? "Please wait…" : factors.find((factor) => factor.id === factorId)?.factor_type === "phone" ? "Send code" : "Continue"}
                 </button>
               ) : (
                 <div className="abj-passkey-verify">
-                  <label htmlFor="abj-passkey-code">Verification code</label>
+                  <label htmlFor="abj-passkey-code">Authenticator code</label>
                   <input
                     id="abj-passkey-code"
                     type="text"
