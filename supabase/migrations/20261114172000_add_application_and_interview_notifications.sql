@@ -74,8 +74,9 @@ DECLARE
 BEGIN
   SELECT COALESCE(NULLIF(j.title, ''), 'your application')
     INTO v_job_title
-  FROM public.jobs j
-  WHERE j.id = NEW.application_id;
+  FROM public.job_applications a
+  JOIN public.jobs j ON j.id = a.job_id
+  WHERE a.id = NEW.application_id;
 
   SELECT p.role::text INTO v_applicant_role
   FROM public.profiles p
