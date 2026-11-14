@@ -301,7 +301,11 @@ export default async function SubscriptionsPage({
   const cancelledCount = cancelledCountResult.count ?? 0;
 
   const totalPaidKobo = payments
-    .filter((payment) => payment.status?.toLowerCase() === "success")
+    .filter((payment) =>
+      ["success", "successful"].includes(
+        payment.status?.toLowerCase() ?? ""
+      )
+    )
     .reduce(
       (total, payment) => total + Number(payment.amount_kobo ?? 0),
       0
@@ -458,7 +462,7 @@ export default async function SubscriptionsPage({
 
                 <div className="sub-plan-price">
                   <span>Annual</span>
-                  <strong>{planPrice(item.role, "annual")}</strong>
+                  <strong>{planPrice(item.role, "yearly")}</strong>
                 </div>
 
                 <small>
