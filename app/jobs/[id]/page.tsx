@@ -45,6 +45,7 @@ type Job = {
   requirements: string[];
   benefits: string[];
   about: string;
+  employerVerified: boolean;
 };
 
 function splitList(value: string | null | undefined): string[] {
@@ -151,7 +152,7 @@ async function JobDetailsContent({
   const [employerResult, profileResult] = await Promise.all([
     supabase
       .from("employer_profiles")
-      .select("business_name, description")
+      .select("business_name, description, verification_status")
       .eq("user_id", jobData.employer_id)
       .maybeSingle(),
 
@@ -207,6 +208,7 @@ async function JobDetailsContent({
     about:
       employerResult.data?.description ||
       "Employer details have not been added yet.",
+    employerVerified: employerResult.data?.verification_status === "approved",
   };
 
   return (
@@ -244,9 +246,9 @@ async function JobDetailsContent({
 
                     <span>{job.company}</span>
 
-                    <span className="job-verified">
+                    <span className={job.employerVerified ? "job-verified" : "job-verified job-unverified"}>
                       <ShieldCheck size={14} />
-                      Employer details
+                      {job.employerVerified ? "Verified employer" : "Not verified"}
                     </span>
                   </div>
 
