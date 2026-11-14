@@ -7,13 +7,20 @@ import { MapPin, BriefcaseBusiness, Users, ArrowRight } from "lucide-react";
 export const dynamic = "force-dynamic";
 
 type LgaRow = { lga: string; approved_jobs: number; public_professionals: number };
+type MapSummary = { unassigned_approved_jobs: number; unassigned_public_professionals: number };
 
 export default async function OpportunityMapPage() {
   const supabase = await createClient();
-  const { data, error } = await supabase.rpc("get_abia_opportunity_map");
+  const [{ data, error }, { data: summaryData }] = await Promise.all([
+    supabase.rpc("get_abia_opportunity_map"),
+    supabase.rpc("get_abia_opportunity_map_summary"),
+  ]);
   const rows = (Array.isArray(data) ? data : []) as LgaRow[];
-  const totalJobs = rows.reduce((sum, row) => sum + Number(row.approved_jobs || 0), 0);
-  const totalProfessionals = rows.reduce((sum, row) => sum + Number(row.public_professionals || 0), 0);
+  const summary = (Array.isArray(summaryData) ? summaryData[0] : summaryData) as MapSummary | null;
+  const unassignedJobs = Number(summary?.unassigned_approved_jobs || 0);
+  const unassignedProfessionals = Number(summary?.unassigned_public_professionals || 0);
+  const totalJobs = rows.reduce((sum, row) => sum + Number(row.approved_jobs || 0), 0) + unassignedJobs;
+  const totalProfessionals = rows.reduce((sum, row) => sum + Number(row.public_professionals || 0), 0) + unassignedProfessionals;
 
   return (
     <>
@@ -44,7 +51,13 @@ export default async function OpportunityMapPage() {
             ))}
           </section>
         )}
-        <p className="map-disclaimer">Counts are based on approved vacancies and public professional profiles whose recorded locations include the full LGA name. Records labelled only with a town or city may not yet be assigned to an LGA. Figures update as Abijob records grow; zero means no matching records were found, not that the area has no opportunities.</p>
+        {!error && (unassignedJobs > 0 || unassignedProfessionals > 0) && (
+          <section className="unassigned-location">
+            <div><strong>Location needs more detail</strong><p>Some records use a town or broad area rather than a specific LGA, so Abijob will not guess which local government area they belong to.</p></div>
+            <span>{unassignedJobs} vacancies · {unassignedProfessionals} professionals</span>
+          </section>
+        )}
+        <p className="map-disclaimer">Counts are based on approved vacancies and public professional profiles whose recorded locations include the full LGA name. Broad locations such as “Aba” are reported separately until the correct LGA is supplied. Figures update as Abijob records grow; zero means no matching records were found, not that the area has no opportunities.</p>
       </main>
       <Footer />
       <style>{`
@@ -62,9 +75,9 @@ export default async function OpportunityMapPage() {
         .lga-metrics{display:flex;gap:30px;margin:20px 0}.lga-metrics div{display:grid;gap:2px}.lga-metrics strong{font-size:25px}.lga-metrics span{font-size:12px;color:#69776d}
         .lga-card>a{display:inline-flex;align-items:center;gap:7px;color:#176b45;text-decoration:none;font-size:13px;font-weight:800}
         .map-state{max-width:1160px;margin:30px auto;padding:20px;background:#fff;border-radius:12px}
-        .map-disclaimer{max-width:1160px;margin:0 auto;padding:0 20px;color:#68766c;font-size:12px;line-height:1.7}
+        .unassigned-location{max-width:1120px;margin:0 auto 22px;padding:16px 20px;background:#fff7e8;border:1px solid #f1dfb9;border-radius:10px;display:flex;justify-content:space-between;gap:15px;align-items:center}.unassigned-location p{margin:5px 0 0;color:#78623b;font-size:12px;line-height:1.6}.unassigned-location span{font-size:12px;font-weight:800;color:#8b5a12;white-space:nowrap}.map-disclaimer{max-width:1160px;margin:0 auto;padding:0 20px;color:#68766c;font-size:12px;line-height:1.7}
         @media(max-width:850px){.lga-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.map-hero{padding-top:48px;padding-bottom:48px}}
-        @media(max-width:560px){.lga-grid{grid-template-columns:1fr}.map-totals>div{flex:1}.lga-metrics{margin:15px 0}}
+        @media(max-width:560px){.unassigned-location{margin-left:14px;margin-right:14px;flex-direction:column;align-items:flex-start}.lga-grid{grid-template-columns:1fr}.map-totals>div{flex:1}.lga-metrics{margin:15px 0}}
       `}</style>
     </>
   );
