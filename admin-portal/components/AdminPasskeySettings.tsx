@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { createBrowserClient } from "@supabase/ssr";
 import { Fingerprint, KeyRound, Plus, ShieldCheck, Trash2 } from "lucide-react";
 
@@ -13,11 +13,11 @@ export default function AdminPasskeySettings() {
   const [message,setMessage]=useState("");
   const [failed,setFailed]=useState(false);
 
-  const supabase=createBrowserClient(
+  const supabase=useMemo(()=>createBrowserClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!,
     {auth:{experimental:{passkey:true}}}
-  );
+  ),[]);
 
   const refresh=useCallback(async()=>{
     setLoading(true);
