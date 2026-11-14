@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import type { FormEvent } from "react";
 import Link from "next/link";
 import { AlertTriangle, CheckCircle2, Flag, LoaderCircle } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
@@ -24,7 +25,7 @@ export default function ReportJobButton({ jobId }: Props) {
   const [message, setMessage] = useState("");
   const [success, setSuccess] = useState(false);
 
-  async function submitReport(event: React.FormEvent<HTMLFormElement>) {
+  async function submitReport(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setMessage("");
     setSuccess(false);
