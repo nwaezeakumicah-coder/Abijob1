@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import Logo from "../../../components/Logo";
+import PasskeySettings from "@/components/PasskeySettings";
 import { createClient } from "@/lib/supabase/client";
 import {
   Activity,
@@ -811,6 +812,7 @@ export default function ProfessionalSettingsPage() {
           </div>
         </div>
       </section>
-    </main>
+            {activeSection === "security" && <PasskeySettings />}
+</main>
   );
 }

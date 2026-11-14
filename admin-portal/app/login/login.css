@@ -429,3 +429,5 @@
   .login-security-note { margin-top: 20px; }
   .login-copyright { margin-top: 16px; }
 }
+
+.admin-passkey-login{width:100%;min-height:50px;margin-top:16px;display:flex;align-items:center;justify-content:center;gap:10px;border:1px solid #cbd9cf;border-radius:10px;background:#f5f8f3;color:#176b45;font-size:13px;font-weight:700;cursor:pointer}.admin-passkey-login:disabled{opacity:.6;cursor:not-allowed}

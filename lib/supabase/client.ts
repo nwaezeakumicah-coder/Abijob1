@@ -13,6 +13,11 @@ export function createClient() {
 
   return createBrowserClient(
     supabaseUrl,
-    supabasePublishableKey
+    supabasePublishableKey,
+    {
+      auth: {
+        experimental: { passkey: true },
+      },
+    }
   );
 }

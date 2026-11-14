@@ -27,6 +27,7 @@ import {
 } from "lucide-react";
 
 import { createClient } from "../../../lib/supabase/client";
+import PasskeySettings from "../../../components/PasskeySettings";
 import "./settings.css";
 
 type EmployerPreferences = {
@@ -80,6 +81,12 @@ export default function EmployerSettingsPage() {
     useState<EmployerPreferences>(defaultPreferences);
 
   const [companyName, setCompanyName] = useState("Your Company");
+  const [privacy, setPrivacy] = useState({
+    publicProfile: true,
+    showContactDetails: true,
+  });
+  const [accountActive, setAccountActive] = useState(true);
+  const [isChangingAccountStatus, setIsChangingAccountStatus] = useState(false);
   const [accountEmail, setAccountEmail] = useState("");
 
   const [accessChecked, setAccessChecked] = useState(false);
@@ -139,7 +146,7 @@ export default function EmployerSettingsPage() {
         const { data: employerProfile, error: profileError } =
           await supabase
             .from("employer_profiles")
-            .select("business_name")
+            .select("business_name, is_public, show_contact_details, is_active")
             .eq("user_id", user.id)
             .maybeSingle();
 
@@ -162,6 +169,14 @@ export default function EmployerSettingsPage() {
 
         if (employerProfile?.business_name) {
           setCompanyName(employerProfile.business_name);
+        }
+
+        if (employerProfile) {
+          setPrivacy({
+            publicProfile: employerProfile.is_public ?? true,
+            showContactDetails: employerProfile.show_contact_details ?? true,
+          });
+          setAccountActive(employerProfile.is_active ?? true);
         }
 
         const { data: savedPreferences, error: preferencesError } =
@@ -279,6 +294,18 @@ export default function EmployerSettingsPage() {
         throw new Error(preferenceSaveError.message);
       }
 
+      const { error: privacySaveError } = await supabase
+        .from("employer_profiles")
+        .update({
+          is_public: privacy.publicProfile,
+          show_contact_details: privacy.showContactDetails,
+        })
+        .eq("user_id", user.id);
+
+      if (privacySaveError) {
+        throw new Error(privacySaveError.message);
+      }
+
       setSaveMessage(
         "Your preferences have been saved to your Abi Job account."
       );
@@ -291,6 +318,48 @@ export default function EmployerSettingsPage() {
       );
     } finally {
       setIsSaving(false);
+    }
+  }
+
+  async function handleAccountStatusChange() {
+    if (isChangingAccountStatus || isSaving || isSigningOut) return;
+
+    const nextActive = !accountActive;
+    const confirmed = window.confirm(
+      nextActive
+        ? "Resume your employer account? Your approved job listings will become visible again."
+        : "Pause your employer account? Your approved job listings will be hidden from job seekers and you will not be able to post or edit jobs. Your account, applications and data will be retained, and you can resume at any time."
+    );
+    if (!confirmed) return;
+
+    setIsChangingAccountStatus(true);
+    setSaveMessage("");
+    setSaveError(false);
+
+    try {
+      const { data: { user }, error: authError } = await supabase.auth.getUser();
+      if (authError || !user) throw new Error("Your session has expired. Please sign in again.");
+
+      const { error: updateError } = await supabase
+        .from("employer_profiles")
+        .update({ is_active: nextActive })
+        .eq("user_id", user.id);
+
+      if (updateError) throw updateError;
+
+      setAccountActive(nextActive);
+      setSaveMessage(
+        nextActive
+          ? "Your employer account is active again. Approved job listings are visible."
+          : "Your employer account is paused. Approved job listings are now hidden."
+      );
+    } catch (cause) {
+      setSaveError(true);
+      setSaveMessage(
+        cause instanceof Error ? cause.message : "We could not update your account status."
+      );
+    } finally {
+      setIsChangingAccountStatus(false);
     }
   }
 
@@ -613,9 +682,7 @@ export default function EmployerSettingsPage() {
 
               <div>
                 <h2>Privacy and visibility</h2>
-                <p>
-                  Public visibility controls are not connected yet.
-                </p>
+                <p>Choose how your business appears in the public employer directory.</p>
               </div>
             </div>
 
@@ -627,15 +694,18 @@ export default function EmployerSettingsPage() {
 
                 <div className="employer-settings-option-text">
                   <strong>Public company profile</strong>
-                  <p>
-                    This control will become available when public company
-                    profile visibility is implemented.
-                  </p>
+                  <p>Allow job seekers and visitors to discover your company in the employer directory.</p>
                 </div>
 
-                <span className="employer-settings-info-item">
-                  Coming soon
-                </span>
+                <Toggle
+                  label="Public company profile"
+                  checked={privacy.publicProfile}
+                  onChange={(value) => {
+                    setPrivacy((current) => ({ ...current, publicProfile: value }));
+                    setSaveMessage("");
+                    setSaveError(false);
+                  }}
+                />
               </div>
 
               <div className="employer-settings-option">
@@ -645,15 +715,18 @@ export default function EmployerSettingsPage() {
 
                 <div className="employer-settings-option-text">
                   <strong>Business contact visibility</strong>
-                  <p>
-                    Contact visibility will be connected when the public
-                    company profile is implemented.
-                  </p>
+                  <p>Show your business address and website on your public employer profile.</p>
                 </div>
 
-                <span className="employer-settings-info-item">
-                  Coming soon
-                </span>
+                <Toggle
+                  label="Business contact visibility"
+                  checked={privacy.showContactDetails}
+                  onChange={(value) => {
+                    setPrivacy((current) => ({ ...current, showContactDetails: value }));
+                    setSaveMessage("");
+                    setSaveError(false);
+                  }}
+                />
               </div>
             </div>
           </section>
@@ -685,23 +758,6 @@ export default function EmployerSettingsPage() {
 
             <div className="employer-settings-security-item">
               <div className="employer-settings-security-icon">
-                <ShieldCheck size={19} />
-              </div>
-
-              <div>
-                <strong>Two-factor authentication</strong>
-                <p>
-                  Additional authentication setup is not yet available.
-                </p>
-              </div>
-
-              <span className="employer-settings-info-item">
-                Coming soon
-              </span>
-            </div>
-
-            <div className="employer-settings-security-item">
-              <div className="employer-settings-security-icon">
                 <LogOut size={19} />
               </div>
 
@@ -725,6 +781,8 @@ export default function EmployerSettingsPage() {
             </div>
           </section>
 
+          <PasskeySettings />
+
           <section className="employer-settings-danger-card">
             <div className="employer-settings-danger-heading">
               <div className="employer-settings-danger-icon">
@@ -739,15 +797,24 @@ export default function EmployerSettingsPage() {
 
             <div className="employer-settings-danger-content">
               <div>
-                <strong>Deactivate employer account</strong>
+                <strong>{accountActive ? "Pause employer account" : "Employer account paused"}</strong>
                 <p>
-                  Account deactivation will become available after the
-                  account-management process is implemented.
+                  {accountActive
+                    ? "Temporarily hide your approved job listings and stop new hiring activity. Your profile, applications and account data are retained and can be restored when you resume."
+                    : "Your approved job listings are hidden. Resume your account whenever you are ready to recruit again."}
                 </p>
               </div>
 
-              <button type="button" disabled>
-                Deactivate account
+              <button
+                type="button"
+                onClick={handleAccountStatusChange}
+                disabled={isChangingAccountStatus || isSaving || isSigningOut}
+              >
+                {isChangingAccountStatus
+                  ? "Updating..."
+                  : accountActive
+                    ? "Pause account"
+                    : "Resume account"}
               </button>
             </div>
           </section>
