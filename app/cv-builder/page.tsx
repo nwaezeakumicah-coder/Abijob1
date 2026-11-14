@@ -1120,9 +1120,10 @@ export default function CVBuilderPage() {
               className="cv-ai-button"
               onClick={generateSummary}
               type="button"
+              disabled={isGeneratingSummary}
             >
               <Sparkles size={16} />
-              Suggest a summary
+              {isGeneratingSummary ? "Writing your summary..." : "Generate with AI"}
             </button>
 
             {summaryMessage && (
@@ -1132,8 +1133,7 @@ export default function CVBuilderPage() {
             )}
 
             <p className="cv-feature-note">
-              This is a basic writing suggestion, not an AI-generated or
-              independently verified CV. Review it before using it.
+              AI writing assistance uses only the details you provide. Review all generated content for accuracy before applying.
             </p>
           </div>
 
