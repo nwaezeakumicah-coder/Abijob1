@@ -334,7 +334,7 @@ export default async function SubscriptionsPage({
             <h1>Subscriptions</h1>
             <p>
               Monitor subscriber accounts, free trials, billing plans
-              and subscription payments across Abi Job.
+              and subscription payments across Abijob.
             </p>
           </div>
 
