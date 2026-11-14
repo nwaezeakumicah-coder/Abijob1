@@ -8,6 +8,7 @@ import {
   Users,
   Wrench,
 } from "lucide-react";
+import LandingTransition from "./LandingTransition";
 import "./landing.css";
 
 const pathways = [
@@ -24,7 +25,8 @@ export const metadata = {
 
 export default function WelcomeLandingPage() {
   return (
-    <main className="welcome-page">
+    <LandingTransition>
+      <main className="welcome-page">
       <div className="welcome-grain" aria-hidden="true" />
       <header className="welcome-header">
         <Link href="/" className="welcome-logo-link" aria-label="Go to Abi Job homepage">
@@ -116,6 +118,7 @@ export default function WelcomeLandingPage() {
         <span>Made for the people and possibilities of Abia State.</span>
         <Link href="/">Continue to Abi Job <ArrowRight size={14} /></Link>
       </footer>
-    </main>
+      </main>
+    </LandingTransition>
   );
 }

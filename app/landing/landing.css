@@ -50,3 +50,19 @@
 @media(max-width:700px){.welcome-header{height:82px}.welcome-logo{width:145px}.welcome-hero{grid-template-columns:1fr;gap:0;padding:46px 0 20px}.welcome-copy h1{font-size:clamp(54px,12vw,78px)}.welcome-description{font-size:14px}.welcome-art{min-height:390px;margin-top:8px}.welcome-ring-outer{width:min(88%,390px)}.welcome-ring-inner{width:min(69%,300px)}.welcome-center-mark{width:190px;height:170px}.welcome-node-one{left:12%;top:5%}.welcome-node-two{right:6%;top:41%}.welcome-node-three{left:13%;bottom:4%}.welcome-pathways{align-items:flex-start;flex-direction:column;gap:14px;padding:20px 0}.welcome-pathway-list{width:100%;justify-content:space-between;gap:10px}.welcome-footer{padding:12px 0;align-items:flex-start;flex-direction:column;justify-content:center;gap:8px}}
 @media(max-width:420px){.welcome-header,.welcome-hero,.welcome-pathways,.welcome-footer{width:88%}.welcome-header-link{font-size:10px}.welcome-copy h1{font-size:51px;letter-spacing:-3.4px}.welcome-eyebrow{font-size:8px;letter-spacing:.8px}.welcome-actions{align-items:flex-start;flex-direction:column;gap:13px}.welcome-art{min-height:335px}.welcome-center-mark{width:165px;height:150px}.welcome-center-logo{width:120px}.welcome-orbit-node>span{width:46px;height:46px}.welcome-pathway-list{flex-wrap:wrap}.welcome-pathway{font-size:10px}}
 @media(prefers-reduced-motion:reduce){.welcome-page *,.welcome-page *:before,.welcome-page *:after{animation-duration:.01ms!important;animation-iteration-count:1!important;scroll-behavior:auto!important;transition-duration:.01ms!important}}
+
+
+/* Cinematic diagonal hand-off from the welcome page into Abi Job. */
+.landing-transition-root{min-height:100svh}
+.landing-transition-curtain{position:fixed;inset:0;z-index:99999;overflow:hidden;pointer-events:none;visibility:hidden}
+.landing-transition-curtain.is-active{visibility:visible}
+.landing-transition-curtain__panel{position:absolute;inset:-12% -22%;display:block;background:linear-gradient(118deg,#0b2e20 0%,#103c2b 42%,#176b45 100%);transform:translate3d(-115%,0,0) skewX(-13deg);transform-origin:center}
+.landing-transition-curtain.is-active .landing-transition-curtain__panel{animation:landing-diagonal-sweep .78s cubic-bezier(.76,0,.18,1) forwards}
+.landing-transition-curtain__edge{position:absolute;top:-20%;bottom:-20%;left:-30%;width:13vw;min-width:54px;background:linear-gradient(180deg,#d7f078 0%,#a9cf62 55%,#eaf5c9 100%);filter:drop-shadow(0 0 18px #d7f07880);transform:translate3d(-180vw,0,0) skewX(-13deg)}
+.landing-transition-curtain.is-active .landing-transition-curtain__edge{animation:landing-diagonal-edge .78s cubic-bezier(.76,0,.18,1) forwards}
+.landing-transition-curtain__glint{position:absolute;inset:0;background:linear-gradient(115deg,transparent 25%,#ffffff18 48%,transparent 63%);opacity:0;transform:translateX(-35%)}
+.landing-transition-curtain.is-active .landing-transition-curtain__glint{animation:landing-diagonal-glint .72s .08s ease-out forwards}
+@keyframes landing-diagonal-sweep{0%{transform:translate3d(-115%,0,0) skewX(-13deg)}100%{transform:translate3d(0,0,0) skewX(-13deg)}}
+@keyframes landing-diagonal-edge{0%{transform:translate3d(-180vw,0,0) skewX(-13deg)}100%{transform:translate3d(180vw,0,0) skewX(-13deg)}}
+@keyframes landing-diagonal-glint{0%{opacity:0;transform:translateX(-35%)}35%{opacity:1}100%{opacity:0;transform:translateX(35%)}}
+@media(prefers-reduced-motion:reduce){.landing-transition-curtain.is-active .landing-transition-curtain__panel,.landing-transition-curtain.is-active .landing-transition-curtain__edge,.landing-transition-curtain.is-active .landing-transition-curtain__glint{animation-duration:.04s!important;animation-delay:0s!important}}
