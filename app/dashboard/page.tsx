@@ -8,6 +8,7 @@ import Logo from "../../components/Logo";
 import {
   Activity,
   ArrowRight,
+  CalendarClock,
   ArrowUpRight,
   Bell,
   Bookmark,
@@ -246,6 +247,15 @@ export default function DashboardPage() {
           >
             <UserRound size={19} />
             <span>My profile</span>
+          </Link>
+
+          <Link
+            href="/dashboard/interviews"
+            className="dashboard-nav-link"
+            onClick={() => setSidebarOpen(false)}
+          >
+            <CalendarClock size={19} />
+            <span>Interviews</span>
           </Link>
 
           <Link
