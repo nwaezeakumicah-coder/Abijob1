@@ -651,7 +651,7 @@ export default function InterviewPracticePage() {
         </section>
 
         <footer className="interview-footer">
-          <span>© 2026 Abi Job. Opportunity starts here.</span>
+          <span>© 2026 Abijob. Opportunity starts here.</span>
           <span>Connecting talent with opportunity.</span>
         </footer>
       </main>
@@ -690,7 +690,7 @@ export default function InterviewPracticePage() {
         <div className="interview-hero-copy">
           <span className="interview-eyebrow">
             <Sparkles size={15} />
-            ABI JOB CAREER TOOLS
+            ABIJOB CAREER TOOLS
           </span>
 
           <h1>Walk into your next interview with confidence.</h1>
@@ -1184,7 +1184,7 @@ export default function InterviewPracticePage() {
       </div>
 
       <footer className="interview-footer">
-        <span>© 2026 Abi Job. Opportunity starts here.</span>
+        <span>© 2026 Abijob. Opportunity starts here.</span>
         <span>Prepare today. Show up confidently tomorrow.</span>
       </footer>
     </main>
