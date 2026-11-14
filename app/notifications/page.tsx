@@ -30,6 +30,7 @@ type NotificationType =
   | "job"
   | "profile"
   | "message"
+  | "service_request"
   | "system";
 
 type NotificationItem = {
@@ -58,6 +59,7 @@ function normalizeNotificationType(value: unknown): NotificationType {
     value === "job" ||
     value === "profile" ||
     value === "message" ||
+    value === "service_request" ||
     value === "system"
   ) {
     return value;
@@ -121,8 +123,10 @@ function getNotificationLabel(type: NotificationType) {
       return "Profile";
     case "message":
       return "Message";
+    case "service_request":
+      return "Service request";
     default:
-      return "Abi Job";
+      return "Abijob";
   }
 }
 
