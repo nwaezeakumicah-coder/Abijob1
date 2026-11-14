@@ -12,6 +12,7 @@ import {
   ArrowRight,
   LockKeyhole,
   ArrowLeft,
+  Fingerprint,
 } from "lucide-react";
 
 type LoginMode = "super_admin" | "team";
@@ -214,6 +215,44 @@ export default function LoginForm() {
       setStep("email");
       setCode("");
       setMessage("");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function handlePasskeySignIn() {
+    if (loading) return;
+    setLoading(true);
+    setMessage("");
+
+    try {
+      const { error } = await supabase.auth.signInWithPasskey();
+      if (error) throw error;
+
+      const roleResponse = await fetch("/api/auth/admin-role", {
+        method: "GET",
+        cache: "no-store",
+      });
+
+      if (!roleResponse.ok) {
+        await supabase.auth.signOut();
+        throw new Error("This passkey is not linked to an active administrator account.");
+      }
+
+      const roleResult = await roleResponse.json();
+      if (!["super_admin", "admin", "moderator", "support_staff"].includes(roleResult.role)) {
+        await supabase.auth.signOut();
+        throw new Error("This account is not authorised to access the Admin Portal.");
+      }
+
+      router.replace("/auth/complete");
+      router.refresh();
+    } catch (cause) {
+      showError(
+        cause instanceof Error
+          ? cause.message
+          : "Passkey verification failed. Please try again."
+      );
     } finally {
       setLoading(false);
     }
@@ -461,6 +500,16 @@ export default function LoginForm() {
           </button>
         </form>
       )}
+
+      <button
+        type="button"
+        className="admin-passkey-login"
+        onClick={() => void handlePasskeySignIn()}
+        disabled={loading}
+      >
+        <Fingerprint size={18} />
+        {loading ? "Verifying passkey…" : "Sign in with fingerprint or passkey"}
+      </button>
 
       {message && (
         <div
