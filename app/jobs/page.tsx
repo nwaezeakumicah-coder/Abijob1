@@ -203,39 +203,56 @@ export default function JobsPage() {
   const [employmentType, setEmploymentType] = useState("All types");
   const [activeTab, setActiveTab] = useState<FeedTab>("For You");
   const [savedJobs, setSavedJobs] = useState<string[]>([]);
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+  const [savingJobIds, setSavingJobIds] = useState<string[]>([]);
   const [selectedJob, setSelectedJob] = useState<Job | null>(null);
   const [showFilters, setShowFilters] = useState(false);
   const [shareMessage, setShareMessage] = useState("");
 
   useEffect(() => {
-    try {
-      const stored = localStorage.getItem("abijob-saved-jobs");
+    let active = true;
 
-      if (stored) {
-        const parsed: unknown = JSON.parse(stored);
+    async function loadSavedJobs() {
+      const tab = new URLSearchParams(window.location.search).get("tab");
+      if (tab?.toLowerCase() === "saved") setActiveTab("Saved");
 
-        if (
-          Array.isArray(parsed) &&
-          parsed.every((id) => typeof id === "string")
-        ) {
-          setSavedJobs(parsed);
-        }
+      const {
+        data: { user },
+        error: authError,
+      } = await supabase.auth.getUser();
+
+      if (!active) return;
+
+      if (authError || !user) {
+        setCurrentUserId(null);
+        setSavedJobs([]);
+        return;
       }
-    } catch {
-      // Ignore invalid saved-job data.
-    }
-  }, []);
 
-  useEffect(() => {
-    try {
-      localStorage.setItem(
-        "abijob-saved-jobs",
-        JSON.stringify(savedJobs)
-      );
-    } catch {
-      // Browser storage may be unavailable.
+      setCurrentUserId(user.id);
+
+      const { data, error: savedJobsError } = await supabase
+        .from("saved_jobs")
+        .select("job_id")
+        .eq("user_id", user.id);
+
+      if (!active) return;
+
+      if (savedJobsError) {
+        console.error("Saved jobs could not be loaded:", savedJobsError);
+        setShareMessage("Your saved jobs could not be loaded. Please refresh.");
+        return;
+      }
+
+      setSavedJobs((data ?? []).map((row) => row.job_id));
     }
-  }, [savedJobs]);
+
+    void loadSavedJobs();
+
+    return () => {
+      active = false;
+    };
+  }, [supabase]);
 
   const loadJobs = useCallback(async () => {
     setLoading(true);
@@ -402,12 +419,50 @@ export default function JobsPage() {
     savedJobs,
   ]);
 
-  function toggleSaved(id: string) {
-    setSavedJobs((current) =>
-      current.includes(id)
-        ? current.filter((jobId) => jobId !== id)
-        : [...current, id]
-    );
+  async function toggleSaved(id: string) {
+    if (!currentUserId) {
+      window.location.assign(
+        `/login?redirect=${encodeURIComponent("/jobs")}`
+      );
+      return;
+    }
+
+    if (savingJobIds.includes(id)) return;
+
+    const isSaved = savedJobs.includes(id);
+    setSavingJobIds((current) => [...current, id]);
+
+    try {
+      const result = isSaved
+        ? await supabase
+            .from("saved_jobs")
+            .delete()
+            .eq("user_id", currentUserId)
+            .eq("job_id", id)
+        : await supabase
+            .from("saved_jobs")
+            .insert({ user_id: currentUserId, job_id: id });
+
+      if (result.error) throw result.error;
+
+      setSavedJobs((current) =>
+        isSaved
+          ? current.filter((jobId) => jobId !== id)
+          : [...current, id]
+      );
+      setShareMessage(isSaved ? "Job removed from your saved list." : "Job saved to your account.");
+      window.setTimeout(() => setShareMessage(""), 3000);
+    } catch (saveError) {
+      console.error("Saved job update failed:", saveError);
+      setShareMessage(
+        saveError instanceof Error
+          ? saveError.message
+          : "This job could not be saved. Please try again."
+      );
+      window.setTimeout(() => setShareMessage(""), 4000);
+    } finally {
+      setSavingJobIds((current) => current.filter((jobId) => jobId !== id));
+    }
   }
 
   function clearFilters() {
