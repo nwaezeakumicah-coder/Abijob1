@@ -627,7 +627,7 @@ export default function CVBuilderPage() {
   const generateSummary = () => {
     const title = data.professionalTitle.trim();
     const skills = data.skills
-      .split(/[\\n,]+/)
+      .split(/[\n,]+/)
       .map((skill) => skill.trim())
       .filter(Boolean);
     const experience = data.experience
