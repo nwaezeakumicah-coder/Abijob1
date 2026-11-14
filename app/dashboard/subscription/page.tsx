@@ -601,7 +601,7 @@ export default function JobSeekerSubscriptionPage() {
             </p>
 
             <Link href="/about">
-              About Abi Job <ArrowRight size={14} />
+              About Abijob <ArrowRight size={14} />
             </Link>
           </div>
 
@@ -680,7 +680,7 @@ export default function JobSeekerSubscriptionPage() {
                               ? "Annual"
                               : "Monthly"
                           } Membership`
-                        : "Abi Job Membership"}
+                        : "Abijob Membership"}
                   </h2>
                 </div>
 
@@ -771,7 +771,7 @@ export default function JobSeekerSubscriptionPage() {
 
               <div className="js-billing-current-footer">
                 <span>
-                  Abi Job · Opportunity starts here.
+                  Abijob · Opportunity starts here.
                 </span>
 
                 <Link href="#billing-plans">
@@ -1098,7 +1098,7 @@ export default function JobSeekerSubscriptionPage() {
 
               <p>
                 If you have questions about your subscription,
-                payments, or trial period, contact the Abi Job
+                payments, or trial period, contact the Abijob
                 support team.
               </p>
 
@@ -1140,7 +1140,7 @@ export default function JobSeekerSubscriptionPage() {
 
           <footer className="js-billing-footer">
             <span>
-              © 2026 Abi Job. Opportunity starts here.
+              © 2026 Abijob. Opportunity starts here.
             </span>
 
             <span>
