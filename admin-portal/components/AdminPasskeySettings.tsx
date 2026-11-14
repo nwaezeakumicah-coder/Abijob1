@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { createBrowserClient } from "@supabase/ssr";
-import { Fingerprint, KeyRound, Plus, ShieldCheck, Trash2 } from "lucide-react";
+import { KeyRound, Plus, ShieldCheck, Trash2 } from "lucide-react";
 
 type Passkey = { id: string; friendly_name?: string | null; created_at: string };
 
