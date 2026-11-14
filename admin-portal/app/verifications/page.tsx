@@ -402,20 +402,22 @@ export default async function VerificationsPage({
 
         <section className="verification-next-step">
           <div>
-            <h3>Professional verification</h3>
+            <h3>Evidence review centres</h3>
             <p>
-              Skilled Professionals & Artisans verification will be
-              connected after confirming the existing professional
-              verification fields and document-storage workflow.
+              Review private supporting documents submitted by employers and
+              Skilled Professionals & Artisans. Decisions are audit logged.
             </p>
           </div>
-
-          <Link href="/professionals">
-            View professionals
-            <ArrowRight size={16} />
-          </Link>
+          <div className="verification-next-links">
+            <Link href="/verifications/employers">Employer evidence <ArrowRight size={16} /></Link>
+            <Link href="/verifications/professionals">Professional evidence <ArrowRight size={16} /></Link>
+          </div>
         </section>
       </main>
+      <style>{`
+        .verification-next-links{display:flex;gap:12px;flex-wrap:wrap}
+        .verification-next-links a{display:inline-flex;align-items:center;gap:7px;color:#176b45;font-weight:800;text-decoration:none}
+      `}</style>
     </AdminShell>
   );
 }
