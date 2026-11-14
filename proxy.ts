@@ -178,8 +178,7 @@ export async function proxy(request: NextRequest) {
 
       if (
         !hasVerifiedTotp ||
-        (assurance.nextLevel === "aal2" &&
-          assurance.currentLevel !== "aal2")
+        assurance.currentLevel !== "aal2"
       ) {
         const next = `${pathname}${request.nextUrl.search}`;
         return redirectWithCookies(
