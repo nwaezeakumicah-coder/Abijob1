@@ -1,5 +1,5 @@
-
 import Link from "next/link";
+import { Suspense } from "react";
 import { notFound } from "next/navigation";
 import { connection } from "next/server";
 import Header from "../../../components/Header";
@@ -47,35 +47,79 @@ type Job = {
 };
 
 function splitList(value: string | null | undefined): string[] {
-  const items = (value || "").split(/\r?\n|•/).map((item) => item.trim()).filter(Boolean);
-  return items.length ? items : ["Not specified by the employer."];
+  const items = (value || "")
+    .split(/\r?\n|•/)
+    .map((item) => item.trim())
+    .filter(Boolean);
+
+  return items.length
+    ? items
+    : ["Not specified by the employer."];
 }
 
 function formatDate(value: string | null | undefined): string {
   if (!value) return "Not specified";
+
   const dateOnly = /^\d{4}-\d{2}-\d{2}$/.test(value);
+
   const date = dateOnly
-    ? (() => { const [year, month, day] = value.split("-").map(Number); return new Date(year, month - 1, day); })()
+    ? (() => {
+        const [year, month, day] = value.split("-").map(Number);
+        return new Date(year, month - 1, day);
+      })()
     : new Date(value);
-  if (Number.isNaN(date.getTime())) return "Not specified";
-  return date.toLocaleDateString("en-NG", { day: "numeric", month: "long", year: "numeric" });
+
+  if (Number.isNaN(date.getTime())) {
+    return "Not specified";
+  }
+
+  return date.toLocaleDateString("en-NG", {
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+  });
 }
 
 function formatEmploymentType(value: string | null): string {
-  return value ? value.replace(/_/g, " ").replace(/\b\w/g, (character) => character.toUpperCase()) : "Not specified";
+  return value
+    ? value
+        .replace(/_/g, " ")
+        .replace(/\b\w/g, (character) => character.toUpperCase())
+    : "Not specified";
 }
 
-function formatSalary(minimum: number | null, maximum: number | null, currency: string | null): string {
-  if (minimum === null && maximum === null) return "Salary not specified";
+function formatSalary(
+  minimum: number | null,
+  maximum: number | null,
+  currency: string | null
+): string {
+  if (minimum === null && maximum === null) {
+    return "Salary not specified";
+  }
+
   const code = currency || "NGN";
+
   const amount = (value: number) => {
-    const formatted = new Intl.NumberFormat("en-NG", { maximumFractionDigits: 0 }).format(value);
-    return code.toUpperCase() === "NGN" ? `₦${formatted}` : `${code.toUpperCase()} ${formatted}`;
+    const formatted = new Intl.NumberFormat("en-NG", {
+      maximumFractionDigits: 0,
+    }).format(value);
+
+    return code.toUpperCase() === "NGN"
+      ? `₦${formatted}`
+      : `${code.toUpperCase()} ${formatted}`;
   };
-  if (minimum !== null && maximum !== null) return `${amount(minimum)} – ${amount(maximum)}`;
-  if (minimum !== null) return `From ${amount(minimum)}`;
+
+  if (minimum !== null && maximum !== null) {
+    return `${amount(minimum)} – ${amount(maximum)}`;
+  }
+
+  if (minimum !== null) {
+    return `From ${amount(minimum)}`;
+  }
+
   return `Up to ${amount(maximum as number)}`;
 }
+
 async function JobDetailsContent({
   params,
 }: {
@@ -96,7 +140,10 @@ async function JobDetailsContent({
     .maybeSingle();
 
   if (jobError || !jobData) {
-    if (jobError) console.error("Job details lookup failed:", jobError);
+    if (jobError) {
+      console.error("Job details lookup failed:", jobError);
+    }
+
     notFound();
   }
 
@@ -106,6 +153,7 @@ async function JobDetailsContent({
       .select("business_name, description")
       .eq("user_id", jobData.employer_id)
       .maybeSingle(),
+
     supabase
       .from("profiles")
       .select("full_name")
@@ -117,6 +165,7 @@ async function JobDetailsContent({
     employerResult.data?.business_name ||
     profileResult.data?.full_name ||
     "Abijob employer";
+
   const initials = company
     .split(/\s+/)
     .filter(Boolean)
@@ -133,19 +182,30 @@ async function JobDetailsContent({
     category: jobData.category || "General",
     location: jobData.location || "Location not specified",
     type: formatEmploymentType(jobData.employment_type),
-    workplace: jobData.workplace || jobData.workplace_type || "Not specified",
-    salary: formatSalary(jobData.salary_min, jobData.salary_max, jobData.salary_currency),
+    workplace:
+      jobData.workplace ||
+      jobData.workplace_type ||
+      "Not specified",
+    salary: formatSalary(
+      jobData.salary_min,
+      jobData.salary_max,
+      jobData.salary_currency
+    ),
     salaryPeriod: "As stated by the employer",
     experience: jobData.experience_level || "Not specified",
     education: "See requirements",
     posted: formatDate(jobData.created_at),
     deadline: formatDate(jobData.application_deadline),
     applicants: "Open to qualified applicants",
-    description: jobData.description || "The employer has not added a job description yet.",
+    description:
+      jobData.description ||
+      "The employer has not added a job description yet.",
     responsibilities: splitList(jobData.responsibilities),
     requirements: splitList(jobData.requirements),
     benefits: splitList(jobData.benefits),
-    about: employerResult.data?.description || "Employer details have not been added yet.",
+    about:
+      employerResult.data?.description ||
+      "Employer details have not been added yet.",
   };
 
   return (
@@ -160,6 +220,7 @@ async function JobDetailsContent({
                 <ArrowLeft size={16} />
                 Back to jobs
               </Link>
+
               <span>/</span>
               <span>Job details</span>
             </div>
@@ -171,12 +232,17 @@ async function JobDetailsContent({
                 </div>
 
                 <div className="job-heading-copy">
-                  <span className="job-category-tag">{job.category}</span>
+                  <span className="job-category-tag">
+                    {job.category}
+                  </span>
+
                   <h1>{job.title}</h1>
 
                   <div className="job-company-line">
                     <Building2 size={16} />
+
                     <span>{job.company}</span>
+
                     <span className="job-verified">
                       <ShieldCheck size={14} />
                       Employer details
@@ -188,10 +254,12 @@ async function JobDetailsContent({
                       <MapPin size={15} />
                       {job.location}
                     </span>
+
                     <span>
                       <BriefcaseBusiness size={15} />
                       {job.type}
                     </span>
+
                     <span>
                       <Clock3 size={15} />
                       {job.workplace}
@@ -201,7 +269,10 @@ async function JobDetailsContent({
               </div>
 
               <div className="job-heading-actions">
-                <Link href={`/jobs/${job.id}/apply`} className="job-apply-button">
+                <Link
+                  href={`/jobs/${job.id}/apply`}
+                  className="job-apply-button"
+                >
                   Apply for this job <ArrowRight size={17} />
                 </Link>
 
@@ -219,14 +290,18 @@ async function JobDetailsContent({
                   <span className="job-heading-icon">
                     <BriefcaseBusiness size={19} />
                   </span>
+
                   <h2>About this role</h2>
                 </div>
 
-                <p className="job-description">{job.description}</p>
+                <p className="job-description">
+                  {job.description}
+                </p>
 
                 <div className="job-content-divider" />
 
                 <h3>Key responsibilities</h3>
+
                 <ul className="job-detail-list">
                   {job.responsibilities.map((item) => (
                     <li key={item}>
@@ -239,6 +314,7 @@ async function JobDetailsContent({
                 <div className="job-content-divider" />
 
                 <h3>Requirements and qualifications</h3>
+
                 <ul className="job-detail-list">
                   {job.requirements.map((item) => (
                     <li key={item}>
@@ -251,6 +327,7 @@ async function JobDetailsContent({
                 <div className="job-content-divider" />
 
                 <h3>What the employer offers</h3>
+
                 <ul className="job-detail-list">
                   {job.benefits.map((item) => (
                     <li key={item}>
@@ -266,6 +343,7 @@ async function JobDetailsContent({
                   <span className="job-heading-icon">
                     <Building2 size={19} />
                   </span>
+
                   <h2>About the employer</h2>
                 </div>
 
@@ -273,6 +351,7 @@ async function JobDetailsContent({
                   <div className="job-company-logo small">
                     {job.initials}
                   </div>
+
                   <div>
                     <h3>{job.company}</h3>
                     <span>{job.location}</span>
@@ -281,15 +360,24 @@ async function JobDetailsContent({
 
                 <p>{job.about}</p>
 
-                <Link href="/employers" className="job-company-link">
+                <Link
+                  href="/employers"
+                  className="job-company-link"
+                >
                   Explore employers <ArrowUpRight size={16} />
                 </Link>
               </section>
 
               <div className="job-report-link">
                 <ShieldCheck size={17} />
-                <span>Think this vacancy looks suspicious?</span>
-                <Link href="/support">Report a concern</Link>
+
+                <span>
+                  Think this vacancy looks suspicious?
+                </span>
+
+                <Link href="/support">
+                  Report a concern
+                </Link>
               </div>
             </div>
 
@@ -297,6 +385,7 @@ async function JobDetailsContent({
               <section className="job-sidebar-card job-summary-card">
                 <div className="job-sidebar-title">
                   <h2>Job overview</h2>
+
                   <span className="job-open-indicator">
                     <span />
                     Open
@@ -314,6 +403,7 @@ async function JobDetailsContent({
                     <span className="job-overview-icon">
                       <MapPin size={17} />
                     </span>
+
                     <div>
                       <small>Location</small>
                       <strong>{job.location}</strong>
@@ -324,6 +414,7 @@ async function JobDetailsContent({
                     <span className="job-overview-icon">
                       <BriefcaseBusiness size={17} />
                     </span>
+
                     <div>
                       <small>Employment type</small>
                       <strong>{job.type}</strong>
@@ -334,6 +425,7 @@ async function JobDetailsContent({
                     <span className="job-overview-icon">
                       <Clock3 size={17} />
                     </span>
+
                     <div>
                       <small>Work arrangement</small>
                       <strong>{job.workplace}</strong>
@@ -344,6 +436,7 @@ async function JobDetailsContent({
                     <span className="job-overview-icon">
                       <GraduationCap size={17} />
                     </span>
+
                     <div>
                       <small>Experience</small>
                       <strong>{job.experience}</strong>
@@ -354,6 +447,7 @@ async function JobDetailsContent({
                     <span className="job-overview-icon">
                       <CalendarDays size={17} />
                     </span>
+
                     <div>
                       <small>Posted</small>
                       <strong>{job.posted}</strong>
@@ -364,6 +458,7 @@ async function JobDetailsContent({
                     <span className="job-overview-icon">
                       <Wallet size={17} />
                     </span>
+
                     <div>
                       <small>Education</small>
                       <strong>{job.education}</strong>
@@ -371,7 +466,10 @@ async function JobDetailsContent({
                   </div>
                 </div>
 
-                <Link href={`/jobs/${job.id}/apply`} className="job-sidebar-apply">
+                <Link
+                  href={`/jobs/${job.id}/apply`}
+                  className="job-sidebar-apply"
+                >
                   Apply now <ArrowRight size={17} />
                 </Link>
 
@@ -384,11 +482,14 @@ async function JobDetailsContent({
                 <span className="job-safety-icon">
                   <ShieldCheck size={23} />
                 </span>
+
                 <h3>Stay safe while job hunting</h3>
+
                 <p>
                   Never pay anyone to secure a job. Verify employer details
                   and be careful with requests for sensitive information.
                 </p>
+
                 <Link href="/safety">
                   Read our safety tips <ArrowUpRight size={15} />
                 </Link>
@@ -399,10 +500,12 @@ async function JobDetailsContent({
                   <Share2 size={18} />
                   <strong>Share this opportunity</strong>
                 </div>
+
                 <p>
-                  Know someone who might be a good fit? Share this vacancy with
-                  them.
+                  Know someone who might be a good fit? Share this vacancy
+                  with them.
                 </p>
+
                 <Link href="/login">
                   Sign in to share <ArrowRight size={15} />
                 </Link>
@@ -416,12 +519,15 @@ async function JobDetailsContent({
             <div className="job-bottom-cta-inner">
               <div>
                 <span>YOUR NEXT OPPORTUNITY</span>
+
                 <h2>Ready to take the next step?</h2>
+
                 <p>
                   Create your profile and get ready to connect with employers
                   looking for your skills.
                 </p>
               </div>
+
               <Link href="/register">
                 Get started <ArrowRight size={18} />
               </Link>
@@ -435,4 +541,38 @@ async function JobDetailsContent({
   );
 }
 
-export default JobDetailsContent;
+function JobDetailsLoading() {
+  return (
+    <>
+      <Header />
+
+      <main className="job-details-page">
+        <section className="job-details-content">
+          <div className="job-details-container">
+            <div
+              className="job-content-card"
+              role="status"
+              aria-live="polite"
+            >
+              Loading job details...
+            </div>
+          </div>
+        </section>
+      </main>
+
+      <Footer />
+    </>
+  );
+}
+
+export default function JobDetailsPage({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}) {
+  return (
+    <Suspense fallback={<JobDetailsLoading />}>
+      <JobDetailsContent params={params} />
+    </Suspense>
+  );
+}
