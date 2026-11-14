@@ -1,7 +1,9 @@
 
 import AdminShell from "../../components/AdminShell";
+import AdminPasskeySettings from "../../components/AdminPasskeySettings";
 import { getActiveAdmin } from "../../lib/admin-auth";
 import "./settings.css";
+import "./passkeys.css";
 
 export const dynamic = "force-dynamic";
 
@@ -190,6 +192,8 @@ export default async function SettingsPage() {
             </p>
           </div>
         </section>
+
+        <AdminPasskeySettings />
 
         <footer className="admin-settings-footer">
           Abi Job Admin Portal · Administrator settings
