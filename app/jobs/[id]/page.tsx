@@ -1,7 +1,6 @@
 
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { Suspense } from "react";
 import { connection } from "next/server";
 import Header from "../../../components/Header";
 import Footer from "../../../components/Footer";
@@ -21,153 +20,63 @@ import {
   ShieldCheck,
   Wallet,
 } from "lucide-react";
+import { createClient } from "@/lib/supabase/server";
+import SaveJobButton from "@/components/SaveJobButton";
 import "./job-details.css";
 
-const jobs = [
-  {
-    id: "frontend-developer",
-    title: "Frontend Developer",
-    company: "Digital Solutions",
-    initials: "DS",
-    category: "Technology",
-    location: "Aba, Abia State",
-    type: "Full-time",
-    workplace: "On-site",
-    salary: "₦150,000 – ₦250,000",
-    salaryPeriod: "Monthly",
-    experience: "1–3 years",
-    education: "Relevant qualification or equivalent experience",
-    posted: "Recently posted",
-    deadline: "Applications close soon",
-    applicants: "Open to qualified applicants",
-    description:
-      "Digital Solutions is looking for a creative and detail-oriented Frontend Developer to help build responsive, accessible and user-friendly web applications. You will work with a team to turn product ideas and designs into reliable digital experiences.",
-    responsibilities: [
-      "Build responsive and user-friendly web interfaces.",
-      "Translate design concepts into functional web pages.",
-      "Work with developers to integrate frontend interfaces with APIs.",
-      "Test and improve website performance and accessibility.",
-      "Identify and resolve interface issues and bugs.",
-      "Keep up with modern frontend development practices.",
-    ],
-    requirements: [
-      "Good knowledge of HTML, CSS and JavaScript.",
-      "Experience with React or Next.js is an advantage.",
-      "Understanding of responsive web design.",
-      "Ability to work independently and collaboratively.",
-      "Good problem-solving and communication skills.",
-      "A portfolio or examples of previous projects are welcome.",
-    ],
-    benefits: [
-      "Opportunity to work on real-world projects.",
-      "Professional development and learning opportunities.",
-      "Collaborative working environment.",
-    ],
-    about:
-      "Digital Solutions is a growing technology-focused business delivering digital products and services to individuals and organisations.",
-  },
-  {
-    id: "fashion-designer",
-    title: "Fashion Designer",
-    company: "Made in Aba Studio",
-    initials: "MA",
-    category: "Fashion & Creative",
-    location: "Ariaria, Aba",
-    type: "Full-time",
-    workplace: "On-site",
-    salary: "₦80,000 – ₦150,000",
-    salaryPeriod: "Monthly",
-    experience: "1–2 years",
-    education: "Practical fashion design experience",
-    posted: "Recently posted",
-    deadline: "Applications close soon",
-    applicants: "Open to qualified applicants",
-    description:
-      "Made in Aba Studio is seeking a talented Fashion Designer with a passion for creating quality clothing. The successful candidate will contribute to garment design, measurements, cutting, sewing and finishing while maintaining high production standards.",
-    responsibilities: [
-      "Develop clothing designs and interpret customer ideas.",
-      "Take accurate body measurements and prepare patterns.",
-      "Cut, sew and finish garments to a high standard.",
-      "Work with fabrics, colours and design materials.",
-      "Maintain quality and meet agreed delivery timelines.",
-      "Collaborate with other members of the production team.",
-    ],
-    requirements: [
-      "Practical experience in fashion design and garment making.",
-      "Ability to operate sewing machines.",
-      "Good knowledge of fabrics and garment construction.",
-      "Attention to detail and finishing quality.",
-      "Creativity and willingness to learn.",
-      "A portfolio of previous work is an advantage.",
-    ],
-    benefits: [
-      "Opportunity to improve your craft.",
-      "Hands-on experience with different designs.",
-      "Supportive creative working environment.",
-    ],
-    about:
-      "Made in Aba Studio is a fashion business focused on clothing design, garment production and quality craftsmanship in Aba.",
-  },
-  {
-    id: "customer-service-officer",
-    title: "Customer Service Officer",
-    company: "Business Hub",
-    initials: "BH",
-    category: "Administration",
-    location: "Umuahia, Abia State",
-    type: "Full-time",
-    workplace: "On-site",
-    salary: "₦90,000 – ₦130,000",
-    salaryPeriod: "Monthly",
-    experience: "1–2 years",
-    education: "OND, HND or equivalent experience",
-    posted: "Recently posted",
-    deadline: "Applications close soon",
-    applicants: "Open to qualified applicants",
-    description:
-      "Business Hub is seeking a friendly and organised Customer Service Officer to support customers, respond to enquiries and help maintain a positive customer experience. The ideal candidate should communicate clearly and be comfortable working with people.",
-    responsibilities: [
-      "Respond to customer enquiries through available channels.",
-      "Provide accurate information about products and services.",
-      "Handle customer complaints professionally.",
-      "Record customer feedback and follow up on requests.",
-      "Maintain organised customer service records.",
-      "Work with other teams to resolve customer issues.",
-    ],
-    requirements: [
-      "Good verbal and written communication skills.",
-      "Customer service or related experience is an advantage.",
-      "Basic computer and digital communication skills.",
-      "Patience, professionalism and a positive attitude.",
-      "Good organisation and time-management skills.",
-      "Ability to work effectively with a team.",
-    ],
-    benefits: [
-      "Practical workplace experience.",
-      "Opportunity to develop communication skills.",
-      "Professional growth opportunities.",
-    ],
-    about:
-      "Business Hub supports business operations and customer engagement, with a focus on reliable service and positive customer relationships.",
-  },
-];
+type Job = {
+  id: string;
+  title: string;
+  company: string;
+  initials: string;
+  category: string;
+  location: string;
+  type: string;
+  workplace: string;
+  salary: string;
+  salaryPeriod: string;
+  experience: string;
+  education: string;
+  posted: string;
+  deadline: string;
+  applicants: string;
+  description: string;
+  responsibilities: string[];
+  requirements: string[];
+  benefits: string[];
+  about: string;
+};
 
-type Job = (typeof jobs)[number];
-
-function getJob(id: string): Job | undefined {
-  const normalized = decodeURIComponent(id).toLowerCase();
-
-  return jobs.find((job) => {
-    const slug = job.id.toLowerCase();
-
-    return (
-      slug === normalized ||
-      normalized.includes(slug) ||
-      slug.includes(normalized)
-    );
-  });
+function splitList(value: string | null | undefined): string[] {
+  const items = (value || "").split(/\r?\n|•/).map((item) => item.trim()).filter(Boolean);
+  return items.length ? items : ["Not specified by the employer."];
 }
 
+function formatDate(value: string | null | undefined): string {
+  if (!value) return "Not specified";
+  const dateOnly = /^\d{4}-\d{2}-\d{2}$/.test(value);
+  const date = dateOnly
+    ? (() => { const [year, month, day] = value.split("-").map(Number); return new Date(year, month - 1, day); })()
+    : new Date(value);
+  if (Number.isNaN(date.getTime())) return "Not specified";
+  return date.toLocaleDateString("en-NG", { day: "numeric", month: "long", year: "numeric" });
+}
+
+function formatEmploymentType(value: string | null): string {
+  return value ? value.replace(/_/g, " ").replace(/\b\w/g, (character) => character.toUpperCase()) : "Not specified";
+}
+
+function formatSalary(minimum: number | null, maximum: number | null, currency: string | null): string {
+  if (minimum === null && maximum === null) return "Salary not specified";
+  const code = currency || "NGN";
+  const amount = (value: number) => {
+    const formatted = new Intl.NumberFormat("en-NG", { maximumFractionDigits: 0 }).format(value);
+    return code.toUpperCase() === "NGN" ? `₦${formatted}` : `${code.toUpperCase()} ${formatted}`;
+  };
+  if (minimum !== null && maximum !== null) return `${amount(minimum)} – ${amount(maximum)}`;
+  if (minimum !== null) return `From ${amount(minimum)}`;
+  return `Up to ${amount(maximum as number)}`;
+}
 async function JobDetailsContent({
   params,
 }: {
@@ -176,11 +85,69 @@ async function JobDetailsContent({
   await connection();
 
   const { id } = await params;
-  const job = getJob(id);
+  const supabase = await createClient();
 
-  if (!job) {
+  const { data: jobData, error: jobError } = await supabase
+    .from("jobs")
+    .select(
+      "id, employer_id, title, category, employment_type, experience_level, location, salary_min, salary_max, salary_currency, description, requirements, responsibilities, benefits, application_deadline, created_at, workplace_type, workplace"
+    )
+    .eq("id", decodeURIComponent(id))
+    .eq("status", "approved")
+    .maybeSingle();
+
+  if (jobError || !jobData) {
+    if (jobError) console.error("Job details lookup failed:", jobError);
     notFound();
   }
+
+  const [employerResult, profileResult] = await Promise.all([
+    supabase
+      .from("employer_profiles")
+      .select("business_name, description")
+      .eq("user_id", jobData.employer_id)
+      .maybeSingle(),
+    supabase
+      .from("profiles")
+      .select("full_name")
+      .eq("id", jobData.employer_id)
+      .maybeSingle(),
+  ]);
+
+  const company =
+    employerResult.data?.business_name ||
+    profileResult.data?.full_name ||
+    "Abijob employer";
+  const initials = company
+    .split(/\s+/)
+    .filter(Boolean)
+    .map((word) => word[0])
+    .join("")
+    .slice(0, 2)
+    .toUpperCase();
+
+  const job: Job = {
+    id: jobData.id,
+    title: jobData.title,
+    company,
+    initials: initials || "AB",
+    category: jobData.category || "General",
+    location: jobData.location || "Location not specified",
+    type: formatEmploymentType(jobData.employment_type),
+    workplace: jobData.workplace || jobData.workplace_type || "Not specified",
+    salary: formatSalary(jobData.salary_min, jobData.salary_max, jobData.salary_currency),
+    salaryPeriod: "As stated by the employer",
+    experience: jobData.experience_level || "Not specified",
+    education: "See requirements",
+    posted: formatDate(jobData.created_at),
+    deadline: formatDate(jobData.application_deadline),
+    applicants: "Open to qualified applicants",
+    description: jobData.description || "The employer has not added a job description yet.",
+    responsibilities: splitList(jobData.responsibilities),
+    requirements: splitList(jobData.requirements),
+    benefits: splitList(jobData.benefits),
+    about: employerResult.data?.description || "Employer details have not been added yet.",
+  };
 
   return (
     <>
@@ -213,7 +180,7 @@ async function JobDetailsContent({
                     <span>{job.company}</span>
                     <span className="job-verified">
                       <ShieldCheck size={14} />
-                      Employer profile
+                      Employer details
                     </span>
                   </div>
 
@@ -235,18 +202,11 @@ async function JobDetailsContent({
               </div>
 
               <div className="job-heading-actions">
-                <Link href="/register" className="job-apply-button">
+                <Link href={`/jobs/${job.id}/apply`} className="job-apply-button">
                   Apply for this job <ArrowRight size={17} />
                 </Link>
 
-                <Link
-                  href="/login"
-                  className="job-save-button"
-                  aria-label="Sign in to save this job"
-                >
-                  <Heart size={18} />
-                  Save job
-                </Link>
+                <SaveJobButton jobId={job.id} />
               </div>
             </div>
           </div>
@@ -412,12 +372,12 @@ async function JobDetailsContent({
                   </div>
                 </div>
 
-                <Link href="/register" className="job-sidebar-apply">
+                <Link href={`/jobs/${job.id}/apply`} className="job-sidebar-apply">
                   Apply now <ArrowRight size={17} />
                 </Link>
 
                 <p className="job-sidebar-footnote">
-                  Create an Abi Job account to continue with your application.
+                  Sign in or create an account to submit your application.
                 </p>
               </section>
 
@@ -476,22 +436,4 @@ async function JobDetailsContent({
   );
 }
 
-export default function JobDetailsPage({
-  params,
-}: {
-  params: Promise<{ id: string }>;
-}) {
-  return (
-    <Suspense
-      fallback={
-        <main className="job-details-page">
-          <div className="job-details-container">
-            <p>Loading job details...</p>
-          </div>
-        </main>
-      }
-    >
-      <JobDetailsContent params={params} />
-    </Suspense>
-  );
-}
+export default JobDetailsContent;
