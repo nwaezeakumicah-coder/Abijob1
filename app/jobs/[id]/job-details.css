@@ -126,6 +126,10 @@
   font-weight: 700;
 }
 
+.job-verified.job-unverified {
+  color: #ffd6a5;
+}
+
 .job-heading-meta {
   flex-wrap: wrap;
   gap: 19px;
