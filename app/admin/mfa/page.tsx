@@ -4,8 +4,6 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import AdminMfaForm from "./AdminMfaForm";
 import "./mfa.css";
 
-export const dynamic = "force-dynamic";
-
 type AdminMfaPageProps = {
   searchParams: Promise<{ next?: string }>;
 };
