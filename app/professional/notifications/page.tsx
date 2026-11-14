@@ -31,6 +31,7 @@ type NotificationCategory =
   | "Opportunity"
   | "Message"
   | "Profile"
+  | "Service request"
   | "System";
 
 type Notification = {
@@ -67,6 +68,7 @@ const filters = [
   "Opportunity",
   "Message",
   "Profile",
+  "Service request",
   "System",
 ];
 
@@ -81,6 +83,8 @@ function getCategory(value: string | null): NotificationCategory {
       return "Message";
     case "profile":
       return "Profile";
+    case "service_request":
+      return "Service request";
     default:
       return "System";
   }
