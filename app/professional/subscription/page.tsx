@@ -352,13 +352,7 @@ export default function ProfessionalSubscriptionPage() {
   const isTrial =
     trialHasNotEnded &&
     paidPeriodStartsAfterTrial &&
-    ![
-      "cancelled",
-      "canceled",
-      "expired",
-      "past_due",
-      "failed",
-    ].includes(status);
+    ["trial", "trialing"].includes(status);
 
   const trialProgress = getTrialProgress(
     subscription?.trial_started_at || null,
