@@ -110,6 +110,7 @@ export async function proxy(request: NextRequest) {
   const requiredRole = getRequiredRole(pathname);
 
   const isAdminRoute = isWithinPath(pathname, "/admin");
+  const isAdminMfaRoute = pathname === "/admin/mfa";
   const isSettingsRoute = isWithinPath(pathname, "/settings");
   const isSubscriptionRoute = isWithinPath(pathname, "/subscription");
   const isCvBuilderRoute = isWithinPath(pathname, "/cv-builder");
@@ -147,10 +148,47 @@ export async function proxy(request: NextRequest) {
   if (isAdminRoute) {
     const authorization = await authorizeAdminRoute(
       user.id,
-      pathname
+      isAdminMfaRoute ? "/admin" : pathname
     );
 
+    if (authorization.authorized && isAdminMfaRoute) {
+      return response;
+    }
+
     if (authorization.authorized) {
+      const [
+        { data: factors, error: factorsError },
+        { data: assurance, error: assuranceError },
+      ] = await Promise.all([
+        supabase.auth.mfa.listFactors(),
+        supabase.auth.mfa.getAuthenticatorAssuranceLevel(),
+      ]);
+
+      if (factorsError || assuranceError) {
+        return redirectWithCookies(
+          request,
+          response,
+          "/login?error=admin_mfa_verification_unavailable"
+        );
+      }
+
+      const hasVerifiedTotp = (factors?.totp ?? []).some(
+        (factor) => factor.status === "verified"
+      );
+
+      if (
+        !hasVerifiedTotp ||
+        (assurance.nextLevel === "aal2" &&
+          assurance.currentLevel !== "aal2")
+      ) {
+        const next = `${pathname}${request.nextUrl.search}`;
+        return redirectWithCookies(
+          request,
+          response,
+          `/admin/mfa?next=${encodeURIComponent(next)}`
+        );
+      }
+
       return response;
     }
 
