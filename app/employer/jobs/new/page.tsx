@@ -364,7 +364,7 @@ export default function CreateJobPage() {
 
           <Link href="/" className="back-to-platform">
             <ArrowLeft size={16} />
-            Back to Abi Job
+            Back to Abijob
           </Link>
         </div>
       </aside>
@@ -439,7 +439,7 @@ export default function CreateJobPage() {
               <h2>Vacancy submitted successfully!</h2>
 
               <p>
-                Your job vacancy has been saved to Abi Job and sent for
+                Your job vacancy has been saved to Abijob and sent for
                 administrative review. You can check its status under My job
                 posts.
               </p>
@@ -541,7 +541,7 @@ export default function CreateJobPage() {
 
                 <p>
                   Every job vacancy must be reviewed and approved by the
-                  Abi Job administration team before it appears publicly.
+                  Abijob administration team before it appears publicly.
                 </p>
               </div>
 
