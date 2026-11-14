@@ -533,17 +533,14 @@ export default function ProfessionalProfilePage() {
 
       const { error: professionalError } = await supabase
         .from("professional_profiles")
-        .upsert(
-          {
-            user_id: user.id,
-            category: profile.professionalTitle.trim() || "General",
-            skills: profile.skills,
-            service_area: profile.location.trim(),
-            profile_data: profileData,
-            is_public: profile.isPublic,
-          },
-          { onConflict: "user_id" }
-        );
+        .update({
+          category: profile.professionalTitle.trim() || "General",
+          skills: profile.skills,
+          service_area: profile.location.trim(),
+          profile_data: profileData,
+          is_public: profile.isPublic,
+        })
+        .eq("user_id", user.id);
 
       if (professionalError) throw professionalError;
 
