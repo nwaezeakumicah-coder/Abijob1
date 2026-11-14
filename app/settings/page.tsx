@@ -1021,7 +1021,7 @@ export default function SettingsPage() {
           </section>
         </div>
       )}
-            <PasskeySettings />
+            {activeTab === "security" && <PasskeySettings />}
 </main>
   );
 }
