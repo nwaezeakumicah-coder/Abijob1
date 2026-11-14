@@ -3,6 +3,7 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
+import { createClient } from "@/lib/supabase/client";
 import Logo from "../../../components/Logo";
 import {
   ArrowRight,
@@ -17,10 +18,8 @@ import {
 } from "lucide-react";
 import "./saved.css";
 
-const SAVED_JOBS_KEY = "abijob-professional-saved-jobs";
-
 type SavedJob = {
-  id: number;
+  id: string;
   title: string;
   company: string;
   location: string;
@@ -39,43 +38,149 @@ export default function ProfessionalSavedPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [activeType, setActiveType] = useState("All");
   const [selectedJob, setSelectedJob] = useState<SavedJob | null>(null);
-  const [confirmRemove, setConfirmRemove] = useState<number | null>(null);
+  const [confirmRemove, setConfirmRemove] = useState<string | null>(null);
   const [isLoaded, setIsLoaded] = useState(false);
 
   const jobTypes = ["All", "Full-time", "Part-time", "Remote", "Contract"];
 
+  const supabase = useMemo(() => createClient(), []);
+
   useEffect(() => {
-    try {
-      const storedJobs = localStorage.getItem(SAVED_JOBS_KEY);
+    let active = true;
 
-      if (storedJobs) {
-        const parsedJobs = JSON.parse(storedJobs);
+    async function loadSavedJobs() {
+      try {
+        const {
+          data: { user },
+          error: authError,
+        } = await supabase.auth.getUser();
 
-        if (Array.isArray(parsedJobs)) {
-          setSavedJobs(
-            parsedJobs.map((job) => ({
-              ...job,
-              initials:
-                job.initials ||
-                job.company
-                  ?.split(" ")
-                  .map((word: string) => word[0])
-                  .join("")
-                  .slice(0, 2)
-                  .toUpperCase() ||
-                "CO",
-              category: job.category || "General",
-              posted: job.posted || "Recently posted",
-            }))
-          );
+        if (authError || !user) {
+          window.location.replace("/login?next=/professional/saved");
+          return;
         }
+
+        const { data: profile, error: profileError } = await supabase
+          .from("profiles")
+          .select("role")
+          .eq("id", user.id)
+          .maybeSingle();
+
+        if (profileError) throw profileError;
+
+        if (profile?.role !== "professional") {
+          window.location.replace(
+            profile?.role === "job_seeker"
+              ? "/dashboard"
+              : profile?.role === "employer"
+                ? "/employer/dashboard"
+                : "/login"
+          );
+          return;
+        }
+
+        const { data: access, error: accessError } = await supabase.rpc(
+          "has_platform_access"
+        );
+        if (accessError) throw accessError;
+
+        if (access !== true) {
+          window.location.replace("/professional/subscription");
+          return;
+        }
+
+        const { data: savedRows, error: savedError } = await supabase
+          .from("saved_jobs")
+          .select("job_id")
+          .eq("user_id", user.id)
+          .order("created_at", { ascending: false });
+
+        if (savedError) throw savedError;
+
+        const jobIds = (savedRows ?? []).map((row) => row.job_id);
+        if (jobIds.length === 0) {
+          if (active) setSavedJobs([]);
+          return;
+        }
+
+        const { data: jobs, error: jobsError } = await supabase
+          .from("jobs")
+          .select(
+            "id, employer_id, title, category, location, employment_type, salary_min, salary_max, salary_currency, description, skills_required, application_deadline, created_at"
+          )
+          .in("id", jobIds)
+          .eq("status", "approved");
+
+        if (jobsError) throw jobsError;
+
+        const employerIds = [...new Set((jobs ?? []).map((job) => job.employer_id))];
+        const { data: employers, error: employersError } = employerIds.length
+          ? await supabase
+              .from("profiles")
+              .select("id, full_name")
+              .in("id", employerIds)
+          : { data: [], error: null };
+
+        if (employersError) throw employersError;
+
+        const employerNames = Object.fromEntries(
+          (employers ?? []).map((employer) => [
+            employer.id,
+            employer.full_name || "Abijob employer",
+          ])
+        );
+
+        const jobOrder = new Map(jobIds.map((id, index) => [id, index]));
+        const formattedJobs: SavedJob[] = (jobs ?? [])
+          .sort((left, right) => (jobOrder.get(left.id) ?? 0) - (jobOrder.get(right.id) ?? 0))
+          .map((job) => {
+            const company = employerNames[job.employer_id] || "Abijob employer";
+            const amount = (value: number) =>
+              job.salary_currency === "NGN" || !job.salary_currency
+                ? `₦${new Intl.NumberFormat("en-NG", { maximumFractionDigits: 0 }).format(value)}`
+                : `${job.salary_currency} ${new Intl.NumberFormat("en-NG", { maximumFractionDigits: 0 }).format(value)}`;
+            const salary =
+              job.salary_min !== null && job.salary_max !== null
+                ? `${amount(job.salary_min)} – ${amount(job.salary_max)}`
+                : job.salary_min !== null
+                  ? `From ${amount(job.salary_min)}`
+                  : job.salary_max !== null
+                    ? `Up to ${amount(job.salary_max)}`
+                    : "Salary not specified";
+            const created = new Date(job.created_at);
+            const posted = Number.isNaN(created.getTime())
+              ? "Recently posted"
+              : created.toLocaleDateString("en-NG", { day: "numeric", month: "short", year: "numeric" });
+
+            return {
+              id: job.id,
+              title: job.title,
+              company,
+              location: job.location || "Location not specified",
+              type: (job.employment_type || "Not specified").replace(/_/g, " ").replace(/\\b\\w/g, (character: string) => character.toUpperCase()),
+              salary,
+              category: job.category || "General",
+              posted,
+              description: job.description || "",
+              initials: company.split(" ").map((word: string) => word[0]).join("").slice(0, 2).toUpperCase(),
+              skills: job.skills_required || [],
+              deadline: job.application_deadline || undefined,
+            };
+          });
+
+        if (active) setSavedJobs(formattedJobs);
+      } catch (error) {
+        console.error("Unable to load saved opportunities:", error);
+      } finally {
+        if (active) setIsLoaded(true);
       }
-    } catch {
-      console.error("Unable to load saved opportunities.");
-    } finally {
-      setIsLoaded(true);
     }
-  }, []);
+
+    void loadSavedJobs();
+    return () => {
+      active = false;
+    };
+  }, [supabase]);
 
   const filteredJobs = useMemo(() => {
     return savedJobs.filter((job) => {
@@ -97,19 +202,34 @@ export default function ProfessionalSavedPage() {
     });
   }, [savedJobs, searchQuery, activeType]);
 
-  const removeSavedJob = (id: number) => {
-    const updatedJobs = savedJobs.filter((job) => job.id !== id);
+  const removeSavedJob = async (id: string) => {
+    const {
+      data: { user },
+      error: authError,
+    } = await supabase.auth.getUser();
 
-    try {
-      localStorage.setItem(SAVED_JOBS_KEY, JSON.stringify(updatedJobs));
-      setSavedJobs(updatedJobs);
-      setConfirmRemove(null);
+    if (authError || !user) {
+      alert("Please sign in again to manage your saved opportunities.");
+      return;
+    }
 
-      if (selectedJob?.id === id) {
-        setSelectedJob(null);
-      }
-    } catch {
+    const { error } = await supabase
+      .from("saved_jobs")
+      .delete()
+      .eq("user_id", user.id)
+      .eq("job_id", id);
+
+    if (error) {
+      console.error("Unable to remove saved opportunity:", error);
       alert("Unable to remove this opportunity. Please try again.");
+      return;
+    }
+
+    setSavedJobs((current) => current.filter((job) => job.id !== id));
+    setConfirmRemove(null);
+
+    if (selectedJob?.id === id) {
+      setSelectedJob(null);
     }
   };
 
