@@ -798,7 +798,8 @@ export default function JobsPage() {
                         <button
                           type="button"
                           className={isSaved ? "saved" : ""}
-                          onClick={() => toggleSaved(job.id)}
+                          onClick={() => void toggleSaved(job.id)}
+                          disabled={savingJobIds.includes(job.id)}
                           aria-label={
                             isSaved ? "Remove saved job" : "Save job"
                           }
