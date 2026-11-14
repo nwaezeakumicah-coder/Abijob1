@@ -864,7 +864,7 @@ export default function ProfessionalSubscriptionPage() {
                       </div>
                       <strong>No payment history yet</strong>
                       <p>
-                        Payments made through Abi Job will appear here.
+                        Payments made through Abijob will appear here.
                       </p>
                     </div>
                   ) : (
@@ -987,7 +987,7 @@ export default function ProfessionalSubscriptionPage() {
           )}
 
           <footer className="employer-dashboard-footer">
-            <span>Abi Job. All rights reserved.</span>
+            <span>Abijob. All rights reserved.</span>
             <span>Professional Subscription & Billing</span>
           </footer>
         </section>
