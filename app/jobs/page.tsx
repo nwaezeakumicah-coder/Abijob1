@@ -70,6 +70,21 @@ const locations = [
   "Umuahia",
   "Osisioma",
   "Arochukwu",
+  "Aba North",
+  "Aba South",
+  "Bende",
+  "Ikwuano",
+  "Isiala Ngwa North",
+  "Isiala Ngwa South",
+  "Isuikwuato",
+  "Obingwa",
+  "Ohafia",
+  "Ugwunagbo",
+  "Ukwa East",
+  "Ukwa West",
+  "Umuahia North",
+  "Umuahia South",
+  "Umunneochi",
 ];
 
 const categories = [
@@ -213,8 +228,11 @@ export default function JobsPage() {
     let active = true;
 
     async function loadSavedJobs() {
-      const tab = new URLSearchParams(window.location.search).get("tab");
+      const params = new URLSearchParams(window.location.search);
+      const tab = params.get("tab");
+      const lga = params.get("lga");
       if (tab?.toLowerCase() === "saved") setActiveTab("Saved");
+      if (lga && locations.includes(lga)) setLocation(lga);
 
       const {
         data: { user },
