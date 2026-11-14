@@ -85,6 +85,8 @@ export default function EmployerSettingsPage() {
     publicProfile: true,
     showContactDetails: true,
   });
+  const [accountActive, setAccountActive] = useState(true);
+  const [isChangingAccountStatus, setIsChangingAccountStatus] = useState(false);
   const [accountEmail, setAccountEmail] = useState("");
 
   const [accessChecked, setAccessChecked] = useState(false);
@@ -144,7 +146,7 @@ export default function EmployerSettingsPage() {
         const { data: employerProfile, error: profileError } =
           await supabase
             .from("employer_profiles")
-            .select("business_name, is_public, show_contact_details")
+            .select("business_name, is_public, show_contact_details, is_active")
             .eq("user_id", user.id)
             .maybeSingle();
 
@@ -174,6 +176,7 @@ export default function EmployerSettingsPage() {
             publicProfile: employerProfile.is_public ?? true,
             showContactDetails: employerProfile.show_contact_details ?? true,
           });
+          setAccountActive(employerProfile.is_active ?? true);
         }
 
         const { data: savedPreferences, error: preferencesError } =
@@ -315,6 +318,48 @@ export default function EmployerSettingsPage() {
       );
     } finally {
       setIsSaving(false);
+    }
+  }
+
+  async function handleAccountStatusChange() {
+    if (isChangingAccountStatus || isSaving || isSigningOut) return;
+
+    const nextActive = !accountActive;
+    const confirmed = window.confirm(
+      nextActive
+        ? "Resume your employer account? Your approved job listings will become visible again."
+        : "Pause your employer account? Your approved job listings will be hidden from job seekers and you will not be able to post or edit jobs. Your account, applications and data will be retained, and you can resume at any time."
+    );
+    if (!confirmed) return;
+
+    setIsChangingAccountStatus(true);
+    setSaveMessage("");
+    setSaveError(false);
+
+    try {
+      const { data: { user }, error: authError } = await supabase.auth.getUser();
+      if (authError || !user) throw new Error("Your session has expired. Please sign in again.");
+
+      const { error: updateError } = await supabase
+        .from("employer_profiles")
+        .update({ is_active: nextActive })
+        .eq("user_id", user.id);
+
+      if (updateError) throw updateError;
+
+      setAccountActive(nextActive);
+      setSaveMessage(
+        nextActive
+          ? "Your employer account is active again. Approved job listings are visible."
+          : "Your employer account is paused. Approved job listings are now hidden."
+      );
+    } catch (cause) {
+      setSaveError(true);
+      setSaveMessage(
+        cause instanceof Error ? cause.message : "We could not update your account status."
+      );
+    } finally {
+      setIsChangingAccountStatus(false);
     }
   }
 
@@ -752,15 +797,24 @@ export default function EmployerSettingsPage() {
 
             <div className="employer-settings-danger-content">
               <div>
-                <strong>Deactivate employer account</strong>
+                <strong>{accountActive ? "Pause employer account" : "Employer account paused"}</strong>
                 <p>
-                  Account deactivation will become available after the
-                  account-management process is implemented.
+                  {accountActive
+                    ? "Temporarily hide your approved job listings and stop new hiring activity. Your profile, applications and account data are retained and can be restored when you resume."
+                    : "Your approved job listings are hidden. Resume your account whenever you are ready to recruit again."}
                 </p>
               </div>
 
-              <button type="button" disabled>
-                Deactivate account
+              <button
+                type="button"
+                onClick={handleAccountStatusChange}
+                disabled={isChangingAccountStatus || isSaving || isSigningOut}
+              >
+                {isChangingAccountStatus
+                  ? "Updating..."
+                  : accountActive
+                    ? "Pause account"
+                    : "Resume account"}
               </button>
             </div>
           </section>
