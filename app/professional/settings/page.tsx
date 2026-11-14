@@ -812,7 +812,7 @@ export default function ProfessionalSettingsPage() {
           </div>
         </div>
       </section>
-            <PasskeySettings />
+            {activeSection === "security" && <PasskeySettings />}
 </main>
   );
 }
