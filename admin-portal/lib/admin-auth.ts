@@ -65,7 +65,7 @@ export async function getActiveAdmin() {
   if (assuranceError) {
     throw new Error("Unable to verify administrator session assurance.");
   }
-  if (assurance.nextLevel === "aal2" && assurance.currentLevel !== "aal2") {
+  if (assurance.currentLevel !== "aal2") {
     redirect("/mfa");
   }
 
