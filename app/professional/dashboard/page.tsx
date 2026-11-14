@@ -14,6 +14,7 @@ import { createClient } from "../../../lib/supabase/client";
 import {
   Activity,
   ArrowRight,
+  CalendarClock,
   Bell,
   Bookmark,
   BriefcaseBusiness,
@@ -528,6 +529,16 @@ export default function ProfessionalDashboardPage() {
             <Bookmark size={19} />
             <span>Saved opportunities</span>
             <span className="pd-nav-count">{data.savedCount}</span>
+          </Link>
+
+          <Link href="/dashboard/interviews" onClick={closeMobileMenu}>
+            <CalendarClock size={19} />
+            <span>Interview invitations</span>
+          </Link>
+
+          <Link href="/professional/verification" onClick={closeMobileMenu}>
+            <ShieldCheck size={19} />
+            <span>Verify professional profile</span>
           </Link>
 
           <Link href="/professional/applications" onClick={closeMobileMenu}>
