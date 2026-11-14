@@ -18,6 +18,8 @@ type AccountRole =
 
 const publicNavigation = [
   { label: "Find Professionals", href: "/professionals" },
+  { label: "Opportunity Map", href: "/opportunities/map" },
+  { label: "Job Alerts", href: "/settings/job-alerts" },
   { label: "For Employers", href: "/employers" },
   { label: "Abi Hub", href: "/hub" },
   { label: "About Us", href: "/about" },
