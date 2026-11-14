@@ -32,6 +32,7 @@ type Professional = {
   professional_bio: string | null;
   service_area: string | null;
   portfolio_url: string | null;
+  is_verified: boolean | null;
 };
 
 function getInitials(name: string) {
@@ -80,7 +81,7 @@ export default function ProfessionalsPage() {
       setLoadError("");
 
       const { data, error } = await supabase.rpc(
-        "get_public_professionals",
+        "get_public_professionals_verified",
         { p_professional_id: null }
       );
 
@@ -427,6 +428,11 @@ export default function ProfessionalsPage() {
                           <div className="professional-avatar">
                             {getInitials(name)}
                           </div>
+                          {person.is_verified && (
+                            <span className="professional-verified-badge" style={{ display: "inline-flex", alignItems: "center", gap: 5, padding: "6px 9px", borderRadius: 20, background: "#edf7ef", color: "#176b45", fontSize: 11, fontWeight: 800 }}>
+                              <CheckCircle2 size={14} /> Verified
+                            </span>
+                          )}
                         </div>
 
                         <div className="professional-card-info">
