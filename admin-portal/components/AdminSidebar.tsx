@@ -72,6 +72,12 @@ const navigation = [
         icon: ClipboardCheck,
       },
       {
+        label: "Employer Evidence Review",
+        href: "/verifications/employers",
+        permissions: ["verifications.review", "verifications.manage", "employers.manage"],
+        icon: Building2,
+      },
+      {
         label: "Professional Verification",
         href: "/verifications/professionals",
         permissions: ["verifications.review", "verifications.manage"],
