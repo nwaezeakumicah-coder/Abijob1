@@ -317,7 +317,7 @@ export default function JobsPage() {
           companyNames = Object.fromEntries(
             employerProfiles.map((profile) => [
               profile.id,
-              profile.full_name || "Abi Job Employer",
+              profile.full_name || "Abijob Employer",
             ])
           );
         }
@@ -326,7 +326,7 @@ export default function JobsPage() {
       const formattedJobs: Job[] = databaseJobs.map((job) => ({
         id: job.id,
         title: job.title,
-        company: companyNames[job.employer_id] || "Abi Job Employer",
+        company: companyNames[job.employer_id] || "Abijob Employer",
         location: job.location || "Location not specified",
         category: job.category || "General",
         type: formatEmploymentType(job.employment_type),
@@ -478,12 +478,12 @@ export default function JobsPage() {
         ? `${window.location.origin}/jobs/${job.id}`
         : "/jobs";
 
-    const shareText = `${job.title} at ${job.company} - ${job.location}. Discover opportunities on Abi Job.`;
+    const shareText = `${job.title} at ${job.company} - ${job.location}. Discover opportunities on Abijob.`;
 
     try {
       if (navigator.share) {
         await navigator.share({
-          title: `${job.title} | Abi Job`,
+          title: `${job.title} | Abijob`,
           text: shareText,
           url: shareUrl,
         });
@@ -526,7 +526,7 @@ export default function JobsPage() {
           <section className="jobs-feed-intro">
             <div>
               <span className="jobs-feed-eyebrow">
-                ABI JOB OPPORTUNITY FEED
+                ABIJOB OPPORTUNITY FEED
               </span>
 
               <h1>
@@ -706,7 +706,7 @@ export default function JobsPage() {
               <div className="jobs-feed-empty">
                 <RefreshCw size={27} />
                 <h3>Loading opportunities...</h3>
-                <p>We're retrieving approved vacancies from Abi Job.</p>
+                <p>We're retrieving approved vacancies from Abijob.</p>
               </div>
             ) : error ? (
               <div className="jobs-feed-empty">
@@ -870,7 +870,7 @@ export default function JobsPage() {
 
           <p className="jobs-feed-demo-note">
             <Check size={15} />
-            Showing approved job vacancies published on Abi Job.
+            Showing approved job vacancies published on Abijob.
           </p>
         </div>
       </main>
