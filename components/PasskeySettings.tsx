@@ -141,15 +141,9 @@ export default function PasskeySettings() {
       const factor = factors.find((item) => item.id === factorId);
       if (!factor) throw new Error("Choose a verified security factor.");
 
-      if (factor.factor_type === "phone") {
-        const { error: challengeError } = await createClient().auth.mfa.challenge({
-          factorId,
-        });
-        if (challengeError) throw challengeError;
-      }
-
-      // TOTP challenges are created locally by the authenticator app.
-      // Supabase still requires a challenge ID before verification.
+      // Supabase creates a challenge for both factor types. For phone factors
+      // this sends the code; for TOTP factors the user reads the current code
+      // from their authenticator app.
       const { data: challenge, error: challengeError } =
         await createClient().auth.mfa.challenge({ factorId });
       if (challengeError) throw challengeError;
