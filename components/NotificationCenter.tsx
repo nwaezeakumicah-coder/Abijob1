@@ -15,10 +15,10 @@ type IncomingNotification = {
 };
 
 const STORAGE_PREFIX = "abijob:notification-sound:";
+const supabase = createClient();
 
 export default function NotificationCenter() {
   const router = useRouter();
-  const supabase = createRefClient();
   const [userId, setUserId] = useState<string | null>(null);
   const [soundEnabled, setSoundEnabled] = useState(false);
   const [incoming, setIncoming] = useState<IncomingNotification | null>(null);
@@ -249,6 +249,3 @@ export default function NotificationCenter() {
   );
 }
 
-function createRefClient() {
-  return createClient();
-}
