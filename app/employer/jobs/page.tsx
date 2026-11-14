@@ -326,7 +326,7 @@ export default function EmployerJobsPage() {
 
           <Link href="/" className="back-to-platform">
             <ArrowLeft size={16} />
-            Back to Abi Job
+            Back to Abijob
           </Link>
         </div>
       </aside>
@@ -715,7 +715,7 @@ export default function EmployerJobsPage() {
             <Eye size={17} />
 
             <p>
-              Job posts are subject to Abi Job&apos;s review and approval
+              Job posts are subject to Abijob&apos;s review and approval
               process before they become publicly visible.
             </p>
           </div>
