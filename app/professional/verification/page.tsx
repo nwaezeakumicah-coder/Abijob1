@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import type { FormEvent } from "react";
 import Link from "next/link";
 import Header from "../../../components/Header";
 import Footer from "../../../components/Footer";
@@ -45,7 +46,7 @@ export default function ProfessionalVerificationPage() {
     setRequest(requests?.[0]||null); setLoading(false);
   } void load(); return()=>{active=false};},[supabase]);
 
-  async function submit(event:React.FormEvent<HTMLFormElement>){
+  async function submit(event:FormEvent<HTMLFormElement>){
     event.preventDefault();setSaving(true);setError("");setMessage("");
     if(!file){setError("Choose a supporting document to upload.");setSaving(false);return;}
     if(file.size>5*1024*1024){setError("The document must be 5 MB or smaller.");setSaving(false);return;}
