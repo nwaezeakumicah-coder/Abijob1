@@ -445,7 +445,7 @@ export default function JobSeekerSubscriptionPage() {
     trialEnd !== null &&
     trialStart <= now &&
     trialEnd > now &&
-    ["trial", "trialing", "active"].includes(status);
+    ["trial", "trialing"].includes(status);
 
   const paidPeriodStart = isValidDate(
     subscription?.current_period_start
@@ -649,8 +649,8 @@ export default function JobSeekerSubscriptionPage() {
               <h1>Subscription & Billing</h1>
 
               <p>
-                Manage your Abi Job membership, monitor your free
-                trial, and review your payment history.
+                Manage your membership, review your billing details, and track
+                your payment history.
               </p>
             </div>
 
