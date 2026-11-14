@@ -89,6 +89,7 @@ const employerMobileLinks = [
   { href: "/employer/notifications", label: "Notifications", icon: Bell },
   { href: "/employer/subscription", label: "Subscription & Billing", icon: CreditCard },
   { href: "/employer/profile", label: "Company profile", icon: Building2 },
+  { href: "/employer/verification", label: "Business verification", icon: ShieldCheck },
   { href: "/employer/settings", label: "Settings", icon: Settings },
 ];
 
