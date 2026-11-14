@@ -120,7 +120,7 @@ async function JobDetailsContent({
   const initials = company
     .split(/\s+/)
     .filter(Boolean)
-    .map((word) => word[0])
+    .map((word: string) => word[0])
     .join("")
     .slice(0, 2)
     .toUpperCase();
