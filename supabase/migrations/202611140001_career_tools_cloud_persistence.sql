@@ -6,7 +6,7 @@ create table if not exists public.cv_documents (
   id uuid primary key default gen_random_uuid(),
   user_id uuid not null references auth.users(id) on delete cascade,
   title text not null default 'My CV' check (char_length(title) between 1 and 160),
-  data jsonb not null default '{}'::jsonb,
+  data jsonb not null default '{}'::jsonb check (jsonb_typeof(data) = 'object'),
   template text not null default 'modern'
     check (template in ('modern', 'classic', 'minimal')),
   created_at timestamptz not null default now(),
@@ -31,6 +31,16 @@ with check (
     where p.id = (select auth.uid())
       and p.role in ('job_seeker', 'professional')
   )
+  and public.has_platform_access()
+)
+with check (
+  user_id = (select auth.uid())
+  and exists (
+    select 1 from public.profiles p
+    where p.id = (select auth.uid())
+      and p.role in ('job_seeker', 'professional')
+  )
+  and public.has_platform_access()
 );
 
 create table if not exists public.interview_practice_sessions (
@@ -42,7 +52,7 @@ create table if not exists public.interview_practice_sessions (
   experience_level text not null default 'Entry level'
     check (char_length(experience_level) <= 80),
   current_question integer not null default 0 check (current_question between 0 and 100),
-  answers jsonb not null default '{}'::jsonb,
+  answers jsonb not null default '{}'::jsonb check (jsonb_typeof(answers) = 'object'),
   started boolean not null default false,
   completed boolean not null default false,
   created_at timestamptz not null default now(),
@@ -67,6 +77,7 @@ using (
     where p.id = (select auth.uid())
       and p.role in ('job_seeker', 'professional')
   )
+  and public.has_platform_access()
 )
 with check (
   user_id = (select auth.uid())
@@ -75,6 +86,7 @@ with check (
     where p.id = (select auth.uid())
       and p.role in ('job_seeker', 'professional')
   )
+  and public.has_platform_access()
 );
 
 create index if not exists cv_documents_updated_at_idx
