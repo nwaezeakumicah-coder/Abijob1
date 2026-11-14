@@ -39,7 +39,7 @@ export default async function OpportunityMapPage() {
                   <div><strong>{Number(row.approved_jobs || 0)}</strong><span>Jobs</span></div>
                   <div><strong>{Number(row.public_professionals || 0)}</strong><span>Professionals</span></div>
                 </div>
-                <Link href="/jobs">Explore opportunities <ArrowRight size={16}/></Link>
+                <Link href={`/jobs?lga=${encodeURIComponent(row.lga)}`}>Explore opportunities <ArrowRight size={16}/></Link>
               </article>
             ))}
           </section>
