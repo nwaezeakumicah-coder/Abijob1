@@ -9,6 +9,7 @@ import {
   ArrowRight,
   Eye,
   EyeOff,
+  Fingerprint,
   LockKeyhole,
   Mail,
   ShieldCheck,
@@ -258,6 +259,55 @@ export default function LoginPage() {
     }
   }
 
+  async function handlePasskeySignIn() {
+    if (isSubmitting) return;
+
+    setIsSubmitting(true);
+    setMessage("");
+    setMessageType("");
+
+    try {
+      const supabase = createClient();
+      const { data, error } = await supabase.auth.signInWithPasskey();
+
+      if (error) throw error;
+      if (!data.user) {
+        throw new Error("The passkey could not identify an Abi Job account.");
+      }
+
+      const { data: profile, error: profileError } = await supabase
+        .from("profiles")
+        .select("role")
+        .eq("id", data.user.id)
+        .maybeSingle();
+
+      if (profileError || !profile) {
+        await supabase.auth.signOut();
+        throw new Error(
+          "We could not verify the account profile for this passkey. Please sign in with your password or contact support."
+        );
+      }
+
+      const destination = dashboardRoutes[profile.role];
+      if (!destination) {
+        await supabase.auth.signOut();
+        throw new Error("This account does not have a supported Abi Job role.");
+      }
+
+      setPassword("");
+      router.replace(getSafeNextDestination() || destination);
+      router.refresh();
+    } catch (cause) {
+      setMessageType("error");
+      setMessage(
+        cause instanceof Error
+          ? cause.message
+          : "Passkey sign-in failed. Please try again."
+      );
+      setIsSubmitting(false);
+    }
+  }
+
   function clearMessage() {
     if (message) {
       setMessage("");
@@ -356,6 +406,28 @@ export default function LoginPage() {
         .login-form-section .login-message {
           opacity: 1 !important;
           visibility: visible !important;
+        }
+
+        .login-form-section .login-passkey-button {
+          width: 100%;
+          min-height: 54px;
+          margin-top: 13px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          gap: 10px;
+          border: 1px solid #b8cbbd;
+          border-radius: 12px;
+          background: #f5f8f3;
+          color: #176b45;
+          font-size: 14px;
+          font-weight: 700;
+          cursor: pointer;
+        }
+
+        .login-form-section .login-passkey-button:disabled {
+          opacity: .6;
+          cursor: not-allowed;
         }
       `}</style>
 
@@ -563,6 +635,17 @@ export default function LoginPage() {
             >
               {isSubmitting ? "Signing in..." : "Sign in"}
               {!isSubmitting && <ArrowRight size={19} />}
+            </button>
+
+            <button
+              type="button"
+              className="login-passkey-button"
+              onClick={() => void handlePasskeySignIn()}
+              disabled={isSubmitting}
+              aria-label="Sign in with fingerprint, face recognition or device passkey"
+            >
+              <Fingerprint size={19} />
+              {isSubmitting ? "Verifying passkey…" : "Sign in with fingerprint or passkey"}
             </button>
           </form>
 
