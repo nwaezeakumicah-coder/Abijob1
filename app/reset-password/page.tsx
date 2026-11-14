@@ -48,24 +48,31 @@ export default function ResetPasswordPage() {
         return;
       }
 
+      // A normal signed-in session is not proof of a password-recovery
+      // request. Only a successfully exchanged, one-time recovery credential
+      // may authorize this page to change a password.
+      let recoverySession = false;
       let verificationError: Error | null = null;
 
-      // Supabase's default PKCE recovery email uses an authorization code.
       if (code) {
-        const { error } = await supabase.auth.exchangeCodeForSession(code);
+        const { data, error } =
+          await supabase.auth.exchangeCodeForSession(code);
 
         if (error) {
           verificationError = error;
+        } else {
+          recoverySession = Boolean(data.session);
         }
       } else if (tokenHash && type === "recovery") {
-        // Also support Supabase recovery links using token hashes.
-        const { error } = await supabase.auth.verifyOtp({
+        const { data, error } = await supabase.auth.verifyOtp({
           token_hash: tokenHash,
           type: "recovery",
         });
 
         if (error) {
           verificationError = error;
+        } else {
+          recoverySession = Boolean(data.session);
         }
       } else {
         if (active) setRecoveryStatus("invalid");
@@ -74,26 +81,17 @@ export default function ResetPasswordPage() {
 
       if (!active) return;
 
-      // Check the session after exchanging the recovery credentials.
-      // This also handles a code that the Supabase client already exchanged.
-      const {
-        data: { session },
-        error: sessionError,
-      } = await supabase.auth.getSession();
-
-      if (!active) return;
-
-      if (session && !sessionError) {
+      if (recoverySession) {
         setRecoveryStatus("ready");
 
-        // Remove the one-time code from the address bar.
+        // Remove the one-time credential from the address bar.
         window.history.replaceState(null, "", "/reset-password");
         return;
       }
 
       console.error(
         "Password recovery verification failed:",
-        verificationError?.message || sessionError?.message
+        verificationError?.message || "No recovery session was issued."
       );
 
       setRecoveryStatus("invalid");
