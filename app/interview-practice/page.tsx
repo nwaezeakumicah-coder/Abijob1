@@ -351,7 +351,8 @@ export default function InterviewPracticePage() {
         ? "/employer/notifications"
         : "/notifications";
 
-  const storageKey = `abijob-interview-practice-${accountRole}`;
+  // Keep browser drafts isolated per authenticated account (not merely per role).
+  const storageKey = `abijob-interview-practice-${userId || "guest"}`;
 
   // Restore role and the most recent practice draft from Supabase, with local fallback.
   useEffect(() => {
@@ -385,7 +386,8 @@ export default function InterviewPracticePage() {
       setAccountRole(detectedRole);
       setUserId(authenticatedUserId);
 
-      const localKey = `abijob-interview-practice-${detectedRole}`;
+      // Never restore another account's role-wide localStorage draft.
+      const localKey = `abijob-interview-practice-${authenticatedUserId || "guest"}`;
       const saved = localStorage.getItem(localKey);
 
       if (saved) {
