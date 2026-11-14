@@ -9,17 +9,17 @@ const sections = [
     number: "01",
     title: "Acceptance of These Terms",
     paragraphs: [
-      "Welcome to Abi Job. These Terms & Conditions govern your access to and use of the Abi Job website and services.",
+      "Welcome to Abijob. These Terms & Conditions govern your access to and use of the Abijob website and services.",
       "By creating an account, accessing or using the platform, you agree to comply with these Terms. If you do not agree, you should not use the platform.",
     ],
   },
   {
     number: "02",
-    title: "About Abi Job",
+    title: "About Abijob",
     paragraphs: [
-      "Abi Job is an employment and professional networking platform designed to connect job seekers, Skilled Professionals & Artisans, employers and businesses, with an initial focus on Abia State, Nigeria.",
+      "Abijob is an employment and professional networking platform designed to connect job seekers, Skilled Professionals & Artisans, employers and businesses, with an initial focus on Abia State, Nigeria.",
       "The platform is intended to help users discover opportunities, advertise vacancies, showcase professional skills and connect with people who may need their services.",
-      "Abi Job provides a platform for connections. It does not guarantee employment, contracts, customers, income or successful recruitment.",
+      "Abijob provides a platform for connections. It does not guarantee employment, contracts, customers, income or successful recruitment.",
     ],
   },
   {
@@ -29,14 +29,14 @@ const sections = [
       "You must provide accurate information when registering and keep your account information reasonably up to date.",
       "You are responsible for maintaining the confidentiality of your login details and for activities carried out through your account.",
       "You must not impersonate another person, create accounts using false identities or provide misleading professional or business information.",
-      "Abi Job may restrict or suspend accounts where there are reasonable grounds to suspect fraud, abuse, impersonation or a violation of these Terms.",
+      "Abijob may restrict or suspend accounts where there are reasonable grounds to suspect fraud, abuse, impersonation or a violation of these Terms.",
     ],
   },
   {
     number: "04",
     title: "User Categories",
     paragraphs: [
-      "Abi Job supports three primary user categories: Job Seekers, Skilled Professionals & Artisans, and Employers.",
+      "Abijob supports three primary user categories: Job Seekers, Skilled Professionals & Artisans, and Employers.",
       "Job Seekers use the platform to explore vacancies, create professional profiles and apply for suitable opportunities.",
       "Skilled Professionals & Artisans use the platform to showcase their skills, experience, portfolios and services to potential clients.",
       "Employers use the platform to create business profiles, publish vacancies and discover potential candidates.",
@@ -46,7 +46,7 @@ const sections = [
     number: "05",
     title: "Subscriptions and Payments",
     paragraphs: [
-      "Access to Abi Job may require a subscription depending on your account category and the subscription option selected.",
+      "Access to Abijob may require a subscription depending on your account category and the subscription option selected.",
       "The subscription options currently planned for the platform are:",
     ],
     bullets: [
@@ -64,9 +64,9 @@ const sections = [
     title: "Job Listings and Applications",
     paragraphs: [
       "Employers are responsible for ensuring that job listings are genuine, accurate, lawful and not misleading.",
-      "Job listings submitted to Abi Job are subject to administrative review and approval before publication.",
+      "Job listings submitted to Abijob are subject to administrative review and approval before publication.",
       "Job Seekers should carefully review vacancies and independently assess employers and employment offers before sharing sensitive information or accepting an offer.",
-      "Abi Job does not guarantee that an application will receive a response or result in employment.",
+      "Abijob does not guarantee that an application will receive a response or result in employment.",
     ],
   },
   {
@@ -84,14 +84,14 @@ const sections = [
     paragraphs: [
       "Skilled Professionals & Artisans are responsible for accurately describing their skills, experience, qualifications, services and portfolio materials.",
       "Users should communicate clearly with potential clients about pricing, timelines, deliverables and other project expectations.",
-      "Abi Job does not guarantee that a professional will receive a job, project or customer through the platform.",
+      "Abijob does not guarantee that a professional will receive a job, project or customer through the platform.",
     ],
   },
   {
     number: "09",
     title: "Prohibited Activities",
     paragraphs: [
-      "You must not use Abi Job to:",
+      "You must not use Abijob to:",
     ],
     bullets: [
       "Publish fake vacancies, fraudulent offers or misleading business information.",
@@ -110,15 +110,15 @@ const sections = [
     paragraphs: [
       "You retain responsibility for content you upload, including profile information, photographs, portfolios, job descriptions and other materials.",
       "By submitting content, you confirm that you have the rights or permissions necessary to share it.",
-      "You grant Abi Job permission to host, display and use your submitted content as reasonably necessary to operate and provide the platform's services.",
-      "Abi Job's name, branding, website design and original platform materials may not be copied, reproduced or commercially exploited without appropriate permission.",
+      "You grant Abijob permission to host, display and use your submitted content as reasonably necessary to operate and provide the platform's services.",
+      "Abijob's name, branding, website design and original platform materials may not be copied, reproduced or commercially exploited without appropriate permission.",
     ],
   },
   {
     number: "11",
     title: "Privacy and Personal Information",
     paragraphs: [
-      "Your use of Abi Job is also subject to our Privacy Policy, which explains how personal information may be collected, used and shared.",
+      "Your use of Abijob is also subject to our Privacy Policy, which explains how personal information may be collected, used and shared.",
       "You should avoid publishing sensitive personal information that is not necessary for your professional profile or platform activities.",
     ],
   },
@@ -126,7 +126,7 @@ const sections = [
     number: "12",
     title: "Third-Party Services and External Links",
     paragraphs: [
-      "Abi Job may contain links to external websites or integrate with services provided by third parties.",
+      "Abijob may contain links to external websites or integrate with services provided by third parties.",
       "We do not control every external service and are not responsible for its content, availability, security or independent policies. Your use of those services may be subject to separate terms.",
     ],
   },
@@ -134,7 +134,7 @@ const sections = [
     number: "13",
     title: "Platform Availability",
     paragraphs: [
-      "We aim to make Abi Job useful and accessible, but uninterrupted availability cannot be guaranteed.",
+      "We aim to make Abijob useful and accessible, but uninterrupted availability cannot be guaranteed.",
       "The platform may undergo maintenance, updates, temporary interruptions or changes as new features are developed.",
       "We may modify, suspend or discontinue features where reasonably necessary for operational, security or business reasons.",
     ],
@@ -143,7 +143,7 @@ const sections = [
     number: "14",
     title: "Account Suspension and Termination",
     paragraphs: [
-      "Abi Job may restrict, suspend or terminate access where an account is reasonably believed to have violated these Terms, endangered other users or compromised the platform.",
+      "Abijob may restrict, suspend or terminate access where an account is reasonably believed to have violated these Terms, endangered other users or compromised the platform.",
       "Users may stop using the platform and may request account-related assistance through the available support channels.",
       "Any outstanding obligations or provisions that should reasonably continue after termination will remain applicable.",
     ],
@@ -152,9 +152,9 @@ const sections = [
     number: "15",
     title: "Disclaimers and Limitation of Liability",
     paragraphs: [
-      "Abi Job provides a platform for discovering opportunities and connecting users. We do not act as the employer, employee, contractor or client in arrangements made directly between users unless expressly stated otherwise.",
+      "Abijob provides a platform for discovering opportunities and connecting users. We do not act as the employer, employee, contractor or client in arrangements made directly between users unless expressly stated otherwise.",
       "We do not guarantee the accuracy of every user-submitted listing, profile, qualification or claim. Users should carry out appropriate checks before entering into agreements.",
-      "To the extent permitted by applicable law, Abi Job will not be responsible for losses arising from user-to-user dealings, inaccurate information supplied by users, third-party services or temporary platform interruptions.",
+      "To the extent permitted by applicable law, Abijob will not be responsible for losses arising from user-to-user dealings, inaccurate information supplied by users, third-party services or temporary platform interruptions.",
       "Nothing in these Terms excludes liability that cannot lawfully be excluded under applicable law.",
     ],
   },
@@ -171,7 +171,7 @@ const sections = [
     title: "Applicable Law",
     paragraphs: [
       "These Terms are intended to operate in accordance with the applicable laws of the Federal Republic of Nigeria.",
-      "Any dispute arising from the use of Abi Job should be addressed through appropriate lawful channels.",
+      "Any dispute arising from the use of Abijob should be addressed through appropriate lawful channels.",
     ],
   },
   {
@@ -209,7 +209,7 @@ export default function TermsPage() {
 
             <p>
               These terms explain the responsibilities and expectations that
-              help make Abi Job a reliable platform for opportunities,
+              help make Abijob a reliable platform for opportunities,
               businesses and professional services.
             </p>
 
@@ -247,7 +247,7 @@ export default function TermsPage() {
                 <div className="terms-help-icon">?</div>
                 <h3>Have a question?</h3>
                 <p>
-                  Need clarification about using Abi Job or these terms?
+                  Need clarification about using Abijob or these terms?
                 </p>
                 <Link href="/contact">Contact our team →</Link>
               </div>
@@ -256,7 +256,7 @@ export default function TermsPage() {
             <div className="terms-document">
               <div className="terms-document-heading">
                 <span className="terms-document-tag">LEGAL INFORMATION</span>
-                <h2>Abi Job Terms &amp; Conditions</h2>
+                <h2>Abijob Terms &amp; Conditions</h2>
                 <p>
                   Please read these terms before registering or using the
                   platform.
