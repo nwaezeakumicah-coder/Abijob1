@@ -24,7 +24,7 @@ const managementCards = [
   },
   {
     title: "Job Management",
-    description: "Review, approve and manage job listings on Abi Job.",
+    description: "Review, approve and manage job listings on Abijob.",
     href: "/jobs",
     permission: "jobs.manage",
     icon: BriefcaseBusiness,
@@ -65,7 +65,7 @@ export default async function DashboardPage() {
             <h1>Dashboard</h1>
 
             <p>
-              Welcome back. Manage and monitor the Abi Job platform
+              Welcome back. Manage and monitor the Abijob platform
               from your administration workspace.
             </p>
           </div>
@@ -78,7 +78,7 @@ export default async function DashboardPage() {
 
         <section className="dashboard-welcome">
           <div className="dashboard-welcome-content">
-            <span>ABI JOB CONTROL CENTRE</span>
+            <span>ABIJOB CONTROL CENTRE</span>
             <h2>Building opportunities across Abia State.</h2>
             <p>
               Your administration workspace gives you access to
@@ -139,7 +139,7 @@ export default async function DashboardPage() {
         </section>
 
         <footer className="dashboard-footer">
-          <span>ABI JOB ADMINISTRATION</span>
+          <span>ABIJOB ADMINISTRATION</span>
           <span>Opportunity starts here.</span>
         </footer>
       </div>
