@@ -25,6 +25,7 @@ import {
   LayoutDashboard,
   LogOut,
   Menu,
+  MapPin,
   Search,
   Settings,
   ShieldCheck,
@@ -539,6 +540,16 @@ export default function ProfessionalDashboardPage() {
           <Link href="/professional/verification" onClick={closeMobileMenu}>
             <ShieldCheck size={19} />
             <span>Verify professional profile</span>
+          </Link>
+
+          <Link href="/settings/job-alerts" onClick={closeMobileMenu}>
+            <Bell size={19} />
+            <span>Job alerts</span>
+          </Link>
+
+          <Link href="/opportunities/map" onClick={closeMobileMenu}>
+            <MapPin size={19} />
+            <span>Abia opportunity map</span>
           </Link>
 
           <Link href="/professional/applications" onClick={closeMobileMenu}>
