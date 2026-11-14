@@ -21,6 +21,7 @@ import {
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import SaveJobButton from "@/components/SaveJobButton";
+import ReportJobButton from "@/components/ReportJobButton";
 import "./job-details.css";
 
 type Job = {
@@ -368,17 +369,7 @@ async function JobDetailsContent({
                 </Link>
               </section>
 
-              <div className="job-report-link">
-                <ShieldCheck size={17} />
-
-                <span>
-                  Think this vacancy looks suspicious?
-                </span>
-
-                <Link href="/support">
-                  Report a concern
-                </Link>
-              </div>
+              <ReportJobButton jobId={job.id} />
             </div>
 
             <aside className="job-details-sidebar">
