@@ -27,6 +27,7 @@ import {
 } from "lucide-react";
 
 import { createClient } from "../../../lib/supabase/client";
+import PasskeySettings from "../../../components/PasskeySettings";
 import "./settings.css";
 
 type EmployerPreferences = {
@@ -80,6 +81,10 @@ export default function EmployerSettingsPage() {
     useState<EmployerPreferences>(defaultPreferences);
 
   const [companyName, setCompanyName] = useState("Your Company");
+  const [privacy, setPrivacy] = useState({
+    publicProfile: true,
+    showContactDetails: true,
+  });
   const [accountEmail, setAccountEmail] = useState("");
 
   const [accessChecked, setAccessChecked] = useState(false);
@@ -139,7 +144,7 @@ export default function EmployerSettingsPage() {
         const { data: employerProfile, error: profileError } =
           await supabase
             .from("employer_profiles")
-            .select("business_name")
+            .select("business_name, is_public, show_contact_details")
             .eq("user_id", user.id)
             .maybeSingle();
 
@@ -162,6 +167,13 @@ export default function EmployerSettingsPage() {
 
         if (employerProfile?.business_name) {
           setCompanyName(employerProfile.business_name);
+        }
+
+        if (employerProfile) {
+          setPrivacy({
+            publicProfile: employerProfile.is_public ?? true,
+            showContactDetails: employerProfile.show_contact_details ?? true,
+          });
         }
 
         const { data: savedPreferences, error: preferencesError } =
@@ -277,6 +289,18 @@ export default function EmployerSettingsPage() {
 
       if (preferenceSaveError) {
         throw new Error(preferenceSaveError.message);
+      }
+
+      const { error: privacySaveError } = await supabase
+        .from("employer_profiles")
+        .update({
+          is_public: privacy.publicProfile,
+          show_contact_details: privacy.showContactDetails,
+        })
+        .eq("user_id", user.id);
+
+      if (privacySaveError) {
+        throw new Error(privacySaveError.message);
       }
 
       setSaveMessage(
@@ -613,9 +637,7 @@ export default function EmployerSettingsPage() {
 
               <div>
                 <h2>Privacy and visibility</h2>
-                <p>
-                  Public visibility controls are not connected yet.
-                </p>
+                <p>Choose how your business appears in the public employer directory.</p>
               </div>
             </div>
 
@@ -627,15 +649,18 @@ export default function EmployerSettingsPage() {
 
                 <div className="employer-settings-option-text">
                   <strong>Public company profile</strong>
-                  <p>
-                    This control will become available when public company
-                    profile visibility is implemented.
-                  </p>
+                  <p>Allow job seekers and visitors to discover your company in the employer directory.</p>
                 </div>
 
-                <span className="employer-settings-info-item">
-                  Coming soon
-                </span>
+                <Toggle
+                  label="Public company profile"
+                  checked={privacy.publicProfile}
+                  onChange={(value) => {
+                    setPrivacy((current) => ({ ...current, publicProfile: value }));
+                    setSaveMessage("");
+                    setSaveError(false);
+                  }}
+                />
               </div>
 
               <div className="employer-settings-option">
@@ -645,15 +670,18 @@ export default function EmployerSettingsPage() {
 
                 <div className="employer-settings-option-text">
                   <strong>Business contact visibility</strong>
-                  <p>
-                    Contact visibility will be connected when the public
-                    company profile is implemented.
-                  </p>
+                  <p>Show your business address and website on your public employer profile.</p>
                 </div>
 
-                <span className="employer-settings-info-item">
-                  Coming soon
-                </span>
+                <Toggle
+                  label="Business contact visibility"
+                  checked={privacy.showContactDetails}
+                  onChange={(value) => {
+                    setPrivacy((current) => ({ ...current, showContactDetails: value }));
+                    setSaveMessage("");
+                    setSaveError(false);
+                  }}
+                />
               </div>
             </div>
           </section>
@@ -685,23 +713,6 @@ export default function EmployerSettingsPage() {
 
             <div className="employer-settings-security-item">
               <div className="employer-settings-security-icon">
-                <ShieldCheck size={19} />
-              </div>
-
-              <div>
-                <strong>Two-factor authentication</strong>
-                <p>
-                  Additional authentication setup is not yet available.
-                </p>
-              </div>
-
-              <span className="employer-settings-info-item">
-                Coming soon
-              </span>
-            </div>
-
-            <div className="employer-settings-security-item">
-              <div className="employer-settings-security-icon">
                 <LogOut size={19} />
               </div>
 
@@ -724,6 +735,8 @@ export default function EmployerSettingsPage() {
               </button>
             </div>
           </section>
+
+          <PasskeySettings />
 
           <section className="employer-settings-danger-card">
             <div className="employer-settings-danger-heading">
