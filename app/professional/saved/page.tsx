@@ -157,7 +157,7 @@ export default function ProfessionalSavedPage() {
               title: job.title,
               company,
               location: job.location || "Location not specified",
-              type: (job.employment_type || "Not specified").replace(/_/g, " ").replace(/\\b\\w/g, (character: string) => character.toUpperCase()),
+              type: (job.employment_type || "Not specified").replace(/_/g, " ").replace(/\b\w/g, (character: string) => character.toUpperCase()),
               salary,
               category: job.category || "General",
               posted,
