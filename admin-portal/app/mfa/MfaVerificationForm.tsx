@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { createBrowserClient } from "@supabase/ssr";
-import { Fingerprint, LoaderCircle, ShieldCheck } from "lucide-react";
+import { LoaderCircle, ShieldCheck } from "lucide-react";
 
 export default function MfaVerificationForm() {
   const router = useRouter();
@@ -132,7 +132,7 @@ export default function MfaVerificationForm() {
   return (
     <form className="admin-mfa-form" onSubmit={verifyCode}>
       <div className="admin-mfa-icon">
-        {isSetup ? <ShieldCheck size={25} /> : <Fingerprint size={25} />}
+        <ShieldCheck size={25} />
       </div>
       {isSetup ? (
         <div className="admin-mfa-enrollment">
