@@ -23,6 +23,7 @@ import {
 } from "lucide-react";
 
 import Logo from "@/components/Logo";
+import PasskeySettings from "@/components/PasskeySettings";
 import { createClient } from "@/lib/supabase/client";
 
 import "./settings.css";
@@ -1020,6 +1021,7 @@ export default function SettingsPage() {
           </section>
         </div>
       )}
-    </main>
+            <PasskeySettings />
+</main>
   );
 }
