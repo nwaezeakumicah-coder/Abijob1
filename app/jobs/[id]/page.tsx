@@ -14,7 +14,6 @@ import {
   CheckCircle2,
   Clock3,
   GraduationCap,
-  Heart,
   MapPin,
   Share2,
   ShieldCheck,
