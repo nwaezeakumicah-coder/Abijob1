@@ -47,6 +47,28 @@ export async function getActiveAdmin() {
     (permission) => permission.permission_key
   );
 
+  // Every administrator must complete TOTP MFA before protected pages
+  // or server actions are allowed to continue.
+  const { data: factors, error: factorsError } =
+    await supabase.auth.mfa.listFactors();
+  if (factorsError) {
+    throw new Error("Unable to verify administrator security factors.");
+  }
+
+  const hasVerifiedTotp = (factors?.totp ?? []).some(
+    (factor) => factor.status === "verified"
+  );
+  if (!hasVerifiedTotp) redirect("/mfa");
+
+  const { data: assurance, error: assuranceError } =
+    await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
+  if (assuranceError) {
+    throw new Error("Unable to verify administrator session assurance.");
+  }
+  if (assurance.nextLevel === "aal2" && assurance.currentLevel !== "aal2") {
+    redirect("/mfa");
+  }
+
   return {
     id: admin.id,
     email: admin.email,
