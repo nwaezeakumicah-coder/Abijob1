@@ -1623,3 +1623,8 @@
     -webkit-print-color-adjust: exact;
   }
 }
+
+.cv-ai-button:disabled {
+  opacity: 0.65;
+  cursor: wait;
+}
