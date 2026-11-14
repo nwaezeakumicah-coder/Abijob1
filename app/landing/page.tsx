@@ -29,7 +29,7 @@ export default function WelcomeLandingPage() {
       <header className="welcome-header">
         <Link href="/" className="welcome-logo-link" aria-label="Go to Abi Job homepage">
           <Image
-            src="/image/abijob-logo-green.png"
+            src="/images/abijob-logo-green.png"
             alt="Abi Job — Opportunity Starts Here"
             width={210}
             height={76}
@@ -80,7 +80,7 @@ export default function WelcomeLandingPage() {
           <div className="welcome-glow" />
           <div className="welcome-center-mark">
             <Image
-              src="/image/abijob-logo-green.png"
+              src="/images/abijob-logo-green.png"
               alt=""
               width={160}
               height={58}
