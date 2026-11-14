@@ -122,10 +122,12 @@ export default async function ReportsPage() {
     subscriptionsResult,
     paymentsResult,
     recentPaymentsResult,
+    opportunityMapResult,
+    applicationsResult,
   ] = await Promise.all([
     supabase
       .from("jobs")
-      .select("id,status,created_at", { count: "exact" })
+      .select("id,status,created_at,category,location", { count: "exact" })
       .order("created_at", { ascending: false })
       .limit(1000),
 
@@ -159,6 +161,9 @@ export default async function ReportsPage() {
       )
       .order("created_at", { ascending: false })
       .limit(10),
+
+    supabase.rpc("get_abia_opportunity_map"),
+    supabase.from("job_applications").select("id,status", { count: "exact" }).limit(1000),
   ]);
 
   const jobs: ReportRow[] = jobsResult.data ?? [];
@@ -166,6 +171,22 @@ export default async function ReportsPage() {
   const subscriptions: ReportRow[] = subscriptionsResult.data ?? [];
   const payments: ReportRow[] = paymentsResult.data ?? [];
   const recentPayments: ReportRow[] = recentPaymentsResult.data ?? [];
+  const opportunityMap: ReportRow[] = opportunityMapResult.data ?? [];
+  const applications: ReportRow[] = applicationsResult.data ?? [];
+
+  const jobCategories = jobs.reduce<Record<string, number>>((result, job) => {
+    const key = String(job.category ?? "Uncategorised").trim() || "Uncategorised";
+    result[key] = (result[key] ?? 0) + 1;
+    return result;
+  }, {});
+
+  const applicationStatuses = applications.reduce<Record<string, number>>((result, application) => {
+    const key = String(application.status ?? "unknown").toLowerCase();
+    result[key] = (result[key] ?? 0) + 1;
+    return result;
+  }, {});
+  const hiredCount = applicationStatuses.hired ?? 0;
+  const shortlistedCount = applicationStatuses.shortlisted ?? 0;
 
   const jobStatuses = jobs.reduce<Record<string, number>>((result, job) => {
     const key = String(job.status ?? "unknown").toLowerCase();
@@ -313,6 +334,43 @@ export default async function ReportsPage() {
               )}
             </div>
           )}
+        </section>
+
+        <section className="reports-section">
+          <div className="reports-section-heading">
+            <div>
+              <h2>Abia labour market intelligence</h2>
+              <p>Current vacancy and public talent signals grouped by local government area. These are platform records, not estimates of total employment in each LGA.</p>
+            </div>
+            <span className="reports-total">17 LGAs</span>
+          </div>
+          {opportunityMapResult.error ? (
+            <div className="reports-warning">Opportunity intelligence is unavailable: {opportunityMapResult.error.message}</div>
+          ) : (
+            <>
+              <div className="reports-metrics-grid reports-small-grid">
+                <MetricCard title="Applicants hired" value={hiredCount} detail="Applications marked hired" icon="✓" />
+                <MetricCard title="Shortlisted applicants" value={shortlistedCount} detail="Current shortlist records loaded" icon="★" />
+              </div>
+              <div className="reports-breakdown-grid">
+                {Object.entries(jobCategories).sort((a,b)=>b[1]-a[1]).slice(0,12).map(([key,count])=>(
+                  <div className="reports-breakdown-item" key={key}><span>{label(key)}</span><strong>{count}</strong></div>
+                ))}
+                {Object.keys(jobCategories).length===0 && <p className="reports-muted">No category records available yet.</p>}
+              </div>
+              <div className="reports-table-wrap">
+                <table className="reports-table">
+                  <thead><tr><th>Local government area</th><th>Approved vacancies</th><th>Public professionals</th></tr></thead>
+                  <tbody>
+                    {opportunityMap.map((row)=>(
+                      <tr key={String(row.lga)}><td><strong>{String(row.lga)}</strong></td><td>{Number(row.approved_jobs||0)}</td><td>{Number(row.public_professionals||0)}</td></tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </>
+          )}
+          <p className="reports-footnote">LGA counts only include records whose stored location contains the full LGA name. Town-only or broad "Abia" entries are not assigned to a specific LGA. Do not interpret these figures as statewide employment statistics.</p>
         </section>
 
         <section className="reports-section">
