@@ -4,6 +4,9 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import AdminMfaForm from "./AdminMfaForm";
 import "./mfa.css";
 
+// Authentication and admin membership are request-specific; do not prerender this page.
+export const instant = false;
+
 type AdminMfaPageProps = {
   searchParams: Promise<{ next?: string }>;
 };
