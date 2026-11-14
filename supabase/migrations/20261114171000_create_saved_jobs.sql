@@ -38,3 +38,5 @@ DROP POLICY IF EXISTS saved_jobs_delete_own ON public.saved_jobs;
 CREATE POLICY saved_jobs_delete_own
   ON public.saved_jobs FOR DELETE TO authenticated
   USING ((SELECT auth.uid()) = user_id);
+CREATE INDEX IF NOT EXISTS saved_jobs_job_id_idx
+  ON public.saved_jobs (job_id);
