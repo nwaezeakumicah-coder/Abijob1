@@ -588,7 +588,7 @@ export default function DashboardPage() {
 
                     <p className="dashboard-job-company">
                       Explore the professionals and services available on
-                      Abi Job.
+                      Abijob.
                     </p>
 
                     <div className="dashboard-job-meta">
@@ -701,8 +701,8 @@ export default function DashboardPage() {
           </section>
 
           <footer className="dashboard-footer">
-            <span>© 2026 Abi Job. Opportunity starts here.</span>
-            <Link href="/about">About Abi Job</Link>
+            <span>© 2026 Abijob. Opportunity starts here.</span>
+            <Link href="/about">About Abijob</Link>
           </footer>
         </div>
       </section>
