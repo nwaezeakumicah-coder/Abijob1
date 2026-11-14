@@ -89,7 +89,7 @@ export default function ForgotPasswordPage() {
 
           <p>
             Don't worry. It happens. We'll help you regain
-            access to your Abi Job account so you can
+            access to your Abijob account so you can
             continue pursuing your opportunities.
           </p>
 
@@ -183,7 +183,7 @@ export default function ForgotPasswordPage() {
               <h2>Check your inbox.</h2>
 
               <p>
-                If an Abi Job account exists for{" "}
+                If an Abijob account exists for{" "}
                 <strong>{email}</strong>, you'll receive
                 an email with instructions to reset your
                 password. Please also check your spam folder.
@@ -212,7 +212,7 @@ export default function ForgotPasswordPage() {
       </section>
 
       <footer className="forgot-footer">
-        <span>© 2026 Abi Job. All rights reserved.</span>
+        <span>© 2026 Abijob. All rights reserved.</span>
         <span>OPPORTUNITY STARTS HERE</span>
       </footer>
     </main>

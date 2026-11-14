@@ -18,9 +18,9 @@ const pathways = [
 ];
 
 export const metadata = {
-  title: "Welcome to Abi Job | Opportunity Starts Here",
+  title: "Welcome to Abijob | Opportunity Starts Here",
   description:
-    "A home for Abia's talent, employers and opportunities. Find work, showcase your skills and build your team with Abi Job.",
+    "A home for Abia's talent, employers and opportunities. Find work, showcase your skills and build your team with Abijob.",
 };
 
 export default function WelcomeLandingPage() {
@@ -29,10 +29,10 @@ export default function WelcomeLandingPage() {
       <main className="welcome-page">
       <div className="welcome-grain" aria-hidden="true" />
       <header className="welcome-header">
-        <Link href="/" className="welcome-logo-link" aria-label="Go to Abi Job homepage">
+        <Link href="/" className="welcome-logo-link" aria-label="Go to Abijob homepage">
           <Image
             src="/images/abijob-logo-green.png"
-            alt="Abi Job — Opportunity Starts Here"
+            alt="Abijob — Opportunity Starts Here"
             width={210}
             height={76}
             priority
@@ -63,7 +63,7 @@ export default function WelcomeLandingPage() {
           </p>
           <div className="welcome-actions">
             <Link href="/" className="welcome-enter-button">
-              Enter Abi Job <ArrowRight size={19} />
+              Enter Abijob <ArrowRight size={19} />
             </Link>
             <span className="welcome-action-note">One platform. More possibilities.</span>
           </div>
@@ -76,7 +76,7 @@ export default function WelcomeLandingPage() {
           </div>
         </div>
 
-        <div className="welcome-art" aria-label="People, skills and employers connected through Abi Job">
+        <div className="welcome-art" aria-label="People, skills and employers connected through Abijob">
           <div className="welcome-ring welcome-ring-outer" />
           <div className="welcome-ring welcome-ring-inner" />
           <div className="welcome-glow" />
@@ -104,7 +104,7 @@ export default function WelcomeLandingPage() {
         </div>
       </section>
 
-      <section className="welcome-pathways" aria-label="What you can do on Abi Job">
+      <section className="welcome-pathways" aria-label="What you can do on Abijob">
         <div className="welcome-pathways-label">A place to move forward</div>
         <div className="welcome-pathway-list">
           {pathways.map(({ icon: Icon, label }, index) => (
@@ -116,7 +116,7 @@ export default function WelcomeLandingPage() {
       </section>
       <footer className="welcome-footer">
         <span>Made for the people and possibilities of Abia State.</span>
-        <Link href="/">Continue to Abi Job <ArrowRight size={14} /></Link>
+        <Link href="/">Continue to Abijob <ArrowRight size={14} /></Link>
       </footer>
       </main>
     </LandingTransition>

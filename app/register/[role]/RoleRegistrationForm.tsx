@@ -219,7 +219,7 @@ export default function RoleRegistrationForm({
             <br />
             next move with
             <br />
-            <strong>Abi Job.</strong>
+            <strong>Abijob.</strong>
           </h1>
 
           <p>
@@ -380,7 +380,7 @@ export default function RoleRegistrationForm({
               <input type="checkbox" name="terms" required />
 
               <span>
-                I agree to Abi Job's{" "}
+                I agree to Abijob's{" "}
                 <Link href="/terms" target="_blank">
                   Terms of Service
                 </Link>{" "}

@@ -765,7 +765,7 @@ export default function MessagesPage() {
               <CircleHelp size={19} />
             </div>
             <strong>Need a hand?</strong>
-            <p>Find answers and get support as you use Abi Job.</p>
+            <p>Find answers and get support as you use Abijob.</p>
             <Link href="/support">
               Visit help centre <span>→</span>
             </Link>
@@ -820,7 +820,7 @@ export default function MessagesPage() {
               <div className="messages-eyebrow">STAY CONNECTED</div>
               <h1>Messages</h1>
               <p>
-                Connect with employers and skilled professionals on Abi Job.
+                Connect with employers and skilled professionals on Abijob.
               </p>
             </div>
 
@@ -1154,7 +1154,7 @@ export default function MessagesPage() {
 
                   <div className="messages-composer-note">
                     <Check size={13} />
-                    Messages are sent through Abi Job.
+                    Messages are sent through Abijob.
                   </div>
                 </>
               ) : (

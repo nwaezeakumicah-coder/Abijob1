@@ -3,7 +3,7 @@ import "./globals.css";
 
 export const metadata: Metadata = {
   title: "AbiJob Admin Portal",
-  description: "Secure administration portal for the Abi Job platform.",
+  description: "Secure administration portal for the Abijob platform.",
   robots: {
     index: false,
     follow: false,

@@ -561,7 +561,7 @@ export default function EmployerNotificationsPage() {
             href="/"
             className="employer-notifications-home-link"
           >
-            Back to Abi Job
+            Back to Abijob
           </Link>
         </div>
       </aside>

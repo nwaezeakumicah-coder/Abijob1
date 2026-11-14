@@ -126,7 +126,7 @@ export default async function VerificationsPage({
             <h1>Verifications</h1>
             <p>
               Review business verification applications and monitor
-              employer verification activity on Abi Job.
+              employer verification activity on Abijob.
             </p>
           </div>
 

@@ -550,7 +550,7 @@ export default function ApplicationsPage() {
 
     if (!previewWindow) {
       setError(
-        "Your browser blocked the CV preview. Please allow pop-ups for Abi Job and try again."
+        "Your browser blocked the CV preview. Please allow pop-ups for Abijob and try again."
       );
       return;
     }
@@ -601,11 +601,11 @@ export default function ApplicationsPage() {
         <Link
           href="/dashboard"
           className="applications-brand"
-          aria-label="Abi Job home"
+          aria-label="Abijob home"
         >
           <Image
             src="/images/abijob-logo-white.png"
-            alt="Abi Job — Opportunity Starts Here"
+            alt="Abijob — Opportunity Starts Here"
             width={180}
             height={60}
             priority
@@ -683,7 +683,7 @@ export default function ApplicationsPage() {
 
           <div className="applications-sidebar-footer">
             <span />
-            Abi Job Workspace
+            Abijob Workspace
           </div>
         </div>
       </aside>

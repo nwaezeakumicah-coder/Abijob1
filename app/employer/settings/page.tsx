@@ -307,7 +307,7 @@ export default function EmployerSettingsPage() {
       }
 
       setSaveMessage(
-        "Your preferences have been saved to your Abi Job account."
+        "Your preferences have been saved to your Abijob account."
       );
     } catch (error) {
       setSaveError(true);
@@ -410,7 +410,7 @@ export default function EmployerSettingsPage() {
         <Link href="/" className="employer-settings-brand">
           <Image
             src="/images/abijob-logo-white.png"
-            alt="Abi Job - Opportunity Starts Here"
+            alt="Abijob - Opportunity Starts Here"
             width={170}
             height={65}
             priority
@@ -578,7 +578,7 @@ export default function EmployerSettingsPage() {
 
               <div className="employer-settings-info-item">
                 <span>Platform</span>
-                <strong>Abi Job · Abia State</strong>
+                <strong>Abijob · Abia State</strong>
               </div>
             </div>
           </section>
@@ -660,7 +660,7 @@ export default function EmployerSettingsPage() {
 
                 <div className="employer-settings-option-text">
                   <strong>News and promotional emails</strong>
-                  <p>Receive Abi Job news, announcements and updates.</p>
+                  <p>Receive Abijob news, announcements and updates.</p>
                 </div>
 
                 <Toggle
@@ -764,7 +764,7 @@ export default function EmployerSettingsPage() {
               <div>
                 <strong>Sign out</strong>
                 <p>
-                  Securely sign out of your Abi Job employer account on
+                  Securely sign out of your Abijob employer account on
                   this device.
                 </p>
               </div>
@@ -822,7 +822,7 @@ export default function EmployerSettingsPage() {
           <div className="employer-settings-bottom-actions">
             <span>
               <CheckCircle2 size={16} />
-              Preferences are saved to your Abi Job account.
+              Preferences are saved to your Abijob account.
             </span>
 
             <button
@@ -853,7 +853,7 @@ export default function EmployerSettingsPage() {
           )}
 
           <footer className="employer-settings-footer">
-            Abi Job · Opportunity Starts Here
+            Abijob · Opportunity Starts Here
           </footer>
         </div>
       </section>

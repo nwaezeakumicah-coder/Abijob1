@@ -33,11 +33,11 @@ const confirmationMessages: Record<string, string> = {
   confirmation_session_failed:
     "Your email was confirmed, but we could not establish your login session. Please sign in manually.",
   profile_not_found:
-    "We could not find a profile connected to this account. Please contact Abi Job support.",
+    "We could not find a profile connected to this account. Please contact Abijob support.",
   profile_lookup_failed:
-    "We could not access your account profile. Please try again. If the problem continues, contact Abi Job support.",
+    "We could not access your account profile. Please try again. If the problem continues, contact Abijob support.",
   invalid_account_role:
-    "Your account has an unrecognized role. Please contact Abi Job support.",
+    "Your account has an unrecognized role. Please contact Abijob support.",
 };
 
 const formSectionStyle: CSSProperties = {
@@ -88,7 +88,7 @@ const labelStyle: CSSProperties = {
   opacity: 1,
 };
 
-// Only allow redirects to this Abi Job website.
+// Only allow redirects to this Abijob website.
 function getSafeNextDestination(): string | null {
   const params = new URLSearchParams(window.location.search);
   const requestedNext = params.get("next");
@@ -196,7 +196,7 @@ export default function LoginPage() {
         .maybeSingle();
 
       if (profileError) {
-        console.error("Abi Job profile lookup failed:", {
+        console.error("Abijob profile lookup failed:", {
           userId: data.user.id,
           code: profileError.code,
           message: profileError.message,
@@ -207,12 +207,12 @@ export default function LoginPage() {
         throw new Error(
           `We could not access your account profile. Database error: ${
             profileError.code || "UNKNOWN"
-          }. Please contact Abi Job support if this continues.`
+          }. Please contact Abijob support if this continues.`
         );
       }
 
       if (!profile) {
-        console.error("Abi Job profile not found:", {
+        console.error("Abijob profile not found:", {
           authenticatedUserId: data.user.id,
           email: data.user.email,
         });
@@ -220,19 +220,19 @@ export default function LoginPage() {
         await supabase.auth.signOut();
 
         throw new Error(
-          "No Abi Job profile is connected to this account. Please contact Abi Job support."
+          "No Abijob profile is connected to this account. Please contact Abijob support."
         );
       }
 
       const dashboardDestination = dashboardRoutes[profile.role];
 
       if (!dashboardDestination) {
-        console.error("Abi Job invalid account role:", profile.role);
+        console.error("Abijob invalid account role:", profile.role);
 
         await supabase.auth.signOut();
 
         throw new Error(
-          "Your account has an unrecognized role. Please contact Abi Job support."
+          "Your account has an unrecognized role. Please contact Abijob support."
         );
       }
 
@@ -246,7 +246,7 @@ export default function LoginPage() {
       router.replace(destination);
       router.refresh();
     } catch (error) {
-      console.error("Abi Job login error:", error);
+      console.error("Abijob login error:", error);
 
       setMessageType("error");
       setMessage(
@@ -272,7 +272,7 @@ export default function LoginPage() {
 
       if (error) throw error;
       if (!data.user) {
-        throw new Error("The passkey could not identify an Abi Job account.");
+        throw new Error("The passkey could not identify an Abijob account.");
       }
 
       const { data: profile, error: profileError } = await supabase
@@ -291,7 +291,7 @@ export default function LoginPage() {
       const destination = dashboardRoutes[profile.role];
       if (!destination) {
         await supabase.auth.signOut();
-        throw new Error("This account does not have a supported Abi Job role.");
+        throw new Error("This account does not have a supported Abijob role.");
       }
 
       setPassword("");
@@ -501,7 +501,7 @@ export default function LoginPage() {
             <span className="login-welcome">WELCOME BACK</span>
             <h2 style={{ color: "#17251d" }}>Good to see you again.</h2>
             <p style={{ color: "#526157" }}>
-              Sign in to your Abi Job account to continue where you left off.
+              Sign in to your Abijob account to continue where you left off.
             </p>
           </div>
 

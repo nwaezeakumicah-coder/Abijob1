@@ -128,7 +128,7 @@ export default function VerifyEmailPage() {
 
             <p>
               We're building a trusted community where opportunities connect
-              with talent. Verifying your email helps keep your Abi Job
+              with talent. Verifying your email helps keep your Abijob
               account secure.
             </p>
 
@@ -170,7 +170,7 @@ export default function VerifyEmailPage() {
 
             <p className="verify-description">
               Your next step is to verify the email address you used to create
-              your Abi Job account.
+              your Abijob account.
             </p>
 
             <div className="verify-instruction">
@@ -195,7 +195,7 @@ export default function VerifyEmailPage() {
 
               <div className="verify-step">
                 <span>2</span>
-                <p>Find the Abi Job verification message.</p>
+                <p>Find the Abijob verification message.</p>
               </div>
 
               <div className="verify-step">
@@ -281,7 +281,7 @@ export default function VerifyEmailPage() {
           </div>
 
           <p className="verify-bottom-note">
-            © {currentYear ?? ""} Abi Job. All rights reserved.
+            © {currentYear ?? ""} Abijob. All rights reserved.
           </p>
         </div>
       </section>

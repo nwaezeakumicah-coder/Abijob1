@@ -55,7 +55,7 @@ export default function RegisterPage() {
       <main className="register-page">
         <section className="register-intro">
           <span className="register-eyebrow">
-            WELCOME TO ABI JOB
+            WELCOME TO ABIJOB
           </span>
 
           <h1>
@@ -75,7 +75,7 @@ export default function RegisterPage() {
             <div>
               <span>GET STARTED</span>
 
-              <h2>How would you like to use Abi Job?</h2>
+              <h2>How would you like to use Abijob?</h2>
 
               <p>
                 Choose the account type that best describes you.

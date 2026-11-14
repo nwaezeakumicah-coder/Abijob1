@@ -175,7 +175,7 @@ function getFriendlyApplicationError(
     normalized.includes("trial") ||
     normalized.includes("platform access")
   ) {
-    return "Your Abi Job access is not currently active. Please check your subscription to continue.";
+    return "Your Abijob access is not currently active. Please check your subscription to continue.";
   }
 
   if (
@@ -213,7 +213,7 @@ export default function JobApplicationClient() {
   const jobId = params.id;
 
   const [job, setJob] = useState<Job | null>(null);
-  const [companyName, setCompanyName] = useState("Abi Job Employer");
+  const [companyName, setCompanyName] = useState("Abijob Employer");
   const [accountRole, setAccountRole] = useState<ApplicantRole | null>(null);
   const [emailVerified, setEmailVerified] = useState(false);
 
@@ -338,7 +338,7 @@ export default function JobApplicationClient() {
       if (!employerProfileError && employerProfile?.business_name) {
         setCompanyName(employerProfile.business_name);
       } else {
-        setCompanyName("Abi Job Employer");
+        setCompanyName("Abijob Employer");
       }
 
       setForm({

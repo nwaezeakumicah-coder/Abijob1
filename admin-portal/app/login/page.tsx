@@ -9,7 +9,7 @@ export default function LoginPage() {
         <div className="login-brand-content">
           <Image
             src="/images/abijob-logo-white.png"
-            alt="Abi Job"
+            alt="Abijob"
             width={210}
             height={75}
             priority
@@ -33,7 +33,7 @@ export default function LoginPage() {
           </div>
 
           <div className="login-brand-footer">
-            <span>ABI JOB</span>
+            <span>ABIJOB</span>
             <span>OPPORTUNITY STARTS HERE</span>
           </div>
         </div>
@@ -44,7 +44,7 @@ export default function LoginPage() {
           <div className="login-mobile-logo">
             <Image
               src="/images/abijob-logo-green.png"
-              alt="Abi Job"
+              alt="Abijob"
               width={165}
               height={60}
               priority
@@ -54,7 +54,7 @@ export default function LoginPage() {
           <div className="login-heading">
             <span className="login-eyebrow">SECURE ACCESS</span>
             <h2>Welcome back</h2>
-            <p>Sign in to your Abi Job administration account.</p>
+            <p>Sign in to your Abijob administration account.</p>
           </div>
 
           <LoginForm />
@@ -71,7 +71,7 @@ export default function LoginPage() {
           </div>
 
           <footer className="login-copyright">
-            © {new Date().getFullYear()} Abi Job. Administration Portal.
+            © {new Date().getFullYear()} Abijob. Administration Portal.
           </footer>
         </div>
       </section>

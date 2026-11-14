@@ -5,14 +5,14 @@ import NotificationCenter from "@/components/NotificationCenter";
 export const metadata: Metadata = {
   metadataBase: new URL("https://abijob.ng"),
   title: {
-    default: "Abi Job | Opportunity Starts Here",
-    template: "%s | Abi Job",
+    default: "Abijob | Opportunity Starts Here",
+    template: "%s | Abijob",
   },
   description:
-    "Discover jobs, connect with skilled professionals, and grow your business with Abi Job — Abia's employment and opportunity platform.",
-  applicationName: "Abi Job",
+    "Discover jobs, connect with skilled professionals, and grow your business with Abijob — Abia's employment and opportunity platform.",
+  applicationName: "Abijob",
   keywords: [
-    "Abi Job",
+    "Abijob",
     "Abia State jobs",
     "jobs in Aba",
     "jobs in Umuahia",
@@ -21,10 +21,10 @@ export const metadata: Metadata = {
     "artisans",
   ],
   openGraph: {
-    title: "Abi Job | Opportunity Starts Here",
+    title: "Abijob | Opportunity Starts Here",
     description: "Your talent. Your ambition. Your opportunity.",
     url: "https://abijob.ng",
-    siteName: "Abi Job",
+    siteName: "Abijob",
     locale: "en_NG",
     type: "website",
   },

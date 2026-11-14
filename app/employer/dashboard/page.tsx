@@ -529,7 +529,7 @@ export default function EmployerDashboardPage() {
             <strong>Hiring with confidence</strong>
             <p>Every job listing is reviewed before publication.</p>
             <Link href="/about">
-              Learn about Abi Job <ArrowUpRight size={14} />
+              Learn about Abijob <ArrowUpRight size={14} />
             </Link>
           </div>
 
@@ -882,7 +882,7 @@ export default function EmployerDashboardPage() {
           </section>
 
           <footer className="employer-dashboard-footer">
-            <span>© 2026 Abi Job. Opportunity starts here.</span>
+            <span>© 2026 Abijob. Opportunity starts here.</span>
             <span>
               <CheckCircle2 size={14} /> Your workspace is ready
             </span>

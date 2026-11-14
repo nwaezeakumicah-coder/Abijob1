@@ -77,7 +77,7 @@ export default function AboutPage() {
 
           <div className="container about-hero-layout">
             <div className="about-hero-content">
-              <span className="about-eyebrow">ABOUT ABI JOB</span>
+              <span className="about-eyebrow">ABOUT ABIJOB</span>
 
               <h1>
                 Abia has talent.
@@ -88,7 +88,7 @@ export default function AboutPage() {
               </h1>
 
               <p>
-                Abi Job is an employment and professional connection
+                Abijob is an employment and professional connection
                 platform built to help people discover opportunities,
                 showcase their skills and connect with businesses
                 across Abia State.
@@ -129,7 +129,7 @@ export default function AboutPage() {
                 </h2>
 
                 <div className="about-card-footer">
-                  <span>ABI JOB</span>
+                  <span>ABIJOB</span>
                   <span>OPPORTUNITY STARTS HERE</span>
                 </div>
               </div>
@@ -168,7 +168,7 @@ export default function AboutPage() {
               </p>
 
               <p>
-                Abi Job is designed to bridge that gap. By bringing
+                Abijob is designed to bridge that gap. By bringing
                 employment opportunities, skilled professionals and
                 employers together in one place, we aim to make it
                 easier for people across Abia State to discover,
@@ -217,7 +217,7 @@ export default function AboutPage() {
               <span>WHO WE SERVE</span>
               <h2>One platform. Different journeys.</h2>
               <p>
-                Abi Job is designed for the different people who make
+                Abijob is designed for the different people who make
                 up Abia's working and business community.
               </p>
             </div>
@@ -255,7 +255,7 @@ export default function AboutPage() {
             <div className="about-values-heading">
               <div>
                 <span>WHAT GUIDES US</span>
-                <h2>The values behind Abi Job.</h2>
+                <h2>The values behind Abijob.</h2>
               </div>
 
               <p>
@@ -307,7 +307,7 @@ export default function AboutPage() {
             </div>
 
             <Link href="/register" className="about-cta-button">
-              Get started with Abi Job
+              Get started with Abijob
               <ArrowRight size={19} />
             </Link>
           </div>

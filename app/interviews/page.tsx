@@ -106,7 +106,7 @@ function isValidMeetingUrl(value: string | null) {
 function getMethodLabel(type: InterviewType) {
   const labels: Record<InterviewType, string> = {
     online: "Google Meet",
-    live_chat: "Abi Job Live Room",
+    live_chat: "Abijob Live Room",
     in_person: "In-person interview",
     phone: "Phone interview",
   };
@@ -943,7 +943,7 @@ export default function ApplicantInterviewsPage() {
                             : interview.interview_type === "phone"
                               ? "The employer will contact you by phone"
                               : interview.interview_type === "live_chat"
-                                ? "Private Abi Job interview room"
+                                ? "Private Abijob interview room"
                                 : validMeetingUrl
                                   ? "Google Meet link provided"
                                   : "Meeting link unavailable"}
@@ -1038,7 +1038,7 @@ export default function ApplicantInterviewsPage() {
         </section>
 
         <footer className="applicant-interviews-footer">
-          <span>Abi Job · Opportunity Starts Here</span>
+          <span>Abijob · Opportunity Starts Here</span>
           <Link href={applicationsPath}>Back to my applications</Link>
         </footer>
       </div>

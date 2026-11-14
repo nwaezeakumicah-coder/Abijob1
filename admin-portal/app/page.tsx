@@ -18,7 +18,7 @@ export default function AdminLoginPage() {
         <div className="visual-content">
           <Image
             src="/images/abijob-logo-white.png"
-            alt="Abi Job"
+            alt="Abijob"
             width={175}
             height={65}
             priority
@@ -41,12 +41,12 @@ export default function AdminLoginPage() {
 
             <p>
               The central administration workspace for managing the
-              Abi Job employment ecosystem.
+              Abijob employment ecosystem.
             </p>
           </div>
 
           <div className="visual-footer">
-            <span>ABI JOB ADMINISTRATION</span>
+            <span>ABIJOB ADMINISTRATION</span>
             <span>OPPORTUNITY STARTS HERE</span>
           </div>
         </div>
@@ -57,7 +57,7 @@ export default function AdminLoginPage() {
           <div className="mobile-logo">
             <Image
               src="/images/abijob-logo-white.png"
-              alt="Abi Job"
+              alt="Abijob"
               width={145}
               height={55}
               priority
@@ -95,7 +95,7 @@ export default function AdminLoginPage() {
           <div className="login-bottom">
             <Fingerprint size={16} />
             <span>
-              Abi Job secure administration environment
+              Abijob secure administration environment
             </span>
           </div>
         </div>

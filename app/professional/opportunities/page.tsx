@@ -361,7 +361,7 @@ export default function ProfessionalOpportunitiesPage() {
           employerNames = Object.fromEntries(
             (employerProfiles || []).map((item) => [
               item.id,
-              item.full_name || "Abi Job Employer",
+              item.full_name || "Abijob Employer",
             ])
           );
         }
@@ -369,7 +369,7 @@ export default function ProfessionalOpportunitiesPage() {
 
       const mappedJobs: Opportunity[] = activeJobs.map((job) => ({
         ...job,
-        company: employerNames[job.employer_id] || "Abi Job Employer",
+        company: employerNames[job.employer_id] || "Abijob Employer",
       }));
 
       setOpportunities(mappedJobs);
@@ -813,7 +813,7 @@ export default function ProfessionalOpportunitiesPage() {
                 <h2>Available opportunities</h2>
 
                 <p>
-                  Browse vacancies published by approved employers on Abi Job.
+                  Browse vacancies published by approved employers on Abijob.
                 </p>
               </div>
 
@@ -837,7 +837,7 @@ export default function ProfessionalOpportunitiesPage() {
                   <div className="po-empty">
                     <RefreshCw size={28} />
                     <h3>Loading opportunities</h3>
-                    <p>Fetching approved vacancies from Abi Job.</p>
+                    <p>Fetching approved vacancies from Abijob.</p>
                   </div>
                 ) : error ? (
                   <div className="po-empty">

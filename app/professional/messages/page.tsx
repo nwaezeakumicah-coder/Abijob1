@@ -646,7 +646,7 @@ export default function ProfessionalMessagesPage() {
         </nav>
 
         <div className="professional-sidebar-footer">
-          <span>Abi Job</span>
+          <span>Abijob</span>
           <small>Opportunity starts here</small>
         </div>
       </aside>

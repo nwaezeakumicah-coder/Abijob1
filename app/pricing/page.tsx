@@ -31,8 +31,8 @@ const YEARLY_PRICE = 22800;
 
 const plans: Record<Audience, Plan> = {
   "job-seekers": {
-    name: "Abi Job Membership",
-    description: "Find opportunities and build your career with Abi Job.",
+    name: "Abijob Membership",
+    description: "Find opportunities and build your career with Abijob.",
     monthlyPrice: MONTHLY_PRICE,
     yearlyPrice: YEARLY_PRICE,
     features: [
@@ -49,7 +49,7 @@ const plans: Record<Audience, Plan> = {
   },
 
   professionals: {
-    name: "Abi Job Membership",
+    name: "Abijob Membership",
     description: "Showcase your skills and connect with customers.",
     monthlyPrice: MONTHLY_PRICE,
     yearlyPrice: YEARLY_PRICE,
@@ -66,7 +66,7 @@ const plans: Record<Audience, Plan> = {
   },
 
   employers: {
-    name: "Abi Job Membership",
+    name: "Abijob Membership",
     description: "Find skilled people and manage your recruitment.",
     monthlyPrice: MONTHLY_PRICE,
     yearlyPrice: YEARLY_PRICE,
@@ -142,7 +142,7 @@ export default function PricingPage() {
           </h1>
 
           <p>
-            Start with a 30-day free trial. Explore Abi Job and discover
+            Start with a 30-day free trial. Explore Abijob and discover
             opportunities, connect with talent and grow your career or
             business.
           </p>
@@ -239,7 +239,7 @@ export default function PricingPage() {
             <article className="pricing-card pricing-card-popular">
               <div className="pricing-popular-label">
                 <Gem size={14} />
-                ABI JOB MEMBERSHIP
+                ABIJOB MEMBERSHIP
               </div>
 
               <div className="pricing-card-top">

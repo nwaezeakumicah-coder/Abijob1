@@ -41,7 +41,7 @@ export default function Footer() {
           <p className="footer-description">
             Connecting Abia's talent with opportunities.
             Discover jobs, showcase your skills, and grow
-            your business with Abi Job.
+            your business with Abijob.
           </p>
 
           <p className="footer-location">
@@ -89,7 +89,7 @@ export default function Footer() {
 
       <div className="footer-bottom">
         <p>
-       © 2026 Abi Job. All rights reserved.
+       © 2026 Abijob. All rights reserved.
         </p>
 
         <p className="footer-bottom-tagline">

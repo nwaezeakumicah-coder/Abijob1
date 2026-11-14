@@ -110,7 +110,7 @@ export default async function JobsPage({ searchParams }: JobsPageProps) {
             <h1>Job Management</h1>
             <p>
               Review job submissions and manage opportunities published on
-              the Abi Job platform.
+              the Abijob platform.
             </p>
           </div>
 

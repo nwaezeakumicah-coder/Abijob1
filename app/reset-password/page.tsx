@@ -207,7 +207,7 @@ export default function ResetPasswordPage() {
               <div>
                 <strong>You're almost there</strong>
                 <span>
-                  Complete this step to continue your Abi Job journey.
+                  Complete this step to continue your Abijob journey.
                 </span>
               </div>
             </div>
@@ -438,7 +438,7 @@ export default function ResetPasswordPage() {
           </div>
 
           <p className="reset-bottom-note">
-            © {currentYear ?? ""} Abi Job. All rights reserved.
+            © {currentYear ?? ""} Abijob. All rights reserved.
           </p>
         </div>
       </section>

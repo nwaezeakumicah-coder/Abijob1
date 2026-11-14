@@ -34,7 +34,7 @@ export default function Logo({
             ? "/images/abijob-logo-white.png"
             : "/images/abijob-logo-green.png"
         }
-        alt="Abi Job — Opportunity Starts Here"
+        alt="Abijob — Opportunity Starts Here"
         width={180}
         height={65}
         priority

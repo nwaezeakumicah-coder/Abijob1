@@ -30,6 +30,7 @@ type NotificationType =
   | "job"
   | "profile"
   | "message"
+  | "service_request"
   | "system";
 
 type NotificationItem = {
@@ -58,6 +59,7 @@ function normalizeNotificationType(value: unknown): NotificationType {
     value === "job" ||
     value === "profile" ||
     value === "message" ||
+    value === "service_request" ||
     value === "system"
   ) {
     return value;
@@ -121,8 +123,10 @@ function getNotificationLabel(type: NotificationType) {
       return "Profile";
     case "message":
       return "Message";
+    case "service_request":
+      return "Service request";
     default:
-      return "Abi Job";
+      return "Abijob";
   }
 }
 
@@ -598,7 +602,7 @@ export default function NotificationsPage() {
 
           <div className="notifications-sidebar-footer">
             <span className="notifications-footer-dot" />
-            <span>Abi Job platform</span>
+            <span>Abijob platform</span>
             <span>v1.0</span>
           </div>
         </div>
@@ -874,7 +878,7 @@ export default function NotificationsPage() {
                   <p>
                     {searchQuery
                       ? "Try another search term."
-                      : "When there is an update on your Abi Job account, it will appear here."}
+                      : "When there is an update on your Abijob account, it will appear here."}
                   </p>
 
                   {searchQuery && (
@@ -894,7 +898,7 @@ export default function NotificationsPage() {
 
               <span>
                 <span className="notifications-footer-dot" />
-                Synced with your Abi Job account
+                Synced with your Abijob account
               </span>
             </div>
           </section>

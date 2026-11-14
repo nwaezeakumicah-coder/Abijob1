@@ -696,7 +696,7 @@ export default function ProfessionalExperiencePage() {
           </div>
 
           <footer className="experience-footer">
-            <span>Abi Job · Opportunity Starts Here</span>
+            <span>Abijob · Opportunity Starts Here</span>
             <span>Professional workspace</span>
           </footer>
         </div>

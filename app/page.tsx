@@ -39,7 +39,7 @@ export default function HomePage() {
                 </Link>
 
                 <Link href="/register" className="home-secondary-button">
-                  Join Abi Job
+                  Join Abijob
                 </Link>
               </div>
 
@@ -91,7 +91,7 @@ export default function HomePage() {
           <div className="container">
             <div className="home-section-heading">
               <span>ONE PLATFORM. MANY POSSIBILITIES.</span>
-              <h2>What brings you to Abi Job?</h2>
+              <h2>What brings you to Abijob?</h2>
               <p>
                 Whether you're looking for work, offering a skill,
                 or building a business, there's a place for you.

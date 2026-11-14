@@ -96,8 +96,10 @@ export async function GET() {
     const periodStartsAt = timestamp(subscription.current_period_start);
     const periodEndsAt = timestamp(subscription.current_period_end);
 
+    // A paid subscription can retain its original trial timestamps.
+    // Only a subscription explicitly in the trialing state is a live trial.
     const isTrialActive =
-      ["trialing", "active"].includes(subscription.status) &&
+      subscription.status === "trialing" &&
       trialStartedAt !== null &&
       trialStartedAt <= now &&
       trialEndsAt !== null &&

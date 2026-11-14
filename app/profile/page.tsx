@@ -979,7 +979,7 @@ export default function ProfilePage() {
 
                   <div className="profile-cv-file-info">
                     <strong>{cvName || "Uploaded CV"}</strong>
-                    <span>Your CV is saved securely in Abi Job.</span>
+                    <span>Your CV is saved securely in Abijob.</span>
                   </div>
 
                   <div className="profile-cv-file-actions">
@@ -1062,7 +1062,7 @@ export default function ProfilePage() {
           <div className="profile-save-area">
             <div>
               <strong>Keep your profile up to date</strong>
-              <p>Your profile information is saved to your Abi Job account.</p>
+              <p>Your profile information is saved to your Abijob account.</p>
             </div>
 
             <button
@@ -1081,7 +1081,7 @@ export default function ProfilePage() {
           </div>
 
           <footer className="profile-footer">
-            <span>© {new Date().getFullYear()} Abi Job</span>
+            <span>© {new Date().getFullYear()} Abijob</span>
             <span>Opportunity Starts Here</span>
           </footer>
         </div>

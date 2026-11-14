@@ -142,7 +142,7 @@ function getStatusLabel(status: string) {
 }
 
 function getInterviewTypeLabel(type: string) {
-  if (type === "live_chat") return "Abi Job Live Room";
+  if (type === "live_chat") return "Abijob Live Room";
   if (type === "online") return "Google Meet";
   if (type === "in_person") return "In-person";
   if (type === "phone") return "Phone";
@@ -282,7 +282,7 @@ export default function EmployerInterviewsPage() {
           job_id: application.job_id,
           job_title: jobTitles.get(application.job_id) || "Job vacancy",
           applicant_name:
-            applicantNames.get(application.applicant_id) || "Abi Job Applicant",
+            applicantNames.get(application.applicant_id) || "Abijob Applicant",
         }));
       }
 
@@ -332,7 +332,7 @@ export default function EmployerInterviewsPage() {
           status: interview.status as InterviewStatus,
           applicant_name:
             interviewApplicantNames.get(interview.applicant_id) ||
-            "Abi Job Applicant",
+            "Abijob Applicant",
           job_title:
             applicationTitles.get(interview.application_id) ||
             "Job application",
@@ -605,7 +605,7 @@ export default function EmployerInterviewsPage() {
 
         setSuccess(
           form.interviewType === "live_chat"
-            ? "Abi Job Live Room interview scheduled successfully."
+            ? "Abijob Live Room interview scheduled successfully."
             : "Interview scheduled successfully."
         );
       }
@@ -791,7 +791,7 @@ export default function EmployerInterviewsPage() {
 
           <Link href="/" className="interviews-back-link">
             <ArrowLeft size={16} />
-            Back to Abi Job
+            Back to Abijob
           </Link>
         </div>
       </aside>
@@ -988,7 +988,7 @@ export default function EmployerInterviewsPage() {
                           href={`/interviews/${interview.id}`}
                         >
                           <MessageCircle size={15} />
-                          Open Abi Job Live Room
+                          Open Abijob Live Room
                         </Link>
                       )}
 
@@ -1188,7 +1188,7 @@ export default function EmployerInterviewsPage() {
                   }
                 >
                   <option value="online">Google Meet</option>
-                  <option value="live_chat">Abi Job Live Room</option>
+                  <option value="live_chat">Abijob Live Room</option>
                   <option value="in_person">In-person interview</option>
                   <option value="phone">Phone interview</option>
                 </select>
@@ -1215,11 +1215,11 @@ export default function EmployerInterviewsPage() {
 
                 {form.interviewType === "live_chat" && (
                   <div className="interviews-field-hint">
-                    <strong>Abi Job Live Room</strong>
+                    <strong>Abijob Live Room</strong>
                     <p>
                       A private text interview room will be available to you
                       and the invited applicant after you schedule this
-                      interview. Both participants must sign in to Abi Job.
+                      interview. Both participants must sign in to Abijob.
                     </p>
                   </div>
                 )}

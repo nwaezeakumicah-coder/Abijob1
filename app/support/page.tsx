@@ -15,7 +15,7 @@ const supportTopics = [
     description: "Getting started, signing in and managing your account.",
     articles: [
       {
-        title: "How do I create an Abi Job account?",
+        title: "How do I create an Abijob account?",
         content:
           "Visit the registration page and select the account type that describes you: Job Seeker, Skilled Professional & Artisan, or Employer. Complete the required information and follow the registration instructions.",
       },
@@ -104,7 +104,7 @@ const supportTopics = [
           "All submitted job listings are subject to administrative review and approval before publication. A listing may remain unpublished while it is being reviewed or if changes are required.",
       },
       {
-        title: "Can small businesses recruit on Abi Job?",
+        title: "Can small businesses recruit on Abijob?",
         content:
           "Yes. The platform is designed to support small businesses, shops, hotels, restaurants, startups and other organisations looking for suitable workers.",
       },
@@ -192,7 +192,7 @@ export default function SupportPage() {
       <main className="support-page">
         <section className="support-hero">
           <div className="support-container support-hero-content">
-            <span className="support-eyebrow">ABI JOB HELP CENTRE</span>
+            <span className="support-eyebrow">ABIJOB HELP CENTRE</span>
 
             <h1>
               We're here to
@@ -202,7 +202,7 @@ export default function SupportPage() {
 
             <p>
               Find guidance for your account, job applications, professional
-              profile, business recruitment and other Abi Job services.
+              profile, business recruitment and other Abijob services.
             </p>
 
             <div className="support-breadcrumb">

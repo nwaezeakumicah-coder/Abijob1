@@ -351,7 +351,8 @@ export default function InterviewPracticePage() {
         ? "/employer/notifications"
         : "/notifications";
 
-  const storageKey = `abijob-interview-practice-${accountRole}`;
+  // Keep browser drafts isolated per authenticated account (not merely per role).
+  const storageKey = `abijob-interview-practice-${userId || "guest"}`;
 
   // Restore role and the most recent practice draft from Supabase, with local fallback.
   useEffect(() => {
@@ -385,7 +386,8 @@ export default function InterviewPracticePage() {
       setAccountRole(detectedRole);
       setUserId(authenticatedUserId);
 
-      const localKey = `abijob-interview-practice-${detectedRole}`;
+      // Never restore another account's role-wide localStorage draft.
+      const localKey = `abijob-interview-practice-${authenticatedUserId || "guest"}`;
       const saved = localStorage.getItem(localKey);
 
       if (saved) {
@@ -649,7 +651,7 @@ export default function InterviewPracticePage() {
         </section>
 
         <footer className="interview-footer">
-          <span>© 2026 Abi Job. Opportunity starts here.</span>
+          <span>© 2026 Abijob. Opportunity starts here.</span>
           <span>Connecting talent with opportunity.</span>
         </footer>
       </main>
@@ -688,7 +690,7 @@ export default function InterviewPracticePage() {
         <div className="interview-hero-copy">
           <span className="interview-eyebrow">
             <Sparkles size={15} />
-            ABI JOB CAREER TOOLS
+            ABIJOB CAREER TOOLS
           </span>
 
           <h1>Walk into your next interview with confidence.</h1>
@@ -1182,7 +1184,7 @@ export default function InterviewPracticePage() {
       </div>
 
       <footer className="interview-footer">
-        <span>© 2026 Abi Job. Opportunity starts here.</span>
+        <span>© 2026 Abijob. Opportunity starts here.</span>
         <span>Prepare today. Show up confidently tomorrow.</span>
       </footer>
     </main>

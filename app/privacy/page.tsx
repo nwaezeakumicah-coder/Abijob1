@@ -11,12 +11,12 @@ const sections = [
     content: (
       <>
         <p>
-          Welcome to Abi Job. We respect your privacy and are committed to
+          Welcome to Abijob. We respect your privacy and are committed to
           protecting the personal information you share with us when using our
           platform.
         </p>
         <p>
-          This Privacy Policy explains the types of information Abi Job may
+          This Privacy Policy explains the types of information Abijob may
           collect, how that information may be used, and the choices available
           to you.
         </p>
@@ -28,7 +28,7 @@ const sections = [
     title: "Information We May Collect",
     content: (
       <>
-        <p>Depending on how you use Abi Job, information may include:</p>
+        <p>Depending on how you use Abijob, information may include:</p>
         <ul>
           <li>
             <strong>Account information:</strong> Your name, email address,
@@ -75,7 +75,7 @@ const sections = [
           <li>Manage subscriptions and related account services.</li>
           <li>Respond to enquiries and provide customer support.</li>
           <li>Protect the platform against fraud, misuse and unauthorised access.</li>
-          <li>Improve the quality, reliability and performance of Abi Job.</li>
+          <li>Improve the quality, reliability and performance of Abijob.</li>
         </ul>
       </>
     ),
@@ -86,7 +86,7 @@ const sections = [
     content: (
       <>
         <p>
-          Abi Job does not intend to make your private account information
+          Abijob does not intend to make your private account information
           publicly available without a valid reason.
         </p>
         <p>
@@ -122,7 +122,7 @@ const sections = [
     content: (
       <>
         <p>
-          Abi Job may allow users to create professional profiles containing
+          Abijob may allow users to create professional profiles containing
           information such as skills, work experience, qualifications and
           portfolios.
         </p>
@@ -183,7 +183,7 @@ const sections = [
     content: (
       <>
         <p>
-          Abi Job may use cookies or similar technologies to support essential
+          Abijob may use cookies or similar technologies to support essential
           website functions, remember preferences, understand platform usage
           and improve the user experience.
         </p>
@@ -222,7 +222,7 @@ const sections = [
     content: (
       <>
         <p>
-          Abi Job may integrate with external services such as payment
+          Abijob may integrate with external services such as payment
           providers, analytics services and other technology partners.
         </p>
         <p>
@@ -238,7 +238,7 @@ const sections = [
     title: "Children's Privacy",
     content: (
       <p>
-        Abi Job is intended for people who are legally eligible to use the
+        Abijob is intended for people who are legally eligible to use the
         employment and professional services offered on the platform. We do not
         knowingly seek to collect personal information from children in
         violation of applicable law.
@@ -250,7 +250,7 @@ const sections = [
     title: "Changes to This Policy",
     content: (
       <p>
-        We may update this Privacy Policy as Abi Job develops, introduces new
+        We may update this Privacy Policy as Abijob develops, introduces new
         features or responds to changes in applicable laws. Any updated version
         should be published on this page with a revised effective date.
       </p>
@@ -295,7 +295,7 @@ export default function PrivacyPage() {
 
             <p>
               We believe that finding opportunities should not mean giving up
-              control of your personal information. Learn how Abi Job intends
+              control of your personal information. Learn how Abijob intends
               to handle and protect your data.
             </p>
 
@@ -342,7 +342,7 @@ export default function PrivacyPage() {
             <div className="privacy-document">
               <div className="privacy-document-heading">
                 <span className="privacy-document-tag">LEGAL INFORMATION</span>
-                <h2>Abi Job Privacy Policy</h2>
+                <h2>Abijob Privacy Policy</h2>
                 <p>
                   Please read this policy carefully to understand our intended
                   approach to personal information.
@@ -354,7 +354,7 @@ export default function PrivacyPage() {
                 <p>
                   This is the website's initial privacy policy draft. It must
                   be reviewed and aligned with the actual data collection,
-                  storage, payment and security systems before Abi Job launches
+                  storage, payment and security systems before Abijob launches
                   its live services.
                 </p>
               </div>
