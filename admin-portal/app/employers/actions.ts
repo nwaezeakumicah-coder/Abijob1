@@ -1,4 +1,3 @@
-
 "use server";
 
 import { revalidatePath } from "next/cache";
@@ -33,9 +32,7 @@ async function verifyEmployerPermission() {
 
 function getEmployerId(formData: FormData): string {
   return String(
-    formData.get("employerId") ||
-      formData.get("userId") ||
-      ""
+    formData.get("employerId") || formData.get("userId") || ""
   ).trim();
 }
 
@@ -45,35 +42,12 @@ function isValidUUID(value: string): boolean {
   );
 }
 
-async function recordEmployerAction(
-  adminId: string,
+async function reviewEmployer(
   employerId: string,
-  action: "employer.approve" | "employer.reject",
-  details: Record<string, string>
+  decision: "approved" | "rejected",
+  reason: string | null
 ) {
-  const supabase = createAdminClient();
-
-  const { error } = await supabase
-    .from("admin_audit_logs")
-    .insert({
-      actor_admin_id: adminId,
-      action,
-      entity_type: "employer",
-      entity_id: employerId,
-      details,
-    });
-
-  if (error) {
-    console.error("EMPLOYER AUDIT LOG ERROR:", error);
-    return false;
-  }
-
-  return true;
-}
-
-export async function approveEmployer(formData: FormData) {
   const admin = await verifyEmployerPermission();
-  const employerId = getEmployerId(formData);
 
   if (!isValidUUID(employerId)) {
     returnWithError("Invalid employer account identifier.");
@@ -81,82 +55,44 @@ export async function approveEmployer(formData: FormData) {
 
   const supabase = createAdminClient();
 
-  const { data: employer, error: fetchError } = await supabase
-    .from("employer_profiles")
-    .select("user_id, business_name, verification_status")
-    .eq("user_id", employerId)
-    .maybeSingle();
+  // The database function locks the employer row, rechecks the active
+  // administrator permission, updates the status and writes the audit log
+  // in one transaction. An audit failure therefore rolls back the change.
+  const { data, error } = await supabase.rpc("admin_review_employer", {
+    p_admin_id: admin.id,
+    p_employer_id: employerId,
+    p_decision: decision,
+    p_reason: reason,
+  });
 
-  if (fetchError || !employer) {
-    console.error("EMPLOYER APPROVAL FETCH ERROR:", fetchError);
-    returnWithError("Employer account not found.");
-  }
+  if (error || data !== true) {
+    console.error("EMPLOYER REVIEW FAILED:", error);
 
-  if (employer.verification_status !== "pending") {
-    returnWithError("Only pending employers can be approved.");
-  }
+    const message =
+      error?.code === "40001"
+        ? "This employer has already been reviewed. Refresh the page."
+        : error?.code === "42501"
+          ? "Your administrator permission is no longer active."
+          : "Unable to complete employer verification. No change was saved.";
 
-  const verifiedAt = new Date().toISOString();
-
-  const { data: updatedEmployer, error: updateError } = await supabase
-    .from("employer_profiles")
-    .update({
-      verification_status: "approved",
-      verified_at: verifiedAt,
-      verified_by: admin.id,
-    })
-    .eq("user_id", employerId)
-    .eq("verification_status", "pending")
-    .select("user_id, verified_at, verified_by")
-    .maybeSingle();
-
-  if (updateError || !updatedEmployer) {
-    console.error("EMPLOYER APPROVAL UPDATE ERROR:", updateError);
-
-    returnWithError(
-      updateError?.message || "Unable to approve this employer."
-    );
-  }
-
-  const auditSaved = await recordEmployerAction(
-    admin.id,
-    employerId,
-    "employer.approve",
-    {
-      business_name: employer.business_name ?? "Unnamed business",
-      previous_status: "pending",
-      new_status: "approved",
-      verified_at: verifiedAt,
-      verification_type: "employer",
-    }
-  );
-
-  if (!auditSaved) {
-    revalidatePath("/employers");
-    revalidatePath("/verifications");
-    revalidatePath("/dashboard");
-
-    redirect(
-      "/employers?warning=" +
-        encodeURIComponent(
-          "Employer approved and verification badge activated, but the audit log could not be saved. Please report this to the system administrator."
-        )
-    );
+    returnWithError(message);
   }
 
   returnWithSuccess(
-    "Employer approved successfully. The Verified badge is now active."
+    decision === "approved"
+      ? "Employer approved successfully. The Verified badge is now active."
+      : "Employer verification rejected."
   );
 }
 
+export async function approveEmployer(formData: FormData) {
+  const employerId = getEmployerId(formData);
+  await reviewEmployer(employerId, "approved", null);
+}
+
 export async function rejectEmployer(formData: FormData) {
-  const admin = await verifyEmployerPermission();
   const employerId = getEmployerId(formData);
   const reason = String(formData.get("reason") || "").trim();
-
-  if (!isValidUUID(employerId)) {
-    returnWithError("Invalid employer account identifier.");
-  }
 
   if (reason.length < 10 || reason.length > 1000) {
     returnWithError(
@@ -164,66 +100,5 @@ export async function rejectEmployer(formData: FormData) {
     );
   }
 
-  const supabase = createAdminClient();
-
-  const { data: employer, error: fetchError } = await supabase
-    .from("employer_profiles")
-    .select("user_id, business_name, verification_status")
-    .eq("user_id", employerId)
-    .maybeSingle();
-
-  if (fetchError || !employer) {
-    console.error("EMPLOYER REJECTION FETCH ERROR:", fetchError);
-    returnWithError("Employer account not found.");
-  }
-
-  if (employer.verification_status !== "pending") {
-    returnWithError("Only pending employers can be rejected.");
-  }
-
-  const { data: updatedEmployer, error: updateError } = await supabase
-    .from("employer_profiles")
-    .update({
-      verification_status: "rejected",
-      verified_at: null,
-      verified_by: null,
-    })
-    .eq("user_id", employerId)
-    .eq("verification_status", "pending")
-    .select("user_id")
-    .maybeSingle();
-
-  if (updateError || !updatedEmployer) {
-    console.error("EMPLOYER REJECTION UPDATE ERROR:", updateError);
-
-    returnWithError(
-      updateError?.message || "Unable to reject this employer."
-    );
-  }
-
-  const auditSaved = await recordEmployerAction(
-    admin.id,
-    employerId,
-    "employer.reject",
-    {
-      business_name: employer.business_name ?? "Unnamed business",
-      previous_status: "pending",
-      new_status: "rejected",
-      rejection_reason: reason,
-    }
-  );
-
-  if (!auditSaved) {
-    revalidatePath("/employers");
-    revalidatePath("/verifications");
-
-    redirect(
-      "/employers?warning=" +
-        encodeURIComponent(
-          "Employer rejected, but the audit log could not be saved. Please report this to the system administrator."
-        )
-    );
-  }
-
-  returnWithSuccess("Employer verification rejected.");
+  await reviewEmployer(employerId, "rejected", reason);
 }
