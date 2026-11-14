@@ -24,6 +24,7 @@ import {
   UserRound,
   X,
 } from "lucide-react";
+import { createClient } from "../../lib/supabase/client";
 import "./interview-practice.css";
 
 type Question = {
@@ -315,6 +316,8 @@ export default function InterviewPracticePage() {
     useState<AccountRole>("job-seeker");
 
   const [isHydrated, setIsHydrated] = useState(false);
+  const [userId, setUserId] = useState("");
+  const [cloudReady, setCloudReady] = useState(false);
 
   const [selectedSession, setSelectedSession] = useState(0);
   const [jobTitle, setJobTitle] = useState("");
@@ -350,58 +353,109 @@ export default function InterviewPracticePage() {
 
   const storageKey = `abijob-interview-practice-${accountRole}`;
 
-  // Restore the account role and saved practice session.
+  // Restore role and the most recent practice draft from Supabase, with local fallback.
   useEffect(() => {
-    const detectedRole = getAccountRole();
+    let active = true;
 
-    setAccountRole(detectedRole);
+    async function restorePractice() {
+      let detectedRole = getAccountRole();
+      let authenticatedUserId = "";
 
-    const saved = localStorage.getItem(
-      `abijob-interview-practice-${detectedRole}`
-    );
-
-    if (saved) {
       try {
-        const draft: SavedDraft = JSON.parse(saved);
+        const supabase = createClient();
+        const { data: { user } } = await supabase.auth.getUser();
 
-        if (
-          Number.isInteger(draft.selectedSession) &&
-          draft.selectedSession >= 0 &&
-          draft.selectedSession < sessions.length
-        ) {
-          setSelectedSession(draft.selectedSession);
+        if (user) {
+          authenticatedUserId = user.id;
+          const { data: profile } = await supabase
+            .from("profiles")
+            .select("role")
+            .eq("id", user.id)
+            .maybeSingle();
 
-          setCurrentQuestion(
-            Math.min(
+          if (profile?.role === "professional") detectedRole = "professional";
+          else if (profile?.role === "job_seeker") detectedRole = "job-seeker";
+          else if (profile?.role === "employer") detectedRole = "employer";
+        }
+      } catch (error) {
+        console.warn("Interview cloud account lookup unavailable; using local backup:", error);
+      }
+
+      if (!active) return;
+      setAccountRole(detectedRole);
+      setUserId(authenticatedUserId);
+
+      const localKey = `abijob-interview-practice-${detectedRole}`;
+      const saved = localStorage.getItem(localKey);
+
+      if (saved) {
+        try {
+          const draft: SavedDraft = JSON.parse(saved);
+          if (
+            Number.isInteger(draft.selectedSession) &&
+            draft.selectedSession >= 0 &&
+            draft.selectedSession < sessions.length
+          ) {
+            setSelectedSession(draft.selectedSession);
+            setCurrentQuestion(Math.min(
               Math.max(draft.currentQuestion || 0, 0),
               sessions[draft.selectedSession].questions.length - 1
-            )
-          );
-
-          setAnswers(
-            draft.answers && typeof draft.answers === "object"
-              ? draft.answers
-              : {}
-          );
-
-          setJobTitle(draft.jobTitle || "");
-          setExperienceLevel(draft.experienceLevel || "Entry level");
-          setStarted(Boolean(draft.started));
-          setCompleted(Boolean(draft.completed));
+            ));
+            setAnswers(draft.answers && typeof draft.answers === "object" ? draft.answers : {});
+            setJobTitle(draft.jobTitle || "");
+            setExperienceLevel(draft.experienceLevel || "Entry level");
+            setStarted(Boolean(draft.started));
+            setCompleted(Boolean(draft.completed));
+          }
+        } catch {
+          localStorage.removeItem(localKey);
         }
-      } catch {
-        localStorage.removeItem(
-          `abijob-interview-practice-${detectedRole}`
-        );
+      }
+
+      if (authenticatedUserId && detectedRole !== "employer") {
+        try {
+          const supabase = createClient();
+          const { data: cloudDraft, error } = await supabase
+            .from("interview_practice_sessions")
+            .select("selected_session, job_title, experience_level, current_question, answers, started, completed, updated_at")
+            .eq("user_id", authenticatedUserId)
+            .order("updated_at", { ascending: false })
+            .limit(1)
+            .maybeSingle();
+
+          if (error) throw error;
+
+          if (cloudDraft && Number.isInteger(cloudDraft.selected_session)) {
+            const sessionIndex = Math.min(Math.max(cloudDraft.selected_session, 0), sessions.length - 1);
+            setSelectedSession(sessionIndex);
+            setCurrentQuestion(Math.min(
+              Math.max(cloudDraft.current_question || 0, 0),
+              sessions[sessionIndex].questions.length - 1
+            ));
+            setAnswers(cloudDraft.answers && typeof cloudDraft.answers === "object" ? cloudDraft.answers : {});
+            setJobTitle(cloudDraft.job_title || "");
+            setExperienceLevel(cloudDraft.experience_level || "Entry level");
+            setStarted(Boolean(cloudDraft.started));
+            setCompleted(Boolean(cloudDraft.completed));
+          }
+        } catch (error) {
+          console.warn("Interview cloud progress could not be loaded; using browser backup:", error);
+        }
+      }
+
+      if (active) {
+        setCloudReady(true);
+        setIsHydrated(true);
       }
     }
 
-    setIsHydrated(true);
+    void restorePractice();
+    return () => { active = false; };
   }, []);
 
-  // Automatically save progress whenever the practice changes.
+  // Save a local recovery copy and sync each practice type to the user's private cloud history.
   useEffect(() => {
-    if (!isHydrated || accountRole === "employer") return;
+    if (!isHydrated || !cloudReady || accountRole === "employer") return;
 
     const draft: SavedDraft = {
       selectedSession,
@@ -413,18 +467,45 @@ export default function InterviewPracticePage() {
       completed,
     };
 
-    localStorage.setItem(storageKey, JSON.stringify(draft));
+    try {
+      localStorage.setItem(storageKey, JSON.stringify(draft));
+    } catch (error) {
+      console.warn("Interview local backup could not be saved:", error);
+    }
+
+    if (!userId) return;
+
+    const timeout = window.setTimeout(() => {
+      void (async () => {
+        try {
+          const supabase = createClient();
+          const { error } = await supabase
+            .from("interview_practice_sessions")
+            .upsert({
+              user_id: userId,
+              account_role: accountRole === "professional" ? "professional" : "job_seeker",
+              selected_session: selectedSession,
+              job_title: jobTitle,
+              experience_level: experienceLevel,
+              current_question: currentQuestion,
+              answers,
+              started,
+              completed,
+              updated_at: new Date().toISOString(),
+            }, { onConflict: "user_id,selected_session" });
+
+          if (error) throw error;
+        } catch (error) {
+          console.warn("Interview cloud autosave failed; local progress is preserved:", error);
+        }
+      })();
+    }, 650);
+
+    return () => window.clearTimeout(timeout);
   }, [
-    isHydrated,
-    accountRole,
-    storageKey,
-    selectedSession,
-    jobTitle,
-    experienceLevel,
-    currentQuestion,
-    answers,
-    started,
-    completed,
+    isHydrated, cloudReady, accountRole, storageKey, userId,
+    selectedSession, jobTitle, experienceLevel, currentQuestion,
+    answers, started, completed,
   ]);
 
   const session = sessions[selectedSession];
