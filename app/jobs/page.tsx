@@ -69,6 +69,7 @@ const locations = [
   "Aba",
   "Umuahia",
   "Osisioma",
+  "Osisioma Ngwa",
   "Arochukwu",
   "Aba North",
   "Aba South",
