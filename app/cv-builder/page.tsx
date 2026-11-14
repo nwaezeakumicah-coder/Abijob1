@@ -269,7 +269,6 @@ export default function CVBuilderPage() {
   const [loadError, setLoadError] = useState("");
   const [photoError, setPhotoError] = useState("");
   const [isSaving, setIsSaving] = useState(false);
-  const [isGeneratingSummary, setIsGeneratingSummary] = useState(false);
 
   const dashboardHref = getDashboardPath(accountType);
 
@@ -625,39 +624,41 @@ export default function CVBuilderPage() {
     );
   }, [data]);
 
-  const generateSummary = async () => {
-    if (!data.professionalTitle.trim() && !data.skills.trim()) {
-      setSummaryMessage("Add your professional title and skills first.");
+  const generateSummary = () => {
+    const title = data.professionalTitle.trim();
+    const skills = data.skills
+      .split(/[\n,]+/)
+      .map((skill) => skill.trim())
+      .filter(Boolean);
+    const experience = data.experience
+      .filter((entry) => entry.jobTitle.trim() || entry.company.trim())
+      .map((entry) =>
+        [entry.jobTitle.trim(), entry.company.trim() ? `at ${entry.company.trim()}` : ""]
+          .filter(Boolean)
+          .join(" ")
+      );
+    const education = data.education
+      .filter((entry) => entry.qualification.trim() || entry.institution.trim())
+      .map((entry) =>
+        [entry.qualification.trim(), entry.institution.trim() ? `from ${entry.institution.trim()}` : ""]
+          .filter(Boolean)
+          .join(" ")
+      );
+
+    if (!title && skills.length === 0 && experience.length === 0 && education.length === 0) {
+      setSummaryMessage("Add your professional title, skills, work experience or education first.");
       return;
     }
 
-    setIsGeneratingSummary(true);
-    setSummaryMessage("");
+    const sentences = [
+      title ? `I am a ${title}.` : "",
+      skills.length ? `My skills include ${skills.join(", ")}.` : "",
+      experience.length ? `My experience includes ${experience.join("; ")}.` : "",
+      education.length ? `My education and training include ${education.join("; ")}.` : "",
+    ].filter(Boolean);
 
-    try {
-      const response = await fetch("/api/career/ai-assist", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          mode: "cv-summary",
-          context: JSON.stringify({
-            professionalTitle: data.professionalTitle,
-            skills: data.skills,
-            experience: data.experience.map(({ jobTitle, company, description }) => ({ jobTitle, company, description })),
-            education: data.education.map(({ qualification, institution }) => ({ qualification, institution })),
-            existingSummary: data.summary,
-          }),
-        }),
-      });
-      const result = await response.json();
-      if (!response.ok) throw new Error(result.error || "The CV writing assistant is unavailable.");
-      updateField("summary", result.result);
-      setSummaryMessage("AI summary drafted. Review every detail and edit anything that does not accurately describe you.");
-    } catch (error) {
-      setSummaryMessage(error instanceof Error ? error.message : "Could not generate a summary. Please try again.");
-    } finally {
-      setIsGeneratingSummary(false);
-    }
+    updateField("summary", sentences.join(" "));
+    setSummaryMessage("A summary draft has been assembled from the details you entered. Review and edit it to make sure it represents you accurately.");
   };
 
   const loadSample = () => {
@@ -1117,13 +1118,13 @@ export default function CVBuilderPage() {
             </label>
 
             <button
-              className="cv-ai-button"
+              className="cv-summary-helper-button"
               onClick={generateSummary}
               type="button"
-              disabled={isGeneratingSummary}
+              
             >
-              <Sparkles size={16} />
-              {isGeneratingSummary ? "Writing your summary..." : "Generate with AI"}
+              <WandSparkles size={16} />
+              Build summary from my details
             </button>
 
             {summaryMessage && (
@@ -1133,7 +1134,7 @@ export default function CVBuilderPage() {
             )}
 
             <p className="cv-feature-note">
-              AI writing assistance uses only the details you provide. Review all generated content for accuracy before applying.
+              This helper uses only the information you entered above. Check every sentence and edit it before using your CV.
             </p>
           </div>
 

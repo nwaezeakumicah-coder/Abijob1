@@ -325,9 +325,6 @@ export default function InterviewPracticePage() {
   const [started, setStarted] = useState(false);
   const [showGuidance, setShowGuidance] = useState(false);
   const [showFeedback, setShowFeedback] = useState(false);
-  const [isReviewingAnswer, setIsReviewingAnswer] = useState(false);
-  const [aiFeedback, setAiFeedback] = useState("");
-  const [feedbackError, setFeedbackError] = useState("");
   const [completed, setCompleted] = useState(false);
 
   const dashboardPath =
@@ -492,39 +489,10 @@ export default function InterviewPracticePage() {
     }
   };
 
-  const getFeedback = async () => {
-    if (!answer.trim() || isReviewingAnswer) return;
-
-    setIsReviewingAnswer(true);
-    setFeedbackError("");
-    setAiFeedback("");
+  const getFeedback = () => {
+    if (!answer.trim()) return;
     setShowFeedback(true);
     setShowGuidance(false);
-
-    try {
-      const response = await fetch("/api/career/ai-assist", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          mode: "interview-review",
-          context: JSON.stringify({
-            role: accountRole,
-            jobTitle: jobTitle || "Not specified",
-            experienceLevel,
-            interviewType: session.title,
-            question: question.question,
-            answer,
-          }),
-        }),
-      });
-      const result = await response.json();
-      if (!response.ok) throw new Error(result.error || "The interview coach is unavailable.");
-      setAiFeedback(result.result);
-    } catch (error) {
-      setFeedbackError(error instanceof Error ? error.message : "Could not review your answer. Please try again.");
-    } finally {
-      setIsReviewingAnswer(false);
-    }
   };
 
   const restartSession = () => {
@@ -921,8 +889,6 @@ export default function InterviewPracticePage() {
                   rows={8}
                   value={answer}
                   onChange={(event) => {
-                    setAiFeedback("");
-                    setFeedbackError("");
                     setAnswers((current) => ({
                       ...current,
                       [currentQuestion]: event.target.value,
@@ -951,10 +917,10 @@ export default function InterviewPracticePage() {
                   type="button"
                   className="interview-feedback-button"
                   onClick={getFeedback}
-                  disabled={!answer.trim() || isReviewingAnswer}
+                  disabled={!answer.trim()}
                 >
-                  <Sparkles size={16} />
-                  {isReviewingAnswer ? "Reviewing..." : "AI review my answer"}
+                  <CheckCircle2 size={16} />
+                  Review my answer
                 </button>
               </div>
 
@@ -972,15 +938,10 @@ export default function InterviewPracticePage() {
               {showFeedback && (
                 <div className="interview-feedback-panel">
                   <div>
-                    <Sparkles size={18} />
-                    <strong>Abi Job AI interview review</strong>
+                    <CheckCircle2 size={18} />
+                    <strong>Your answer review</strong>
                   </div>
 
-                  {isReviewingAnswer && <p>Reviewing your answer against the question and role...</p>}
-                  {feedbackError && <p role="alert">{feedbackError}</p>}
-                  {aiFeedback && <div className="interview-ai-feedback" aria-live="polite">{aiFeedback}</div>}
-
-                  <div className="interview-feedback-divider" />
                   <strong>Your self-review checklist</strong>
 
                   <p>
@@ -1013,7 +974,7 @@ export default function InterviewPracticePage() {
                   </div>
 
                   <small>
-                    AI feedback is a coaching aid, not a hiring decision. Never include sensitive personal information in your answers.
+                    Use this checklist to assess your own answer. Keep examples truthful and avoid sharing sensitive personal information.
                   </small>
                 </div>
               )}
