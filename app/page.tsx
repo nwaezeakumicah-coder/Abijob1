@@ -1,156 +1,210 @@
-
 import Link from "next/link";
+import {
+  ArrowRight,
+  ArrowUpRight,
+  BriefcaseBusiness,
+  Building2,
+  CheckCircle2,
+  MapPin,
+  ShieldCheck,
+  Sparkles,
+  Users,
+  Wrench,
+} from "lucide-react";
 import Header from "../components/Header";
 import Footer from "../components/Footer";
+import Logo from "../components/Logo";
 import "./home.css";
+
+const audiences = [
+  {
+    number: "01",
+    icon: BriefcaseBusiness,
+    title: "Find meaningful work",
+    description:
+      "Build a strong profile, discover relevant vacancies and take the next step in your career.",
+    action: "Explore jobs",
+    href: "/register/job-seeker",
+  },
+  {
+    number: "02",
+    icon: Wrench,
+    title: "Showcase your skills",
+    description:
+      "Put your craft, services and experience in front of people and businesses looking for your expertise.",
+    action: "Create a professional profile",
+    href: "/register/professional",
+  },
+  {
+    number: "03",
+    icon: Building2,
+    title: "Build your team",
+    description:
+      "Present your business, publish vacancies and connect with people who can help you grow.",
+    action: "Start hiring",
+    href: "/register/employer",
+  },
+];
+
+const steps = [
+  ["Create your profile", "Tell us what you do, what you can offer and the kind of opportunity you want."],
+  ["Discover the right match", "Explore jobs, skilled professionals and opportunities relevant to your goals."],
+  ["Make your next move", "Apply, connect and manage your employment journey in one place."],
+];
 
 export default function HomePage() {
   return (
     <>
       <Header />
-
       <main className="home-page">
-
         <section className="home-hero">
+          <div className="home-hero-grid" aria-hidden="true" />
           <div className="home-hero-container">
-
             <div className="home-hero-content">
+              <div className="home-hero-brand">
+                <Logo href={null} size="large" />
+                <span>ABIA STATE EMPLOYMENT & OPPORTUNITY PLATFORM</span>
+              </div>
               <span className="home-eyebrow">
+                <span className="home-eyebrow-dot" />
                 ABIA'S PEOPLE. ABIA'S POSSIBILITIES.
               </span>
-
               <h1>
-                Your talent.
+                Real skills.
                 <br />
-                Your ambition.
+                <span>Real opportunities.</span>
                 <br />
-                <span>Your opportunity.</span>
+                A stronger Abia.
               </h1>
-
               <p>
-                Discover jobs, connect with skilled professionals,
-                and find the right people to grow your business.
-                Your next opportunity starts here.
+                Abi Job brings job seekers, skilled professionals and employers
+                together to make finding work, showcasing talent and building
+                teams simpler.
               </p>
-
               <div className="home-hero-actions">
                 <Link href="/jobs" className="home-primary-button">
-                  Find opportunities
+                  Explore opportunities <ArrowRight size={18} />
                 </Link>
-
                 <Link href="/register" className="home-secondary-button">
-                  Join Abi Job
+                  Create your account <ArrowUpRight size={17} />
                 </Link>
               </div>
-
-              <div className="home-hero-note">
-                <span>For job seekers</span>
-                <span>For skilled professionals</span>
-                <span>For employers</span>
+              <div className="home-hero-proof">
+                <span><CheckCircle2 size={15} /> Built around real employment</span>
+                <span><MapPin size={15} /> Rooted in Abia State</span>
               </div>
             </div>
 
-            <div className="home-hero-visual">
-              <div className="hero-visual-circle hero-circle-one" />
-              <div className="hero-visual-circle hero-circle-two" />
-
-              <div className="hero-visual-card">
-                <span className="hero-card-label">
-                  OPPORTUNITIES ARE WAITING
-                </span>
-
-                <div className="hero-card-icon">✦</div>
-
-                <h2>
-                  Put your skills
-                  <br />
-                  to work.
-                </h2>
-
-                <p>
-                  Find meaningful work and connect with people
-                  who need what you do best.
-                </p>
-
-                <div className="hero-card-bottom">
-                  <span>Discover your next move</span>
-                  <span>↗</span>
+            <div className="home-hero-visual" aria-label="Abi Job connects people, skills and employers">
+              <div className="home-orbit home-orbit-one" />
+              <div className="home-orbit home-orbit-two" />
+              <div className="home-opportunity-card">
+                <div className="home-card-topline">
+                  <span className="home-card-status"><span /> OPPORTUNITY NETWORK</span>
+                  <Sparkles size={19} />
+                </div>
+                <h2>Bring your next move closer.</h2>
+                <p>One platform for the people who power Abia's economy.</p>
+                <div className="home-card-connection">
+                  <div className="home-connection-node"><Users size={20} /></div>
+                  <div className="home-connection-line" />
+                  <div className="home-connection-node"><BriefcaseBusiness size={20} /></div>
+                  <div className="home-connection-line" />
+                  <div className="home-connection-node"><Building2 size={20} /></div>
+                </div>
+                <div className="home-card-labels">
+                  <span>People</span><span>Skills</span><span>Employers</span>
+                </div>
+                <div className="home-card-footer">
+                  <span>Opportunity starts here</span>
+                  <ArrowUpRight size={18} />
                 </div>
               </div>
-
-              <div className="hero-floating-card">
-                <span className="floating-dot" />
-                New opportunities start here
+              <div className="home-floating-note home-floating-note-top">
+                <ShieldCheck size={18} />
+                <span><strong>Reviewed vacancies</strong><small>Quality starts with trust</small></span>
+              </div>
+              <div className="home-floating-note home-floating-note-bottom">
+                <span className="home-floating-icon"><Wrench size={18} /></span>
+                <span><strong>Skills that matter</strong><small>Make your talent visible</small></span>
               </div>
             </div>
-
           </div>
         </section>
 
-        <section className="home-audience">
-          <div className="container">
+        <section className="home-audience" id="who-its-for">
+          <div className="home-section-container">
             <div className="home-section-heading">
-              <span>ONE PLATFORM. MANY POSSIBILITIES.</span>
-              <h2>What brings you to Abi Job?</h2>
-              <p>
-                Whether you're looking for work, offering a skill,
-                or building a business, there's a place for you.
-              </p>
+              <span className="home-section-kicker">ONE PLATFORM. THREE PATHS.</span>
+              <h2>Whatever your next step, <em>start here.</em></h2>
+              <p>Abi Job is designed around the people who create, find and provide work across Abia State.</p>
             </div>
-
-            <div className="audience-grid">
-              <Link href="/register/job-seeker" className="audience-card">
-                <span className="audience-number">01</span>
-                <h3>I'm looking for a job</h3>
-                <p>
-                  Discover opportunities, apply for jobs,
-                  and take the next step in your career.
-                </p>
-                <span className="audience-link">Explore jobs ↗</span>
-              </Link>
-
-              <Link href="/register/professional" className="audience-card">
-                <span className="audience-number">02</span>
-                <h3>I'm a skilled professional</h3>
-                <p>
-                  Showcase your talent, build your portfolio,
-                  and connect with people who need your services.
-                </p>
-                <span className="audience-link">Showcase your skills ↗</span>
-              </Link>
-
-              <Link href="/register/employer" className="audience-card">
-                <span className="audience-number">03</span>
-                <h3>I'm hiring</h3>
-                <p>
-                  Find talented people, publish job openings,
-                  and grow your business with the right team.
-                </p>
-                <span className="audience-link">Find talent ↗</span>
-              </Link>
+            <div className="home-audience-grid">
+              {audiences.map((item) => {
+                const Icon = item.icon;
+                return (
+                  <article className="home-audience-card" key={item.number}>
+                    <div className="home-audience-card-top">
+                      <span className="home-audience-number">{item.number}</span>
+                      <span className="home-audience-icon"><Icon size={23} /></span>
+                    </div>
+                    <h3>{item.title}</h3>
+                    <p>{item.description}</p>
+                    <Link href={item.href} className="home-card-link">
+                      {item.action} <ArrowUpRight size={17} />
+                    </Link>
+                  </article>
+                );
+              })}
             </div>
+          </div>
+        </section>
+
+        <section className="home-how">
+          <div className="home-section-container home-how-grid">
+            <div className="home-how-intro">
+              <span className="home-section-kicker">A CLEARER WAY FORWARD</span>
+              <h2>From potential to <em>progress.</em></h2>
+              <p>Make your next move with practical tools that keep your employment journey organised.</p>
+              <Link href="/about" className="home-text-link">Learn about Abi Job <ArrowUpRight size={17} /></Link>
+            </div>
+            <div className="home-steps">
+              {steps.map(([title, description], index) => (
+                <div className="home-step" key={title}>
+                  <span className="home-step-number">0{index + 1}</span>
+                  <div><h3>{title}</h3><p>{description}</p></div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        <section className="home-trust">
+          <div className="home-section-container home-trust-inner">
+            <div className="home-trust-icon"><ShieldCheck size={25} /></div>
+            <div>
+              <span className="home-section-kicker">A MORE TRUSTWORTHY EXPERIENCE</span>
+              <h2>Opportunities deserve care.</h2>
+              <p>Job vacancies submitted by employers go through an administrative review before they are made visible to job seekers.</p>
+            </div>
+            <Link href="/guidelines" className="home-trust-link">Our community guidelines <ArrowUpRight size={17} /></Link>
           </div>
         </section>
 
         <section className="home-cta">
-          <div className="container home-cta-content">
+          <div className="home-cta-content">
             <div>
-              <span>YOUR NEXT CHAPTER STARTS HERE</span>
-              <h2>
-                Your opportunity could be
-                <br />
-                one connection away.
-              </h2>
+              <span className="home-section-kicker">YOUR NEXT CHAPTER STARTS HERE</span>
+              <h2>Bring your ambition.<br /><em>Let's make it count.</em></h2>
+              <p>Join the platform connecting Abia's talent with meaningful opportunities.</p>
             </div>
-
-            <Link href="/register" className="home-cta-button">
-              Get started today ↗
-            </Link>
+            <div className="home-cta-actions">
+              <Link href="/register" className="home-cta-button">Get started <ArrowRight size={18} /></Link>
+              <Link href="/login" className="home-cta-login">Already have an account? Log in</Link>
+            </div>
           </div>
         </section>
-
       </main>
-
       <Footer />
     </>
   );
