@@ -145,8 +145,17 @@ export default function ResetPasswordPage() {
       setMessage("Your password has been updated successfully.");
       setMessageType("info");
 
-      // End the recovery session. The user can sign in with the new password.
-      await supabase.auth.signOut();
+      // Revoke all sessions after a password reset so an older stolen
+      // session cannot remain usable after the credential has changed.
+      const { error: signOutError } = await supabase.auth.signOut({
+        scope: "global",
+      });
+
+      if (signOutError) {
+        // The password has already changed. Keep the success state truthful
+        // while recording that global session revocation needs investigation.
+        console.error("Global session revocation after password reset failed:", signOutError);
+      }
     } catch (error) {
       setMessage(
         error instanceof Error
