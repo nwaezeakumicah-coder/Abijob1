@@ -268,6 +268,24 @@ export default function DashboardPage() {
           </Link>
 
           <Link
+            href="/settings/job-alerts"
+            className="dashboard-nav-link"
+            onClick={() => setSidebarOpen(false)}
+          >
+            <Bell size={19} />
+            <span>Job alerts</span>
+          </Link>
+
+          <Link
+            href="/opportunities/map"
+            className="dashboard-nav-link"
+            onClick={() => setSidebarOpen(false)}
+          >
+            <MapPin size={19} />
+            <span>Abia opportunity map</span>
+          </Link>
+
+          <Link
             href="/professionals"
             className="dashboard-nav-link"
             onClick={() => setSidebarOpen(false)}
