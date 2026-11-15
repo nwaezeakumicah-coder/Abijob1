@@ -607,7 +607,7 @@ export default function ProfessionalApplicationsPage() {
                 <CalendarDays size={20} />
               </div>
               <div>
-                <span>Hired</span>
+                <span>Successful</span>
                 <strong>{loading ? "—" : countStatus("Successful")}</strong>
               </div>
             </div>
