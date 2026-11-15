@@ -253,23 +253,59 @@ export default function EmployerDashboardPage() {
 
         let applications: ApplicationRecord[] = [];
         let applicantProfiles: ApplicantProfile[] = [];
+        let totalApplicationsCount = 0;
+        let shortlistedCount = 0;
+        const applicationCounts: Record<string, number> = {};
 
         if (jobIds.length > 0) {
-          const { data: applicationRecords, error: applicationsError } =
-            await supabase
+          const jobsShownOnDashboard = jobs.slice(0, 5);
+
+          const [
+            totalApplicationsResult,
+            shortlistedResult,
+            recentApplicationsResult,
+            perJobCountResults,
+          ] = await Promise.all([
+            supabase
+              .from("job_applications")
+              .select("id", { count: "exact", head: true })
+              .in("job_id", jobIds),
+            supabase
+              .from("job_applications")
+              .select("id", { count: "exact", head: true })
+              .in("job_id", jobIds)
+              .eq("status", "shortlisted"),
+            supabase
               .from("job_applications")
               .select("id, job_id, applicant_id, status, created_at")
               .in("job_id", jobIds)
-              .order("created_at", { ascending: false });
+              .order("created_at", { ascending: false })
+              .limit(5),
+            Promise.all(
+              jobsShownOnDashboard.map((job) =>
+                supabase
+                  .from("job_applications")
+                  .select("id", { count: "exact", head: true })
+                  .eq("job_id", job.id)
+              )
+            ),
+          ]);
 
-          if (applicationsError) throw applicationsError;
+          if (totalApplicationsResult.error) throw totalApplicationsResult.error;
+          if (shortlistedResult.error) throw shortlistedResult.error;
+          if (recentApplicationsResult.error) throw recentApplicationsResult.error;
 
-          applications = (applicationRecords || []) as ApplicationRecord[];
+          totalApplicationsCount = totalApplicationsResult.count ?? 0;
+          shortlistedCount = shortlistedResult.count ?? 0;
+          applications = (recentApplicationsResult.data || []) as ApplicationRecord[];
+
+          perJobCountResults.forEach((result, index) => {
+            if (result.error) throw result.error;
+            applicationCounts[jobsShownOnDashboard[index].id] = result.count ?? 0;
+          });
 
           const applicantIds = [
-            ...new Set(
-              applications.map((application) => application.applicant_id)
-            ),
+            ...new Set(applications.map((application) => application.applicant_id)),
           ];
 
           if (applicantIds.length > 0) {
@@ -279,10 +315,7 @@ export default function EmployerDashboardPage() {
                 .select("id, full_name, headline, location")
                 .in("id", applicantIds);
 
-            if (applicantProfilesError) {
-              throw applicantProfilesError;
-            }
-
+            if (applicantProfilesError) throw applicantProfilesError;
             applicantProfiles = (profiles || []) as ApplicantProfile[];
           }
         }
@@ -292,13 +325,6 @@ export default function EmployerDashboardPage() {
         );
 
         const jobMap = new Map(jobs.map((job) => [job.id, job]));
-
-        const applicationCounts: Record<string, number> = {};
-
-        applications.forEach((application) => {
-          applicationCounts[application.job_id] =
-            (applicationCounts[application.job_id] || 0) + 1;
-        });
 
         const recentApplicants: DashboardApplicant[] = applications
           .slice(0, 5)
@@ -345,11 +371,9 @@ export default function EmployerDashboardPage() {
           businessName,
           fullName: profile.full_name || "Business Admin",
           activeJobs: jobs.filter((job) => job.status === "approved").length,
-          totalApplications: applications.length,
+          totalApplications: totalApplicationsCount,
           pendingJobs: jobs.filter((job) => job.status === "pending").length,
-          shortlisted: applications.filter(
-            (application) => application.status === "shortlisted"
-          ).length,
+          shortlisted: shortlistedCount,
           totalJobs: jobs.length,
           profileCompletion,
           jobs: jobs.slice(0, 5),
