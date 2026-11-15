@@ -19,6 +19,7 @@ export async function createCareerEvent(formData:FormData){
  const deadlineText=String(formData.get("registration_deadline")??"").trim();
  const deadline=deadlineText?parseLagosDate(deadlineText):null;
  if(deadline&&new Date(deadline)>=new Date(startsAt))throw new Error("Registration deadline must be before the event starts.");
+ if(formData.get("publish")==="true"&&deadline&&new Date(deadline)<=new Date())throw new Error("The registration deadline must be in the future before publishing.");
  const client=createAdminClient();
  const {error}=await client.rpc("admin_create_career_event",{p_admin_id:admin.id,p_title:title,p_description:description,p_event_type:eventType,p_starts_at:startsAt,p_ends_at:endsAt,p_timezone:"Africa/Lagos",p_venue:venue||null,p_meeting_url:meetingUrl||null,p_capacity:capacity,p_registration_deadline:deadline,p_publish:formData.get("publish")==="true"});
  if(error){console.error("CREATE CAREER EVENT",error);throw new Error(error.message||"Event could not be saved.");}
