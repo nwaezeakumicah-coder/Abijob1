@@ -15,6 +15,7 @@ import {
   Building2,
   X,
   Share2,
+  ShieldCheck,
   ArrowRight,
   ArrowUpRight,
   SlidersHorizontal,
@@ -48,6 +49,7 @@ type Job = {
   id: string;
   title: string;
   company: string;
+  employerVerified: boolean;
   location: string;
   category: string;
   type: string;
@@ -319,6 +321,7 @@ export default function JobsPage() {
       ];
 
       let companyNames: Record<string, string> = {};
+      let verifiedEmployers = new Set<string>();
 
       if (employerIds.length > 0) {
         const { data: employerProfiles, error: employerError } =
@@ -340,12 +343,28 @@ export default function JobsPage() {
             ])
           );
         }
+
+        const { data: employerVerification, error: verificationError } =
+          await supabase.rpc("get_public_employer_verification_status", {
+            p_employer_ids: employerIds,
+          });
+
+        if (verificationError) {
+          console.warn("Employer verification badges could not be loaded:", verificationError.message);
+        } else {
+          verifiedEmployers = new Set(
+            (employerVerification ?? [])
+              .filter((row: { is_verified: boolean }) => row.is_verified)
+              .map((row: { employer_id: string }) => row.employer_id)
+          );
+        }
       }
 
       const formattedJobs: Job[] = databaseJobs.map((job) => ({
         id: job.id,
         title: job.title,
         company: companyNames[job.employer_id] || "Abijob Employer",
+        employerVerified: verifiedEmployers.has(job.employer_id),
         location: job.location || "Location not specified",
         category: job.category || "General",
         type: formatEmploymentType(job.employment_type),
@@ -753,7 +772,15 @@ export default function JobsPage() {
                           </div>
 
                           <div className="jobs-post-company">
-                            <strong>{job.company}</strong>
+                            <strong className="jobs-company-name">
+                              {job.company}
+                              {job.employerVerified && (
+                                <span className="employer-verification-badge">
+                                  <ShieldCheck size={13} />
+                                  Verified employer
+                                </span>
+                              )}
+                            </strong>
                             <span>
                               {job.location} · {job.posted}
                             </span>
@@ -930,7 +957,15 @@ export default function JobsPage() {
               </div>
 
               <div>
-                <strong>{selectedJob.company}</strong>
+                <strong className="jobs-company-name">
+                  {selectedJob.company}
+                  {selectedJob.employerVerified && (
+                    <span className="employer-verification-badge">
+                      <ShieldCheck size={13} />
+                      Verified employer
+                    </span>
+                  )}
+                </strong>
                 <span>{selectedJob.location}</span>
               </div>
             </div>
