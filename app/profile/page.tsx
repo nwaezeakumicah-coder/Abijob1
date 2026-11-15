@@ -109,6 +109,7 @@ export default function ProfilePage() {
   const [previewOpen, setPreviewOpen] = useState(false);
 
   const [userId, setUserId] = useState("");
+  const lastSavedProfileRef = useRef("");
   const [photoPath, setPhotoPath] = useState<string | null>(null);
   const [photoUrl, setPhotoUrl] = useState("");
   const [cvPath, setCvPath] = useState<string | null>(null);
@@ -182,7 +183,7 @@ export default function ProfilePage() {
 
       setUserId(user.id);
 
-      setProfile({
+      const loadedProfile: ProfileData = {
         fullName: data.full_name || "",
         headline: data.headline || "",
         email: user.email || "",
@@ -192,7 +193,9 @@ export default function ProfilePage() {
         skills: Array.isArray(data.skills) ? data.skills.join(", ") : "",
         experience: data.experience || "",
         education: data.education || "",
-      });
+      };
+      setProfile(loadedProfile);
+      lastSavedProfileRef.current = JSON.stringify(loadedProfile);
 
       const savedPhotoPath = data.avatar_url || null;
       const savedCVPath = data.cv_path || null;
@@ -253,25 +256,28 @@ export default function ProfilePage() {
     (completedCount / completionItems.length) * 100
   );
 
-  const saveProfile = async () => {
+  const saveProfile = async (showFeedback = true) => {
+    if (isSaving) return;
     if (!userId) {
       showNotice("error", "Your session has expired. Please log in again.");
       return;
     }
 
-    if (!profile.fullName.trim()) {
-      showNotice("error", "Please enter your full name.");
-      return;
-    }
+    if (showFeedback) {
+      if (!profile.fullName.trim()) {
+        showNotice("error", "Please enter your full name.");
+        return;
+      }
 
-    if (!profile.phone.trim()) {
-      showNotice("error", "Please enter your phone number.");
-      return;
-    }
+      if (!profile.phone.trim()) {
+        showNotice("error", "Please enter your phone number.");
+        return;
+      }
 
-    if (!profile.location.trim()) {
-      showNotice("error", "Please enter your location.");
-      return;
+      if (!profile.location.trim()) {
+        showNotice("error", "Please enter your location.");
+        return;
+      }
     }
 
     setIsSaving(true);
@@ -280,7 +286,7 @@ export default function ProfilePage() {
     try {
       const cleanSkills = skillsList;
 
-      const { error } = await supabase
+      const { data: savedProfile, error } = await supabase
         .from("profiles")
         .update({
           full_name: profile.fullName.trim(),
@@ -292,17 +298,37 @@ export default function ProfilePage() {
           experience: profile.experience.trim(),
           education: profile.education.trim(),
         })
-        .eq("id", userId);
+        .eq("id", userId)
+        .select("id")
+        .single();
 
       if (error) throw error;
+      if (!savedProfile?.id) throw new Error("Your profile was not confirmed as saved. Please try again.");
 
-      showNotice("success", "Your profile has been saved successfully.");
+      lastSavedProfileRef.current = JSON.stringify(profile);
+      if (showFeedback) {
+        showNotice("success", "Your profile has been saved successfully.");
+      }
     } catch (error) {
       showNotice("error", getReadableError(error));
     } finally {
       setIsSaving(false);
     }
   };
+
+  useEffect(() => {
+    if (isLoading || isSaving || !userId) return;
+    if (!profile.fullName.trim() || !profile.phone.trim() || !profile.location.trim()) return;
+
+    const snapshot = JSON.stringify(profile);
+    if (snapshot === lastSavedProfileRef.current) return;
+
+    const timeout = window.setTimeout(() => {
+      void saveProfile(false);
+    }, 900);
+
+    return () => window.clearTimeout(timeout);
+  }, [profile, isLoading, isSaving, userId]);
 
   const uploadPhoto = async (file?: File) => {
     if (!file || !userId) return;
