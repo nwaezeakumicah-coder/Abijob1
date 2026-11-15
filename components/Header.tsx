@@ -256,7 +256,9 @@ export default function Header() {
 
         {/* Desktop Account Actions */}
         <div className="header-actions">
-          {!authLoading && (
+          {authLoading ? (
+            <span className="header-auth-loading" role="status">Checking account…</span>
+          ) : (
             <>
               {isAuthenticated ? (
                 <>
@@ -334,7 +336,9 @@ export default function Header() {
           ))}
 
           <div className="mobile-navigation-actions">
-            {!authLoading && (
+            {authLoading ? (
+              <span className="header-auth-loading" role="status">Checking account…</span>
+            ) : (
               <>
                 {isAuthenticated ? (
                   <>
