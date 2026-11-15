@@ -345,12 +345,15 @@ export default function JobsPage() {
         }
 
         const { data: employerVerification, error: verificationError } =
-          await supabase.rpc("get_public_employer_verification_status", {
+          await (supabase as any).rpc("get_public_employer_verification_status", {
             p_employer_ids: employerIds,
           });
 
         if (verificationError) {
-          console.warn("Employer verification badges could not be loaded:", verificationError.message);
+          console.warn(
+            "Employer verification badges could not be loaded:",
+            verificationError.message
+          );
         } else {
           verifiedEmployers = new Set(
             (employerVerification ?? [])
