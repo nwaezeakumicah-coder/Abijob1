@@ -1004,7 +1004,7 @@
   .employer-messages-page .employer-messages-sidebar {
     position: fixed !important;
     inset: 0 auto 0 0 !important;
-    width: min( min(86vw, 320px), 320px) !important;
+    width: min(86vw, 320px) !important;
     max-width: 86vw !important;
     height: 100dvh !important;
     max-height: 100dvh !important;
