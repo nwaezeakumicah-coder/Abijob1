@@ -2,7 +2,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState, type ChangeEvent } from "react";
+import { useEffect, useRef, useState, type ChangeEvent } from "react";
 import { useRouter } from "next/navigation";
 import {
   ArrowLeft,
@@ -89,6 +89,7 @@ export default function EmployerProfilePage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [companyLogoPreview, setCompanyLogoPreview] = useState("");
+  const lastSavedProfileRef = useRef("");
 
   useEffect(() => {
     let active = true;
@@ -130,7 +131,7 @@ export default function EmployerProfilePage() {
         const company = data as EmployerProfileRecord | null;
 
         if (company) {
-          setProfile({
+          const loadedProfile: CompanyProfile = {
             companyName: company.business_name ?? "",
             industry: company.business_type ?? "Technology",
             companySize: company.company_size ?? "1–10 employees",
@@ -143,7 +144,9 @@ export default function EmployerProfilePage() {
             facebook: company.facebook_url ?? "",
             instagram: company.instagram_url ?? "",
             linkedin: company.linkedin_url ?? "",
-          });
+          };
+          setProfile(loadedProfile);
+          lastSavedProfileRef.current = JSON.stringify(loadedProfile);
         }
       } catch (error) {
         console.error("Employer profile loading error:", error);
@@ -215,7 +218,7 @@ export default function EmployerProfilePage() {
     setSaveError("");
   }
 
-  async function handleSave() {
+  async function handleSave(showFeedback = true) {
     if (loading || saving) return;
 
     if (!profile.companyName.trim()) {
@@ -308,6 +311,7 @@ export default function EmployerProfilePage() {
         if (insertError) throw insertError;
       }
 
+      lastSavedProfileRef.current = JSON.stringify(profile);
       setSaved(true);
       setSaveError("");
     } catch (error) {
@@ -322,6 +326,18 @@ export default function EmployerProfilePage() {
       setSaving(false);
     }
   }
+
+  useEffect(() => {
+    if (loading || saving || !profile.companyName.trim()) return;
+    const snapshot = JSON.stringify(profile);
+    if (snapshot === lastSavedProfileRef.current) return;
+
+    const timeout = window.setTimeout(() => {
+      void handleSave(false);
+    }, 900);
+
+    return () => window.clearTimeout(timeout);
+  }, [profile, loading, saving]);
 
   return (
     <main className="employer-profile-page">
