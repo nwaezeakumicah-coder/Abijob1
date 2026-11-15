@@ -7,6 +7,8 @@ import { useRouter } from "next/navigation";
 import Logo from "../../../components/Logo";
 
 import {
+  Menu,
+  X,
   ArrowLeft,
   BriefcaseBusiness,
   Building2,
@@ -144,6 +146,17 @@ function formatMessageTime(value: string) {
 }
 
 export default function EmployerMessagesPage() {
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+
+  useEffect(() => {
+    if (!mobileMenuOpen) return;
+    const handleEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setMobileMenuOpen(false);
+    };
+    window.addEventListener("keydown", handleEscape);
+    return () => window.removeEventListener("keydown", handleEscape);
+  }, [mobileMenuOpen]);
+
   const router = useRouter();
   const supabase = useMemo(() => createClient(), []);
 
@@ -532,7 +545,27 @@ export default function EmployerMessagesPage() {
   return (
     <main className="employer-messages-page">
       {/* SIDEBAR */}
-      <aside className="employer-messages-sidebar">
+      <button
+        type="button"
+        className="employer-mobile-menu-overlay"
+        aria-label="Close employer navigation"
+        tabIndex={mobileMenuOpen ? 0 : -1}
+        onClick={() => setMobileMenuOpen(false)}
+      />
+      <aside
+        className={`employer-messages-sidebar ${mobileMenuOpen ? "mobile-open" : ""}`}
+        onClick={(event) => {
+          if ((event.target as HTMLElement).closest("a")) setMobileMenuOpen(false);
+        }}
+      >
+        <button
+          type="button"
+          className="employer-mobile-menu-close"
+          aria-label="Close navigation menu"
+          onClick={() => setMobileMenuOpen(false)}
+        >
+          <X size={21} />
+        </button>
         <div className="employer-messages-brand">
           <Logo href="/" size="medium" light />
         </div>
@@ -617,6 +650,15 @@ export default function EmployerMessagesPage() {
       {/* MAIN CONTENT */}
       <section className="employer-messages-main">
         <header className="employer-messages-topbar">
+          <button
+            type="button"
+            className="employer-mobile-menu-toggle"
+            aria-label="Open navigation menu"
+            aria-expanded={mobileMenuOpen}
+            onClick={() => setMobileMenuOpen(true)}
+          >
+            <Menu size={22} />
+          </button>
           <div>
             <span>EMPLOYER WORKSPACE</span>
             <p>Connect with candidates and manage conversations</p>
