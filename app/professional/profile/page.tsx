@@ -509,7 +509,7 @@ export default function ProfessionalProfilePage() {
         uploadedPhotoPath = uploadPath;
       }
 
-      const { error: personalError } = await supabase
+      const { data: savedPersonal, error: personalError } = await supabase
         .from("profiles")
         .update({
           full_name: profile.fullName.trim(),
@@ -520,9 +520,12 @@ export default function ProfessionalProfilePage() {
           skills: profile.skills,
           avatar_url: newPhotoPath || null,
         })
-        .eq("id", user.id);
+        .eq("id", user.id)
+        .select("id")
+        .single();
 
       if (personalError) throw personalError;
+      if (!savedPersonal?.id) throw new Error("Your personal profile was not confirmed as saved. Please try again.");
 
       const profileData: ExtraProfileData = {
         website: profile.website.trim(),
