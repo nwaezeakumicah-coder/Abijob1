@@ -3,7 +3,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { Menu, X } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import Logo from "./Logo";
@@ -53,6 +53,7 @@ const roleNavigation: Record<
 
 export default function Header() {
   const router = useRouter();
+  const pathname = usePathname();
 
   const [menuOpen, setMenuOpen] = useState(false);
   const [role, setRole] = useState<AccountRole>(null);
@@ -230,7 +231,8 @@ export default function Header() {
             <Link
               key={item.href}
               href={item.href}
-              className="header-nav-link"
+              className={`header-nav-link ${pathname === item.href || (item.href !== "/" && pathname.startsWith(`${item.href}/`)) ? "is-active" : ""}`}
+              aria-current={pathname === item.href ? "page" : undefined}
             >
               {item.label}
             </Link>
@@ -307,7 +309,8 @@ export default function Header() {
             <Link
               key={item.href}
               href={item.href}
-              className="mobile-nav-link"
+              className={`mobile-nav-link ${pathname === item.href || (item.href !== "/" && pathname.startsWith(`${item.href}/`)) ? "is-active" : ""}`}
+              aria-current={pathname === item.href ? "page" : undefined}
               onClick={closeMenu}
             >
               {item.label}
