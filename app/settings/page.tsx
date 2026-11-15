@@ -101,7 +101,8 @@ export default function SettingsPage() {
   const [accessChecked, setAccessChecked] = useState(false);
   const [accessError, setAccessError] = useState("");
   const [retryCount, setRetryCount] = useState(0);
-  const [accountName, setAccountName] = useState("Professional");
+  const [accountName, setAccountName] = useState("Account");
+  const [accountRole, setAccountRole] = useState<"job_seeker" | "professional">("job_seeker");
   const [saveMessage, setSaveMessage] = useState("");
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
@@ -130,7 +131,7 @@ export default function SettingsPage() {
 
         if (!user) {
           router.replace(
-            `/login?next=${encodeURIComponent("/professional/settings")}`
+            `/login?next=${encodeURIComponent("/settings")}`
           );
           return;
         }
@@ -155,14 +156,6 @@ export default function SettingsPage() {
           );
         }
 
-        // IMPORTANT:
-        // A professional is already on the correct route.
-        // Do not redirect them back to this same page.
-        if (profile.role === "job_seeker") {
-          router.replace("/settings");
-          return;
-        }
-
         if (profile.role === "employer") {
           router.replace("/employer/settings");
           return;
@@ -178,7 +171,7 @@ export default function SettingsPage() {
           return;
         }
 
-        if (profile.role !== "professional") {
+        if (profile.role !== "professional" && profile.role !== "job_seeker") {
           router.replace("/login");
           return;
         }
@@ -187,7 +180,7 @@ export default function SettingsPage() {
           profile.full_name?.trim() ||
           user.user_metadata?.full_name?.trim() ||
           user.email?.split("@")[0] ||
-          "Professional";
+          (profile.role === "job_seeker" ? "Job seeker" : "Professional");
 
         const userStorageKey = `${STORAGE_KEY}:${user.id}`;
 
@@ -213,6 +206,7 @@ export default function SettingsPage() {
         if (!active) return;
 
         setAccountName(displayName);
+        setAccountRole(profile.role);
         setSettings(loadedSettings);
         setAccountStorageKey(userStorageKey);
         setStorageReady(true);
@@ -357,8 +351,8 @@ export default function SettingsPage() {
             Try again
           </button>
           <p>
-            <Link href="/professional/dashboard">
-              Return to Professional Dashboard
+            <Link href={accountRole === "job_seeker" ? "/dashboard" : "/professional/dashboard"}>
+              Return to {accountRole === "job_seeker" ? "Job Seeker" : "Professional"} Dashboard
             </Link>
           </p>
         </div>
@@ -394,10 +388,10 @@ export default function SettingsPage() {
         </div>
 
         <div className="settings-user-card">
-          <div className="settings-avatar">SP</div>
+          <div className="settings-avatar">{accountRole === "job_seeker" ? "JS" : "SP"}</div>
           <div>
             <strong>{accountName}</strong>
-            <span>Skilled professional</span>
+            <span>{accountRole === "job_seeker" ? "Job seeker" : "Skilled professional"}</span>
           </div>
         </div>
 
@@ -405,7 +399,7 @@ export default function SettingsPage() {
           <p className="settings-nav-label">WORKSPACE</p>
 
           <Link
-            href="/professional/dashboard"
+            href={accountRole === "job_seeker" ? "/dashboard" : "/professional/dashboard"}
             className="settings-nav-link"
           >
             <BriefcaseBusiness size={19} />
@@ -413,7 +407,7 @@ export default function SettingsPage() {
           </Link>
 
           <Link
-            href="/professional/opportunities"
+            href={accountRole === "job_seeker" ? "/jobs" : "/professional/opportunities"}
             className="settings-nav-link"
           >
             <Search size={19} />
@@ -421,7 +415,7 @@ export default function SettingsPage() {
           </Link>
 
           <Link
-            href="/professional/applications"
+            href={accountRole === "job_seeker" ? "/applications" : "/professional/applications"}
             className="settings-nav-link"
           >
             <BriefcaseBusiness size={19} />
@@ -429,7 +423,7 @@ export default function SettingsPage() {
           </Link>
 
           <Link
-            href="/professional/profile"
+            href={accountRole === "job_seeker" ? "/profile" : "/professional/profile"}
             className="settings-nav-link"
           >
             <UserRound size={19} />
@@ -441,7 +435,7 @@ export default function SettingsPage() {
           </p>
 
           <Link
-            href="/professional/notifications"
+            href={accountRole === "job_seeker" ? "/notifications" : "/professional/notifications"}
             className="settings-nav-link"
           >
             <Bell size={19} />
@@ -449,7 +443,7 @@ export default function SettingsPage() {
           </Link>
 
           <Link
-            href="/professional/messages"
+            href={accountRole === "job_seeker" ? "/messages" : "/professional/messages"}
             className="settings-nav-link"
           >
             <MessageCircle size={19} />
@@ -457,7 +451,7 @@ export default function SettingsPage() {
           </Link>
 
           <Link
-            href="/professional/settings"
+            href={accountRole === "job_seeker" ? "/settings" : "/professional/settings"}
             className="settings-nav-link active"
           >
             <SettingsIcon size={19} />
@@ -498,16 +492,16 @@ export default function SettingsPage() {
           </button>
 
           <div className="settings-breadcrumb">
-            <Link href="/professional/dashboard">Dashboard</Link>
+            <Link href={accountRole === "job_seeker" ? "/dashboard" : "/professional/dashboard"}>Dashboard</Link>
             <ChevronRight size={15} />
             <span>Settings</span>
           </div>
 
           <div className="settings-topbar-right">
             <span className="settings-account-status">
-              <span /> Professional workspace
+              <span /> {accountRole === "job_seeker" ? "Job seeker workspace" : "Professional workspace"}
             </span>
-            <div className="settings-topbar-avatar">SP</div>
+            <div className="settings-topbar-avatar">{accountRole === "job_seeker" ? "JS" : "SP"}</div>
           </div>
         </header>
 
@@ -725,8 +719,8 @@ export default function SettingsPage() {
                     <div>
                       <h2>Privacy settings</h2>
                       <p>
-                        Choose how your professional profile appears to
-                        other users.
+                        Choose how your profile information is presented
+                        to other users.
                       </p>
                     </div>
                     <div className="settings-panel-heading-icon">
@@ -738,8 +732,8 @@ export default function SettingsPage() {
                     <div>
                       <h3>Profile visibility</h3>
                       <p>
-                        Allow employers to discover your profile in the
-                        professionals and talent directory.
+                        Save your preference for profile visibility.
+                        This setting is stored on this device only.
                       </p>
                     </div>
                     <button
@@ -834,7 +828,7 @@ export default function SettingsPage() {
                       <h3>Account protection</h3>
                       <p>
                         Supabase manages your authenticated session.
-                        Professional workspace access is checked against
+                        Your Abijob workspace access is checked against
                         your database account role.
                       </p>
                       <span className="settings-coming-soon">
