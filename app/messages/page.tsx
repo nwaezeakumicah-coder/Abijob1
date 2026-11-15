@@ -6,6 +6,7 @@ import {
   useCallback,
   useEffect,
   useMemo,
+  useRef,
   useState,
   type FormEvent,
 } from "react";
@@ -197,6 +198,11 @@ export default function MessagesPage() {
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
   const [error, setError] = useState("");
+  const conversationsRef = useRef(conversations);
+
+  useEffect(() => {
+    conversationsRef.current = conversations;
+  }, [conversations]);
 
   const loadConversations = useCallback(
     async (_currentUserId: string) => {
@@ -270,7 +276,7 @@ export default function MessagesPage() {
 
   const loadConversationMessages = useCallback(
     async (conversationId: string, mode: "initial" | "older" | "refresh" = "initial") => {
-      const conversation = conversations.find((item) => item.id === conversationId);
+      const conversation = conversationsRef.current.find((item) => item.id === conversationId);
       if (!conversation || !userId) return;
       if (mode === "older" && conversation.messages.length === 0) return;
 
@@ -341,7 +347,7 @@ export default function MessagesPage() {
         };
       }));
     },
-    [conversations, supabase, userId]
+    [supabase, userId]
   );
 
   useEffect(() => {
