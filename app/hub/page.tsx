@@ -31,6 +31,7 @@ import {
   X,
 } from "lucide-react";
 import "./hub.css";
+import { createClient } from "../../lib/supabase/client";
 
 type HubCategory =
   | "All"
@@ -127,63 +128,8 @@ const articles: HubArticle[] = [
   },
 ];
 
-const communities = [
-  {
-    name: "Technology & Developers",
-    description: "Discuss coding, digital products and tech careers.",
-    members: "1,240",
-    icon: "⌘",
-    color: "blue",
-  },
-  {
-    name: "Fashion & Creative Design",
-    description: "Connect with designers, tailors and creative minds.",
-    members: "980",
-    icon: "✦",
-    color: "pink",
-  },
-  {
-    name: "Business & Entrepreneurship",
-    description: "Share ideas and learn how to grow a business.",
-    members: "860",
-    icon: "↗",
-    color: "orange",
-  },
-  {
-    name: "Skilled Professionals & Artisans",
-    description: "Connect with artisans and service professionals.",
-    members: "720",
-    icon: "✳",
-    color: "green",
-  },
-];
-
-const events = [
-  {
-    day: "08",
-    month: "NOV",
-    title: "Building a professional CV",
-    type: "Online workshop",
-    time: "10:00 AM",
-    location: "AbiJob Virtual Room",
-  },
-  {
-    day: "14",
-    month: "NOV",
-    title: "Starting and growing a small business",
-    type: "Career session",
-    time: "12:00 PM",
-    location: "Online event",
-  },
-  {
-    day: "21",
-    month: "NOV",
-    title: "Introduction to digital skills",
-    type: "Skills workshop",
-    time: "11:00 AM",
-    location: "Online event",
-  },
-];
+type CommunityPreview = { id:string; name:string; description:string; member_count:number; icon:string; color:string };
+type EventPreview = { id:string; day:string; month:string; title:string; type:string; time:string; location:string };
 
 const articleBodies: Record<number, string[]> = {
   1: [
@@ -237,6 +183,49 @@ export default function HubPage() {
   const [activeCategory, setActiveCategory] = useState<HubCategory>("All");
   const [searchTerm, setSearchTerm] = useState("");
   const [savedArticles, setSavedArticles] = useState<number[]>([]);
+  const [communities, setCommunities] = useState<CommunityPreview[]>([]);
+  const [events, setEvents] = useState<EventPreview[]>([]);
+
+  useEffect(() => {
+    let active = true;
+    async function loadCareerHubData() {
+      try {
+        const supabase = createClient();
+        const [communityResult, eventResult] = await Promise.all([
+          supabase.rpc("get_career_community_directory"),
+          supabase.rpc("get_public_career_events"),
+        ]);
+        if (!active) return;
+        if (!communityResult.error) {
+          const colors = ["blue", "pink", "orange", "green", "purple"];
+          const icons = ["⌘", "✦", "↗", "✳", "✧"];
+          setCommunities((communityResult.data ?? []).map((item: any, index: number) => ({
+            id: item.id, name: item.name, description: item.description,
+            member_count: Number(item.member_count ?? 0), color: colors[index % colors.length],
+            icon: icons[index % icons.length],
+          })));
+        }
+        if (!eventResult.error) {
+          setEvents((eventResult.data ?? []).map((item: any) => {
+            const start = new Date(item.starts_at);
+            return {
+              id: item.id,
+              day: start.toLocaleDateString("en-NG", { day: "2-digit", timeZone: item.timezone }),
+              month: start.toLocaleDateString("en-NG", { month: "short", timeZone: item.timezone }).toUpperCase(),
+              title: item.title,
+              type: item.event_type === "online" ? "Online event" : item.event_type === "hybrid" ? "Hybrid event" : "In-person event",
+              time: start.toLocaleTimeString("en-NG", { hour: "2-digit", minute: "2-digit", timeZone: item.timezone }),
+              location: item.venue || "Online event",
+            };
+          }));
+        }
+      } catch {
+        if (active) { setCommunities([]); setEvents([]); }
+      }
+    }
+    void loadCareerHubData();
+    return () => { active = false; };
+  }, []);
   
   const [selectedArticle, setSelectedArticle] = useState<HubArticle | null>(
     null
@@ -720,7 +709,7 @@ export default function HubPage() {
                     </div>
 
                     <div className="hub-community-members">
-                      <Users size={14} /> {community.members} members
+                      <Users size={14} /> {community.member_count.toLocaleString("en-NG")} members
                     </div>
 
                     <h3>{community.name}</h3>
@@ -754,7 +743,7 @@ export default function HubPage() {
 
             <div className="hub-events-list">
               {events.map((event) => (
-                <article className="hub-event-card" key={event.title}>
+                <article className="hub-event-card" key={event.id}>
                   <div className="hub-event-date">
                     <strong>{event.day}</strong>
                     <span>{event.month}</span>
