@@ -960,3 +960,34 @@
     transition-duration: 0.01ms !important;
   }
 }
+
+
+.employer-messages-history-status {
+  padding: 10px 12px;
+  color: #68766d;
+  text-align: center;
+  font-size: 12px;
+}
+
+.employer-messages-load-older {
+  display: block;
+  margin: 0 auto 16px;
+  padding: 8px 14px;
+  border: 1px solid #dce7de;
+  border-radius: 999px;
+  background: #fff;
+  color: #176b45;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.employer-messages-load-older:hover:not(:disabled) {
+  border-color: #176b45;
+  background: #f5faf6;
+}
+
+.employer-messages-load-older:disabled {
+  cursor: wait;
+  opacity: 0.65;
+}
