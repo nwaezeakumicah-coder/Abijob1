@@ -34,7 +34,7 @@ type ApplicationStatus =
   | "Under review"
   | "Shortlisted"
   | "Rejected"
-  | "Hired"
+  | "Successful"
   | "Withdrawn";
 
 type Application = {
@@ -84,7 +84,7 @@ const filters = [
   "Submitted",
   "Under review",
   "Shortlisted",
-  "Hired",
+  "Successful",
   "Rejected",
   "Withdrawn",
 ] as const;
@@ -94,7 +94,7 @@ const STATUS_LABELS: Record<DatabaseApplicationStatus, ApplicationStatus> = {
   under_review: "Under review",
   shortlisted: "Shortlisted",
   rejected: "Rejected",
-  hired: "Hired",
+  hired: "Successful",
   withdrawn: "Withdrawn",
 };
 
@@ -110,7 +110,7 @@ function normalizeStatus(value: string | null): ApplicationStatus {
 }
 
 function StatusIcon({ status }: { status: ApplicationStatus }) {
-  if (status === "Shortlisted" || status === "Hired") {
+  if (status === "Shortlisted" || status === "Successful") {
     return <CheckCircle2 size={15} />;
   }
 
@@ -198,6 +198,8 @@ export default function ProfessionalApplicationsPage() {
   const [fullName, setFullName] = useState("Professional");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [applicantId, setApplicantId] = useState("");
+  const [withdrawingId, setWithdrawingId] = useState<string | null>(null);
 
   const loadApplications = useCallback(async () => {
     setLoading(true);
@@ -244,6 +246,7 @@ export default function ProfessionalApplicationsPage() {
       }
 
       setFullName(profile.full_name?.trim() || "Professional");
+      setApplicantId(user.id);
 
       const { data: applicationRows, error: applicationsError } =
         await supabase
@@ -378,6 +381,52 @@ export default function ProfessionalApplicationsPage() {
     applications.filter((item) => item.status === status).length;
 
   const initials = getInitials(fullName);
+
+  async function withdrawApplication(application: Application) {
+    if (!["Submitted", "Under review", "Shortlisted"].includes(application.status)) {
+      return;
+    }
+
+    setWithdrawingId(application.id);
+    setError("");
+
+    try {
+      const { data, error: withdrawError } = await supabase
+        .from("job_applications")
+        .update({ status: "withdrawn" })
+        .eq("id", application.id)
+        .eq("applicant_id", applicantId)
+        .in("status", ["submitted", "under_review", "shortlisted"])
+        .select("id")
+        .maybeSingle();
+
+      if (withdrawError) throw withdrawError;
+      if (!data) {
+        throw new Error("This application can no longer be withdrawn.");
+      }
+
+      setApplications((previous) =>
+        previous.map((item) =>
+          item.id === application.id
+            ? { ...item, status: "Withdrawn" }
+            : item
+        )
+      );
+      setSelectedApplication((previous) =>
+        previous?.id === application.id
+          ? { ...previous, status: "Withdrawn" }
+          : previous
+      );
+    } catch (err) {
+      setError(
+        err instanceof Error
+          ? err.message
+          : "We could not withdraw this application. Please try again."
+      );
+    } finally {
+      setWithdrawingId(null);
+    }
+  }
 
   return (
     <main className="professional-applications">
@@ -558,8 +607,8 @@ export default function ProfessionalApplicationsPage() {
                 <CalendarDays size={20} />
               </div>
               <div>
-                <span>Hired</span>
-                <strong>{loading ? "—" : countStatus("Hired")}</strong>
+                <span>Successful</span>
+                <strong>{loading ? "—" : countStatus("Successful")}</strong>
               </div>
             </div>
           </div>
@@ -790,6 +839,21 @@ export default function ProfessionalApplicationsPage() {
                 {selectedApplication.hasCv ? "Yes" : "No CV recorded"}
               </strong>
             </div>
+
+            {["Submitted", "Under review", "Shortlisted"].includes(
+              selectedApplication.status
+            ) && (
+              <button
+                type="button"
+                className="professional-application-modal-done"
+                onClick={() => void withdrawApplication(selectedApplication)}
+                disabled={withdrawingId === selectedApplication.id}
+              >
+                {withdrawingId === selectedApplication.id
+                  ? "Withdrawing..."
+                  : "Withdraw application"}
+              </button>
+            )}
 
             <button
               type="button"

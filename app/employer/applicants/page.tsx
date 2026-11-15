@@ -77,16 +77,20 @@ const statusLabels: Record<ApplicationStatus, string> = {
   withdrawn: "Withdrawn",
 };
 
-const statusOptions: {
-  value: ApplicationStatus;
-  label: string;
-}[] = [
-  { value: "submitted", label: "Pending" },
-  { value: "under_review", label: "Under review" },
-  { value: "shortlisted", label: "Shortlisted" },
-  { value: "rejected", label: "Rejected" },
-  { value: "hired", label: "Hired" },
-];
+function getNextEmployerStatuses(
+  current: ApplicationStatus
+): ApplicationStatus[] {
+  switch (current) {
+    case "submitted":
+      return ["under_review", "shortlisted", "rejected", "hired"];
+    case "under_review":
+      return ["shortlisted", "rejected", "hired"];
+    case "shortlisted":
+      return ["rejected", "hired"];
+    default:
+      return [];
+  }
+}
 
 const statusTabs = [
   "All applicants",
@@ -445,6 +449,11 @@ export default function EmployerApplicantsPage() {
     }
 
     if (applicant.status === nextStatus) return;
+
+    if (!getNextEmployerStatuses(applicant.status).includes(nextStatus)) {
+      setError("This application has reached a final status and can no longer be changed.");
+      return;
+    }
 
     setUpdatingId(applicant.id);
     setError("");
@@ -941,7 +950,7 @@ export default function EmployerApplicantsPage() {
                         value={applicant.status}
                         disabled={
                           updatingId === applicant.id ||
-                          applicant.status === "withdrawn"
+                          getNextEmployerStatuses(applicant.status).length === 0
                         }
                         onChange={(event) => {
                           const nextStatus = event.target.value;
@@ -952,16 +961,13 @@ export default function EmployerApplicantsPage() {
                         }}
                         aria-label={`Change status for ${applicant.name}`}
                       >
-                        {applicant.status === "withdrawn" && (
-                          <option value="withdrawn">Withdrawn</option>
-                        )}
+                        <option value={applicant.status}>
+                          {statusLabels[applicant.status]}
+                        </option>
 
-                        {statusOptions.map((option) => (
-                          <option
-                            key={option.value}
-                            value={option.value}
-                          >
-                            {option.label}
+                        {getNextEmployerStatuses(applicant.status).map((status) => (
+                          <option key={status} value={status}>
+                            {statusLabels[status]}
                           </option>
                         ))}
                       </select>
