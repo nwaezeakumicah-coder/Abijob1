@@ -34,7 +34,7 @@ type ApplicationStatus =
   | "Under review"
   | "Shortlisted"
   | "Rejected"
-  | "Hired"
+  | "Successful"
   | "Withdrawn";
 
 type Application = {
@@ -84,7 +84,7 @@ const filters = [
   "Submitted",
   "Under review",
   "Shortlisted",
-  "Hired",
+  "Successful",
   "Rejected",
   "Withdrawn",
 ] as const;
@@ -94,7 +94,7 @@ const STATUS_LABELS: Record<DatabaseApplicationStatus, ApplicationStatus> = {
   under_review: "Under review",
   shortlisted: "Shortlisted",
   rejected: "Rejected",
-  hired: "Hired",
+  hired: "Successful",
   withdrawn: "Withdrawn",
 };
 
@@ -110,7 +110,7 @@ function normalizeStatus(value: string | null): ApplicationStatus {
 }
 
 function StatusIcon({ status }: { status: ApplicationStatus }) {
-  if (status === "Shortlisted" || status === "Hired") {
+  if (status === "Shortlisted" || status === "Successful") {
     return <CheckCircle2 size={15} />;
   }
 
@@ -559,7 +559,7 @@ export default function ProfessionalApplicationsPage() {
               </div>
               <div>
                 <span>Hired</span>
-                <strong>{loading ? "—" : countStatus("Hired")}</strong>
+                <strong>{loading ? "—" : countStatus("Successful")}</strong>
               </div>
             </div>
           </div>
