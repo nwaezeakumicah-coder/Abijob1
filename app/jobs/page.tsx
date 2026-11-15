@@ -78,9 +78,6 @@ const JOB_SELECT = `
   salary_max,
   salary_currency,
   description,
-  requirements,
-  responsibilities,
-  benefits,
   skills_required,
   application_deadline,
   created_at,
@@ -248,6 +245,7 @@ export default function JobsPage() {
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [savingJobIds, setSavingJobIds] = useState<string[]>([]);
   const [selectedJob, setSelectedJob] = useState<Job | null>(null);
+  const [loadingJobDetails, setLoadingJobDetails] = useState(false);
   const [showFilters, setShowFilters] = useState(false);
   const [shareMessage, setShareMessage] = useState("");
 
@@ -363,9 +361,9 @@ export default function JobsPage() {
         posted: formatPostedDate(job.created_at),
         daysAgo: getDaysAgo(job.created_at),
         description: job.description || "No job description provided.",
-        requirements: job.requirements || "",
-        responsibilities: job.responsibilities || "",
-        benefits: job.benefits || "",
+        requirements: "",
+        responsibilities: "",
+        benefits: "",
         skills: job.skills_required || [],
         deadline: job.application_deadline,
       }));
@@ -512,6 +510,36 @@ export default function JobsPage() {
     activeTab,
     savedJobs,
   ]);
+
+  async function openJobDetails(job: Job) {
+    setSelectedJob(job);
+    setLoadingJobDetails(true);
+
+    const { data, error: detailsError } = await supabase
+      .from("jobs")
+      .select("requirements, responsibilities, benefits")
+      .eq("id", job.id)
+      .eq("status", "approved")
+      .maybeSingle();
+
+    if (detailsError) {
+      console.error("Could not load full job details:", detailsError);
+      setShareMessage("Some job details could not be loaded. Please try again.");
+    } else if (data) {
+      setSelectedJob((current) =>
+        current?.id === job.id
+          ? {
+              ...current,
+              requirements: data.requirements || "",
+              responsibilities: data.responsibilities || "",
+              benefits: data.benefits || "",
+            }
+          : current
+      );
+    }
+
+    setLoadingJobDetails(false);
+  }
 
   async function toggleSaved(id: string) {
     if (!currentUserId) {
@@ -879,7 +907,7 @@ export default function JobsPage() {
                           <button
                             type="button"
                             className="jobs-post-apply"
-                            onClick={() => setSelectedJob(job)}
+                            onClick={() => void openJobDetails(job)}
                           >
                             View opportunity
                             <ArrowRight size={17} />
@@ -1069,6 +1097,12 @@ export default function JobsPage() {
               <h3>About this opportunity</h3>
               <p>{selectedJob.description}</p>
             </div>
+
+            {loadingJobDetails && (
+              <p className="jobs-details-loading" role="status">
+                Loading full job details...
+              </p>
+            )}
 
             {selectedJob.responsibilities && (
               <div className="jobs-details-section">
