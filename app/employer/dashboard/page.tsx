@@ -6,6 +6,8 @@ import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Logo from "../../../components/Logo";
 import {
+  Menu,
+  X,
   Activity,
   ArrowDownRight,
   ArrowRight,
@@ -176,6 +178,17 @@ function getJobStatus(status: string) {
 }
 
 export default function EmployerDashboardPage() {
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+
+  useEffect(() => {
+    if (!mobileMenuOpen) return;
+    const handleEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setMobileMenuOpen(false);
+    };
+    window.addEventListener("keydown", handleEscape);
+    return () => window.removeEventListener("keydown", handleEscape);
+  }, [mobileMenuOpen]);
+
   const router = useRouter();
   const [dashboard, setDashboard] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
@@ -463,7 +476,27 @@ export default function EmployerDashboardPage() {
 
   return (
     <main className="employer-dashboard">
-      <aside className="employer-sidebar">
+      <button
+        type="button"
+        className="employer-mobile-menu-overlay"
+        aria-label="Close employer navigation"
+        tabIndex={mobileMenuOpen ? 0 : -1}
+        onClick={() => setMobileMenuOpen(false)}
+      />
+      <aside
+        className={`employer-sidebar ${mobileMenuOpen ? "mobile-open" : ""}`}
+        onClick={(event) => {
+          if ((event.target as HTMLElement).closest("a")) setMobileMenuOpen(false);
+        }}
+      >
+        <button
+          type="button"
+          className="employer-mobile-menu-close"
+          aria-label="Close navigation menu"
+          onClick={() => setMobileMenuOpen(false)}
+        >
+          <X size={21} />
+        </button>
         <div className="employer-brand">
           <Logo href="/" size="medium" light />
         </div>
@@ -575,6 +608,15 @@ export default function EmployerDashboardPage() {
 
       <section className="employer-main">
         <header className="employer-topbar">
+          <button
+            type="button"
+            className="employer-mobile-menu-toggle"
+            aria-label="Open navigation menu"
+            aria-expanded={mobileMenuOpen}
+            onClick={() => setMobileMenuOpen(true)}
+          >
+            <Menu size={22} />
+          </button>
           <div className="employer-breadcrumb">
             <span>Employer workspace</span>
             <span>/</span>
