@@ -257,6 +257,7 @@ export default function ProfilePage() {
   );
 
   const saveProfile = async (showFeedback = true) => {
+    if (isSaving) return;
     if (!userId) {
       showNotice("error", "Your session has expired. Please log in again.");
       return;
@@ -314,7 +315,7 @@ export default function ProfilePage() {
   };
 
   useEffect(() => {
-    if (isLoading || !userId) return;
+    if (isLoading || isSaving || !userId) return;
     if (!profile.fullName.trim() || !profile.phone.trim() || !profile.location.trim()) return;
 
     const snapshot = JSON.stringify(profile);
@@ -325,7 +326,7 @@ export default function ProfilePage() {
     }, 900);
 
     return () => window.clearTimeout(timeout);
-  }, [profile, isLoading, userId]);
+  }, [profile, isLoading, isSaving, userId]);
 
   const uploadPhoto = async (file?: File) => {
     if (!file || !userId) return;
