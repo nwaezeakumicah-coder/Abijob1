@@ -306,18 +306,27 @@ export default function ProfessionalMessagesPage() {
       ));
 
       const columns = "id, sender_id, recipient_id, body, read_at, created_at";
-      let query = conversation.kind === "direct"
-        ? supabase.from("direct_messages").select(`${columns}, conversation_id`)
-            .eq("conversation_id", conversation.directConversationId!)
-        : supabase.from("messages").select(`${columns}, application_id`)
-            .eq("application_id", conversation.applicationId!);
-
       const oldest = conversation.messages[0];
-      if (mode === "older" && oldest) query = query.lt("created_at", oldest.createdAt);
+      let data: MessageRecord[] = [];
+      let historyError: { message: string } | null = null;
 
-      const { data, error: historyError } = await query
-        .order("created_at", { ascending: false })
-        .limit(51);
+      if (conversation.kind === "direct") {
+        let query = supabase.from("direct_messages")
+          .select(`${columns}, conversation_id`)
+          .eq("conversation_id", conversation.directConversationId!);
+        if (mode === "older" && oldest) query = query.lt("created_at", oldest.createdAt);
+        const result = await query.order("created_at", { ascending: false }).limit(51);
+        data = (result.data || []) as MessageRecord[];
+        historyError = result.error;
+      } else {
+        let query = supabase.from("messages")
+          .select(`${columns}, application_id`)
+          .eq("application_id", conversation.applicationId!);
+        if (mode === "older" && oldest) query = query.lt("created_at", oldest.createdAt);
+        const result = await query.order("created_at", { ascending: false }).limit(51);
+        data = (result.data || []) as MessageRecord[];
+        historyError = result.error;
+      }
 
       if (historyError) {
         console.error("Unable to load professional message history:", historyError);
@@ -328,7 +337,7 @@ export default function ProfessionalMessagesPage() {
         return;
       }
 
-      const records = (data || []) as MessageRecord[];
+      const records = data;
       const page = records.slice(0, 50).reverse().map((record) => ({
         id: record.id,
         senderId: record.sender_id,
