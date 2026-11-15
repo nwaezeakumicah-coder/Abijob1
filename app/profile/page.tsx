@@ -263,19 +263,21 @@ export default function ProfilePage() {
       return;
     }
 
-    if (!profile.fullName.trim()) {
-      showNotice("error", "Please enter your full name.");
-      return;
-    }
+    if (showFeedback) {
+      if (!profile.fullName.trim()) {
+        showNotice("error", "Please enter your full name.");
+        return;
+      }
 
-    if (!profile.phone.trim()) {
-      showNotice("error", "Please enter your phone number.");
-      return;
-    }
+      if (!profile.phone.trim()) {
+        showNotice("error", "Please enter your phone number.");
+        return;
+      }
 
-    if (!profile.location.trim()) {
-      showNotice("error", "Please enter your location.");
-      return;
+      if (!profile.location.trim()) {
+        showNotice("error", "Please enter your location.");
+        return;
+      }
     }
 
     setIsSaving(true);
