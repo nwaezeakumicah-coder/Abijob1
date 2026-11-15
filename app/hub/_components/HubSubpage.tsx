@@ -9,7 +9,7 @@ const scholarshipGuides = [
   { title: "Avoid scholarship scams", body: "Be cautious of guaranteed awards, unofficial agents and requests for payment to secure a scholarship. Verify the provider and never share account passwords or one-time codes." }
 ];
 
-export default function HubSubpage({ section }: { section: "scholarships" }) {
+export default function HubSubpage() {
   return (
     <main className="hub-subpage">
       <header className="hub-subpage-top">
