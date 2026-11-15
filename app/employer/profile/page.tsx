@@ -334,7 +334,7 @@ export default function EmployerProfilePage() {
 
     const timeout = window.setTimeout(() => {
       void handleSave();
-    }, 900);
+    }, 300);
 
     return () => window.clearTimeout(timeout);
   }, [profile, loading, saving]);
