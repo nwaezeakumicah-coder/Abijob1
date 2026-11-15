@@ -74,7 +74,25 @@ type Conversation = {
   directConversationId: string | null;
   messages: ChatMessage[];
   lastActivity: string;
+  lastMessagePreview: string;
   unreadCount: number;
+  hasLoadedMessages: boolean;
+  hasMoreMessages: boolean;
+  loadingMessages: boolean;
+};
+
+type ConversationSummaryRecord = {
+  conversation_kind: ConversationKind;
+  conversation_id: string;
+  contact_id: string;
+  contact_name: string;
+  contact_role: string;
+  business_name: string | null;
+  avatar_url: string | null;
+  job_title: string | null;
+  last_message: string | null;
+  last_message_at: string | null;
+  unread_count: number;
 };
 
 function getInitials(name: string) {
@@ -149,9 +167,14 @@ export default function ProfessionalMessagesPage() {
   const [loadingMessages, setLoadingMessages] = useState(false);
 
   const loadingRef = useRef(false);
+  const conversationsRef = useRef(conversations);
   const bottomRef = useRef<HTMLDivElement | null>(null);
   const inputRef = useRef<HTMLTextAreaElement | null>(null);
   const initialSelectionHandled = useRef(false);
+
+  useEffect(() => {
+    conversationsRef.current = conversations;
+  }, [conversations]);
 
   const loadConversations = useCallback(async () => {
     if (loadingRef.current) return;
@@ -193,180 +216,63 @@ export default function ProfessionalMessagesPage() {
       setUserId(user.id);
       setUserName(profile.full_name || "Professional");
 
-      const [
-        { data: applicationContacts, error: applicationContactsError },
-        { data: directContacts, error: directContactsError },
-      ] = await Promise.all([
-        supabase.rpc("get_message_contacts"),
-        supabase.rpc("get_direct_message_contacts"),
-      ]);
-
-      if (applicationContactsError) throw applicationContactsError;
-      if (directContactsError) throw directContactsError;
-
-      const appContacts = (applicationContacts || []) as ApplicationContactRecord[];
-      const directContactRows = (directContacts || []) as DirectContactRecord[];
-
-      const applicationIds = [
-        ...new Set(
-          appContacts
-            .map((contact) => contact.application_id)
-            .filter(Boolean)
-        ),
-      ];
-
-      const directConversationIds = [
-        ...new Set(
-          directContactRows
-            .map((contact) => contact.conversation_id)
-            .filter(Boolean)
-        ),
-      ];
-
-      let applicationMessages: MessageRecord[] = [];
-      let directMessages: MessageRecord[] = [];
-
-      if (applicationIds.length > 0) {
-        const { data, error: messagesError } = await supabase
-          .from("messages")
-          .select(
-            "id, application_id, sender_id, recipient_id, body, read_at, created_at"
-          )
-          .in("application_id", applicationIds)
-          .order("created_at", { ascending: true });
-
-        if (messagesError) throw messagesError;
-
-        applicationMessages = (data || []) as MessageRecord[];
-      }
-
-      if (directConversationIds.length > 0) {
-        const { data, error: directMessagesError } = await supabase
-          .from("direct_messages")
-          .select(
-            "id, conversation_id, sender_id, recipient_id, body, read_at, created_at"
-          )
-          .in("conversation_id", directConversationIds)
-          .order("created_at", { ascending: true });
-
-        if (directMessagesError) throw directMessagesError;
-
-        directMessages = (data || []) as MessageRecord[];
-      }
-
-      const nextConversations: Conversation[] = [];
-
-      for (const contact of appContacts) {
-        const records = applicationMessages
-          .filter((message) => message.application_id === contact.application_id)
-          .map((message) => ({
-            id: message.id,
-            senderId: message.sender_id,
-            recipientId: message.recipient_id,
-            body: message.body,
-            readAt: message.read_at,
-            createdAt: message.created_at,
-          }));
-
-        const sorted = sortMessages(records);
-        const lastMessage = sorted[sorted.length - 1];
-
-        nextConversations.push({
-          id: `application-${contact.application_id}`,
-          kind: "application",
-          contactId: contact.contact_id,
-          contactName:
-            contact.business_name ||
-            contact.contact_name ||
-            "Employer",
-          contactRole: contact.contact_role || "employer",
-          avatarUrl: contact.avatar_url || null,
-          jobTitle: contact.job_title || null,
-          applicationId: contact.application_id,
-          directConversationId: null,
-          messages: sorted,
-          lastActivity: lastMessage?.createdAt || "",
-          unreadCount: sorted.filter(
-            (message) =>
-              message.recipientId === user.id &&
-              !message.readAt
-          ).length,
-        });
-      }
-
-      for (const contact of directContactRows) {
-        const records = directMessages
-          .filter(
-            (message) => message.conversation_id === contact.conversation_id
-          )
-          .map((message) => ({
-            id: message.id,
-            senderId: message.sender_id,
-            recipientId: message.recipient_id,
-            body: message.body,
-            readAt: message.read_at,
-            createdAt: message.created_at,
-          }));
-
-        const sorted = sortMessages(records);
-        const lastMessage = sorted[sorted.length - 1];
-
-        nextConversations.push({
-          id: `direct-${contact.conversation_id}`,
-          kind: "direct",
-          contactId: contact.contact_id,
-          contactName: contact.contact_name || "Job Seeker",
-          contactRole: contact.contact_role || "job_seeker",
-          avatarUrl: null,
-          jobTitle: null,
-          applicationId: null,
-          directConversationId: contact.conversation_id,
-          messages: sorted,
-          lastActivity:
-            lastMessage?.createdAt || contact.updated_at || contact.created_at,
-          unreadCount: sorted.filter(
-            (message) =>
-              message.recipientId === user.id &&
-              !message.readAt
-          ).length,
-        });
-      }
-
-      nextConversations.sort(
-        (a, b) =>
-          new Date(b.lastActivity || 0).getTime() -
-          new Date(a.lastActivity || 0).getTime()
+      const { data: summaryRows, error: summaryError } = await supabase.rpc(
+        "get_message_conversation_summaries"
       );
+      if (summaryError) throw summaryError;
 
-      setConversations(nextConversations);
+      const rows = (summaryRows || []) as ConversationSummaryRecord[];
+      const nextConversations: Conversation[] = rows.map((row) => {
+        const kind = row.conversation_kind;
+        const isDirect = kind === "direct";
+        return {
+          id: `${kind}-${row.conversation_id}`,
+          kind,
+          contactId: row.contact_id,
+          contactName: row.contact_name || (isDirect ? "Job Seeker" : "Employer"),
+          contactRole: row.contact_role || (isDirect ? "job_seeker" : "employer"),
+          avatarUrl: row.avatar_url || null,
+          jobTitle: row.job_title || null,
+          applicationId: isDirect ? null : row.conversation_id,
+          directConversationId: isDirect ? row.conversation_id : null,
+          messages: [],
+          lastActivity: row.last_message_at || "",
+          lastMessagePreview: row.last_message || "",
+          unreadCount: Number(row.unread_count || 0),
+          hasLoadedMessages: false,
+          hasMoreMessages: false,
+          loadingMessages: false,
+        };
+      });
+
+      setConversations((current) => nextConversations.map((next) => {
+        const previous = current.find((item) => item.id === next.id);
+        return previous ? {
+          ...next,
+          messages: previous.messages,
+          hasLoadedMessages: previous.hasLoadedMessages,
+          hasMoreMessages: previous.hasMoreMessages,
+          loadingMessages: previous.loadingMessages,
+        } : next;
+      }));
 
       if (!initialSelectionHandled.current) {
-        const requestedId = new URLSearchParams(
-          window.location.search
-        ).get("conversation");
-
-        if (requestedId) {
-          const requestedConversation = nextConversations.find(
-            (conversation) =>
-              conversation.id === requestedId ||
-              conversation.applicationId === requestedId ||
-              conversation.directConversationId === requestedId
-          );
-
-          if (requestedConversation) {
-            setSelectedId(requestedConversation.id);
-          }
-        }
-
+        const requestedId = new URLSearchParams(window.location.search).get("conversation");
+        const requestedConversation = requestedId
+          ? nextConversations.find((item) =>
+              item.id === requestedId ||
+              item.applicationId === requestedId ||
+              item.directConversationId === requestedId
+            )
+          : undefined;
+        setSelectedId(requestedConversation?.id || nextConversations[0]?.id || "");
         initialSelectionHandled.current = true;
       } else {
-        setSelectedId((current) => {
-          if (current && nextConversations.some((item) => item.id === current)) {
-            return current;
-          }
-
-          return nextConversations[0]?.id || "";
-        });
+        setSelectedId((current) =>
+          current && nextConversations.some((item) => item.id === current)
+            ? current
+            : nextConversations[0]?.id || ""
+        );
       }
 
       setError("");
@@ -383,6 +289,87 @@ export default function ProfessionalMessagesPage() {
       loadingRef.current = false;
     }
   }, [supabase]);
+
+  const loadConversationMessages = useCallback(
+    async (conversationId: string, mode: "initial" | "older" | "refresh" = "initial") => {
+      const conversation = conversationsRef.current.find((item) => item.id === conversationId);
+      if (!conversation || !userId) return;
+      if (mode === "older" && conversation.messages.length === 0) return;
+
+      setConversations((current) => current.map((item) =>
+        item.id === conversationId ? { ...item, loadingMessages: true } : item
+      ));
+
+      const columns = "id, sender_id, recipient_id, body, read_at, created_at";
+      let query = conversation.kind === "direct"
+        ? supabase.from("direct_messages").select(`${columns}, conversation_id`)
+            .eq("conversation_id", conversation.directConversationId!)
+        : supabase.from("messages").select(`${columns}, application_id`)
+            .eq("application_id", conversation.applicationId!);
+
+      const oldest = conversation.messages[0];
+      if (mode === "older" && oldest) query = query.lt("created_at", oldest.createdAt);
+
+      const { data, error: historyError } = await query
+        .order("created_at", { ascending: false })
+        .limit(51);
+
+      if (historyError) {
+        console.error("Unable to load professional message history:", historyError);
+        setError("Unable to load this conversation. Please try again.");
+        setConversations((current) => current.map((item) =>
+          item.id === conversationId ? { ...item, loadingMessages: false } : item
+        ));
+        return;
+      }
+
+      const records = (data || []) as MessageRecord[];
+      const page = records.slice(0, 50).reverse().map((record) => ({
+        id: record.id,
+        senderId: record.sender_id,
+        recipientId: record.recipient_id,
+        body: record.body,
+        readAt: record.read_at,
+        createdAt: record.created_at,
+      }));
+
+      setConversations((current) => current.map((item) => {
+        if (item.id !== conversationId) return item;
+        let messages: ChatMessage[];
+        if (mode === "older") messages = [...page, ...item.messages];
+        else if (mode === "refresh") {
+          const merged = new Map([...item.messages, ...page].map((message) => [message.id, message]));
+          messages = [...merged.values()].sort((a, b) =>
+            new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
+          );
+        } else messages = page;
+
+        const newest = messages[messages.length - 1];
+        return {
+          ...item,
+          messages,
+          hasLoadedMessages: true,
+          hasMoreMessages: records.length > 50 || (mode === "older" && item.hasMoreMessages),
+          loadingMessages: false,
+          lastMessagePreview: newest?.body || item.lastMessagePreview,
+          lastActivity: newest?.createdAt || item.lastActivity,
+        };
+      }));
+    },
+    [supabase, userId]
+  );
+
+  useEffect(() => {
+    const conversation = conversations.find((item) => item.id === selectedId);
+    if (selectedId && userId && conversation && !conversation.hasLoadedMessages && !conversation.loadingMessages) {
+      void loadConversationMessages(selectedId, "initial");
+    }
+  }, [selectedId, userId, conversations, loadConversationMessages]);
+
+  const loadOlderMessages = async () => {
+    if (!selectedConversation || selectedConversation.loadingMessages) return;
+    await loadConversationMessages(selectedConversation.id, "older");
+  };
 
   useEffect(() => {
     void loadConversations();
@@ -456,54 +443,30 @@ export default function ProfessionalMessagesPage() {
     setSelectedId(conversation.id);
     setMobileChatOpen(true);
     setError("");
-
-    const unreadMessages = conversation.messages.filter(
-      (message) =>
-        message.recipientId === userId && !message.readAt
-    );
-
-    if (unreadMessages.length === 0) return;
+    if (!userId || conversation.unreadCount === 0) return;
 
     setLoadingMessages(true);
-
     try {
-      const unreadIds = unreadMessages.map((message) => message.id);
+      const readAt = new Date().toISOString();
+      const result = conversation.kind === "direct"
+        ? await supabase.from("direct_messages").update({ read_at: readAt })
+            .eq("conversation_id", conversation.directConversationId!)
+            .eq("recipient_id", userId).is("read_at", null).select("id")
+        : await supabase.from("messages").update({ read_at: readAt })
+            .eq("application_id", conversation.applicationId!)
+            .eq("recipient_id", userId).is("read_at", null).select("id");
 
-      if (conversation.kind === "direct") {
-        const { error: updateError } = await supabase
-          .from("direct_messages")
-          .update({ read_at: new Date().toISOString() })
-          .in("id", unreadIds)
-          .eq("recipient_id", userId)
-          .is("read_at", null);
-
-        if (updateError) throw updateError;
-      } else {
-        const { error: updateError } = await supabase
-          .from("messages")
-          .update({ read_at: new Date().toISOString() })
-          .in("id", unreadIds)
-          .eq("recipient_id", userId)
-          .is("read_at", null);
-
-        if (updateError) throw updateError;
-      }
-
-      setConversations((current) =>
-        current.map((item) =>
-          item.id === conversation.id
-            ? {
-                ...item,
-                unreadCount: 0,
-                messages: item.messages.map((message) =>
-                  unreadIds.includes(message.id)
-                    ? { ...message, readAt: new Date().toISOString() }
-                    : message
-                ),
-              }
-            : item
-        )
-      );
+      if (result.error) throw result.error;
+      const changedIds = new Set((result.data || []).map((item: { id: string }) => item.id));
+      setConversations((current) => current.map((item) =>
+        item.id === conversation.id ? {
+          ...item,
+          unreadCount: 0,
+          messages: item.messages.map((message) =>
+            changedIds.has(message.id) ? { ...message, readAt } : message
+          ),
+        } : item
+      ));
     } catch (err) {
       console.error("Unable to mark messages as read:", err);
       setError("Messages opened, but read receipts could not be updated.");
@@ -770,11 +733,10 @@ export default function ProfessionalMessagesPage() {
 
                         <div className="professional-contact-preview">
                           <span>
-                            {lastMessage
-                              ? lastMessage.body
-                              : conversation.kind === "direct"
+                            {conversation.lastMessagePreview ||
+                              (conversation.kind === "direct"
                                 ? "Direct enquiry"
-                                : "Application conversation"}
+                                : "Application conversation")}
                           </span>
 
                           {conversation.unreadCount > 0 && (
@@ -868,7 +830,24 @@ export default function ProfessionalMessagesPage() {
                 </div>
 
                 <div className="professional-chat-messages">
-                  {selectedMessages.length === 0 ? (
+                  {selectedConversation.loadingMessages && (
+                    <div className="professional-history-status" role="status">
+                      Loading messages...
+                    </div>
+                  )}
+
+                  {selectedConversation.hasMoreMessages && (
+                    <button
+                      type="button"
+                      className="professional-load-older"
+                      onClick={() => void loadOlderMessages()}
+                      disabled={selectedConversation.loadingMessages}
+                    >
+                      {selectedConversation.loadingMessages ? "Loading older messages..." : "Load older messages"}
+                    </button>
+                  )}
+
+                  {selectedMessages.length === 0 && selectedConversation.loadingMessages ? null : selectedMessages.length === 0 ? (
                     <div className="professional-no-messages">
                       <div className="professional-empty-icon">
                         <MessageCircle size={25} />
