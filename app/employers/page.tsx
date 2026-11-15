@@ -12,6 +12,7 @@ import {
   RefreshCw,
   ArrowRight,
   Users,
+  ShieldCheck,
 } from "lucide-react";
 
 import Logo from "../../components/Logo";
@@ -27,6 +28,7 @@ type Employer = {
   description: string | null;
   logo_url: string | null;
   active_job_count: number;
+  is_verified: boolean;
 };
 
 export default function EmployersPage() {
@@ -285,6 +287,21 @@ export default function EmployersPage() {
           overflow-wrap: anywhere;
         }
 
+        .employer-verification-badge {
+          display: inline-flex;
+          align-items: center;
+          gap: 5px;
+          width: fit-content;
+          margin: 3px 0 7px;
+          padding: 4px 8px;
+          border: 1px solid #b8dfc5;
+          border-radius: 999px;
+          color: #176b45;
+          background: #edf8f0;
+          font-size: 10px;
+          font-weight: 800;
+        }
+
         .employer-industry {
           color: #758178;
           font-size: 12px;
@@ -537,6 +554,12 @@ export default function EmployersPage() {
 
                   <div>
                     <h3>{employer.business_name}</h3>
+                    {employer.is_verified && (
+                      <span className="employer-verification-badge">
+                        <ShieldCheck size={13} />
+                        Verified employer
+                      </span>
+                    )}
 
                     <span className="employer-industry">
                       {employer.business_type || "Business"}
