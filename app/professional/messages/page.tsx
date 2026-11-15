@@ -168,6 +168,7 @@ export default function ProfessionalMessagesPage() {
 
   const loadingRef = useRef(false);
   const conversationsRef = useRef(conversations);
+  const selectedIdRef = useRef(selectedId);
   const bottomRef = useRef<HTMLDivElement | null>(null);
   const inputRef = useRef<HTMLTextAreaElement | null>(null);
   const initialSelectionHandled = useRef(false);
@@ -175,6 +176,10 @@ export default function ProfessionalMessagesPage() {
   useEffect(() => {
     conversationsRef.current = conversations;
   }, [conversations]);
+
+  useEffect(() => {
+    selectedIdRef.current = selectedId;
+  }, [selectedId]);
 
   const loadConversations = useCallback(async () => {
     if (loadingRef.current) return;
@@ -380,7 +385,7 @@ export default function ProfessionalMessagesPage() {
 
     const refreshActiveConversation = (kind: ConversationKind) => {
       void loadConversations();
-      const active = conversationsRef.current.find((item) => item.id === selectedId);
+      const active = conversationsRef.current.find((item) => item.id === selectedIdRef.current);
       if (active?.kind === kind) {
         void loadConversationMessages(active.id, "refresh");
       }
@@ -438,7 +443,7 @@ export default function ProfessionalMessagesPage() {
       void supabase.removeChannel(applicationChannel);
       void supabase.removeChannel(directChannel);
     };
-  }, [supabase, userId, selectedId, loadConversations, loadConversationMessages]);
+  }, [supabase, userId, loadConversations, loadConversationMessages]);
 
   const selectedConversation = conversations.find(
     (conversation) => conversation.id === selectedId
