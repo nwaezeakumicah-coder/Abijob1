@@ -349,7 +349,7 @@ export default function ProfessionalMessagesPage() {
           ...item,
           messages,
           hasLoadedMessages: true,
-          hasMoreMessages: records.length > 50 || (mode === "older" && item.hasMoreMessages),
+          hasMoreMessages: records.length > 50,
           loadingMessages: false,
           lastMessagePreview: newest?.body || item.lastMessagePreview,
           lastActivity: newest?.createdAt || item.lastActivity,
@@ -527,6 +527,7 @@ export default function ProfessionalMessagesPage() {
       }
 
       setMessageInput("");
+      await loadConversationMessages(conversation.id, "refresh");
       await loadConversations();
       inputRef.current?.focus();
     } catch (err) {
