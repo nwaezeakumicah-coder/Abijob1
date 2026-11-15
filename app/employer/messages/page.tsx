@@ -160,10 +160,15 @@ export default function EmployerMessagesPage() {
 
   const applicationIdsRef = useRef<string[]>([]);
   const conversationsRef = useRef(conversations);
+  const activeIdRef = useRef(activeId);
 
   useEffect(() => {
     conversationsRef.current = conversations;
   }, [conversations]);
+
+  useEffect(() => {
+    activeIdRef.current = activeId;
+  }, [activeId]);
 
   const activeConversation = conversations.find(
     (conversation) => conversation.id === activeId
@@ -371,37 +376,47 @@ export default function EmployerMessagesPage() {
     loadConversations();
   }, [loadConversations]);
 
-  // Listen for messages and read-status changes.
+  // Listen only to messages sent to or by this employer.
   useEffect(() => {
-    const channel = supabase
-      .channel("employer-messages-realtime")
-      .on(
-        "postgres_changes",
-        {
-          event: "*",
-          schema: "public",
-          table: "messages",
-        },
-        (payload) => {
-          const changedMessage =
-            (payload.new || payload.old) as Partial<MessageRecord>;
+    if (!userId) return;
 
-          if (
-            changedMessage.application_id &&
-            applicationIdsRef.current.includes(
-              changedMessage.application_id
-            )
-          ) {
-            loadConversations();
-          }
-        }
-      )
+    const handleMessageChange = (payload: {
+      new: Record<string, unknown>;
+      old: Record<string, unknown>;
+    }) => {
+      const changedMessage = (payload.new || payload.old) as Partial<MessageRecord>;
+      if (
+        !changedMessage.application_id ||
+        !applicationIdsRef.current.includes(changedMessage.application_id)
+      ) return;
+
+      void loadConversations();
+      const active = conversationsRef.current.find((item) => item.id === activeIdRef.current);
+      if (active?.applicationId === changedMessage.application_id) {
+        void loadConversationMessages(active.id, "refresh");
+      }
+    };
+
+    const channel = supabase
+      .channel(`employer-messages-realtime-${userId}`)
+      .on("postgres_changes", {
+        event: "*",
+        schema: "public",
+        table: "messages",
+        filter: `recipient_id=eq.${userId}`,
+      }, handleMessageChange)
+      .on("postgres_changes", {
+        event: "*",
+        schema: "public",
+        table: "messages",
+        filter: `sender_id=eq.${userId}`,
+      }, handleMessageChange)
       .subscribe();
 
     return () => {
-      supabase.removeChannel(channel);
+      void supabase.removeChannel(channel);
     };
-  }, [loadConversations, supabase]);
+  }, [loadConversations, loadConversationMessages, supabase, userId]);
 
   async function openConversation(id: string) {
     setActiveId(id);
