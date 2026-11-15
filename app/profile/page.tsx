@@ -318,14 +318,13 @@ export default function ProfilePage() {
 
   useEffect(() => {
     if (isLoading || isSaving || !userId) return;
-    if (!profile.fullName.trim() || !profile.phone.trim() || !profile.location.trim()) return;
 
     const snapshot = JSON.stringify(profile);
     if (snapshot === lastSavedProfileRef.current) return;
 
     const timeout = window.setTimeout(() => {
       void saveProfile(false);
-    }, 900);
+    }, 300);
 
     return () => window.clearTimeout(timeout);
   }, [profile, isLoading, isSaving, userId]);
