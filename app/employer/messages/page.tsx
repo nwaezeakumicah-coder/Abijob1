@@ -48,6 +48,25 @@ type Conversation = {
   unread: number;
   time: string;
   messages: Message[];
+  lastMessage: string;
+  lastMessageAt: string | null;
+  hasLoadedMessages: boolean;
+  hasMoreMessages: boolean;
+  loadingMessages: boolean;
+};
+
+type ConversationSummaryRecord = {
+  conversation_kind: "application" | "direct";
+  conversation_id: string;
+  contact_id: string;
+  contact_name: string;
+  contact_role: string;
+  business_name: string | null;
+  avatar_url: string | null;
+  job_title: string | null;
+  last_message: string | null;
+  last_message_at: string | null;
+  unread_count: number;
 };
 
 type ContactRecord = {
@@ -139,6 +158,11 @@ export default function EmployerMessagesPage() {
   const [error, setError] = useState("");
 
   const applicationIdsRef = useRef<string[]>([]);
+  const conversationsRef = useRef(conversations);
+
+  useEffect(() => {
+    conversationsRef.current = conversations;
+  }, [conversations]);
 
   const activeConversation = conversations.find(
     (conversation) => conversation.id === activeId
@@ -201,132 +225,53 @@ export default function EmployerMessagesPage() {
         setCompanyName(employerProfile.business_name);
       }
 
-      // Securely retrieve applicants connected to this employer.
-      // The RPC exposes only the contact details required for messaging.
-      const { data: contacts, error: contactsError } = await supabase.rpc(
-        "get_message_contacts"
+      // Load lightweight, role-authorized conversation summaries only.
+      const { data: summaries, error: summariesError } = await supabase.rpc(
+        "get_message_conversation_summaries"
       );
 
-      if (contactsError) throw contactsError;
+      if (summariesError) throw summariesError;
 
-      const contactRecords = (contacts || []) as ContactRecord[];
+      const employerContacts = ((summaries || []) as ConversationSummaryRecord[])
+        .filter((item) => item.conversation_kind === "application" && item.contact_role === "applicant");
 
-      const employerContacts = contactRecords.filter(
-        (contact) =>
-          contact.contact_role === "applicant" &&
-          Boolean(contact.application_id) &&
-          Boolean(contact.contact_id)
+      applicationIdsRef.current = employerContacts.map((item) => item.conversation_id);
+
+      const nextConversations: Conversation[] = employerContacts.map((item, index) => ({
+        id: item.conversation_id,
+        applicationId: item.conversation_id,
+        applicantId: item.contact_id,
+        name: item.contact_name || "Applicant",
+        role: "Job applicant",
+        job: item.job_title || "Job application",
+        initials: getInitials(item.contact_name || "Applicant"),
+        color: COLORS[index % COLORS.length],
+        unread: Number(item.unread_count || 0),
+        time: item.last_message_at ? formatTime(item.last_message_at) : "",
+        messages: [],
+        lastMessage: item.last_message || "",
+        lastMessageAt: item.last_message_at,
+        hasLoadedMessages: false,
+        hasMoreMessages: false,
+        loadingMessages: false,
+      }));
+
+      setConversations((current) => nextConversations.map((next) => {
+        const previous = current.find((item) => item.id === next.id);
+        return previous ? {
+          ...next,
+          messages: previous.messages,
+          hasLoadedMessages: previous.hasLoadedMessages,
+          hasMoreMessages: previous.hasMoreMessages,
+          loadingMessages: previous.loadingMessages,
+        } : next;
+      }));
+
+      setActiveId((currentId) =>
+        currentId && nextConversations.some((item) => item.id === currentId)
+          ? currentId
+          : nextConversations[0]?.id || null
       );
-
-      const applicationIds = [
-        ...new Set(
-          employerContacts.map((contact) => contact.application_id)
-        ),
-      ];
-
-      applicationIdsRef.current = applicationIds;
-
-      if (applicationIds.length === 0) {
-        setConversations([]);
-        setActiveId(null);
-        return;
-      }
-
-      // Retrieve messages for these applications.
-      const { data: messages, error: messagesError } = await supabase
-        .from("messages")
-        .select(
-          "id, application_id, sender_id, recipient_id, body, read_at, created_at"
-        )
-        .in("application_id", applicationIds)
-        .order("created_at", { ascending: true });
-
-      if (messagesError) throw messagesError;
-
-      const messageRecords = (messages || []) as MessageRecord[];
-
-      const nextConversations: Conversation[] = employerContacts.map(
-        (contact, index) => {
-          const applicantName = contact.contact_name || "Applicant";
-
-          const applicantMessages = messageRecords
-            .filter(
-              (message) =>
-                message.application_id === contact.application_id
-            )
-            .map((message) => ({
-              id: message.id,
-              sender_id: message.sender_id,
-              recipient_id: message.recipient_id,
-              text: message.body,
-              time: formatMessageTime(message.created_at),
-              read_at: message.read_at,
-            }));
-
-          const unread = applicantMessages.filter(
-            (message) =>
-              message.recipient_id === user.id &&
-              message.read_at === null
-          ).length;
-
-          const lastMessage =
-            applicantMessages[applicantMessages.length - 1];
-
-          const lastMessageRecord = lastMessage
-            ? messageRecords.find(
-                (message) => message.id === lastMessage.id
-              )
-            : null;
-
-          return {
-            id: contact.application_id,
-            applicationId: contact.application_id,
-            applicantId: contact.contact_id,
-            name: applicantName,
-            role: "Job applicant",
-            job: contact.job_title || "Job application",
-            initials: getInitials(applicantName),
-            color: COLORS[index % COLORS.length],
-            unread,
-            time: lastMessageRecord
-              ? formatTime(lastMessageRecord.created_at)
-              : "",
-            messages: applicantMessages,
-          };
-        }
-      );
-
-      // Sort using actual timestamps.
-      nextConversations.sort((a, b) => {
-        const aDate =
-          messageRecords
-            .filter((message) => message.application_id === a.id)
-            .map((message) => message.created_at)
-            .pop() || "";
-
-        const bDate =
-          messageRecords
-            .filter((message) => message.application_id === b.id)
-            .map((message) => message.created_at)
-            .pop() || "";
-
-        return bDate.localeCompare(aDate);
-      });
-
-      setConversations(nextConversations);
-
-      setActiveId((currentId) => {
-        if (
-          currentId &&
-          nextConversations.some(
-            (conversation) => conversation.id === currentId
-          )
-        ) {
-          return currentId;
-        }
-
-        return nextConversations[0]?.id || null;
-      });
     } catch (err) {
       console.error("Employer messages error:", err);
 
@@ -339,6 +284,107 @@ export default function EmployerMessagesPage() {
       setLoading(false);
     }
   }, [router, supabase]);
+
+  const loadConversationMessages = useCallback(
+    async (conversationId: string, mode: "initial" | "older" | "refresh" = "initial") => {
+      const conversation = conversationsRef.current.find((item) => item.id === conversationId);
+      if (!conversation || !userId) return;
+      if (mode === "older" && conversation.messages.length === 0) return;
+
+      setConversations((current) => current.map((item) =>
+        item.id === conversationId ? { ...item, loadingMessages: true } : item
+      ));
+
+      let query = supabase
+        .from("messages")
+        .select("id, application_id, sender_id, recipient_id, body, read_at, created_at")
+        .eq("application_id", conversation.applicationId);
+
+      const oldest = conversation.messages[0];
+      if (mode === "older" && oldest) {
+        const oldestRecord = oldest.time;
+        const parsed = conversation.messages[0];
+        void oldestRecord;
+        void parsed;
+      }
+
+      if (mode === "older" && conversation.messages[0]) {
+        const oldestMessageId = conversation.messages[0].id;
+        const oldestMessage = await supabase
+          .from("messages")
+          .select("created_at")
+          .eq("id", oldestMessageId)
+          .maybeSingle();
+        if (oldestMessage.error) {
+          setConversations((current) => current.map((item) =>
+            item.id === conversationId ? { ...item, loadingMessages: false } : item
+          ));
+          setError("Unable to load older messages. Please try again.");
+          return;
+        }
+        if (oldestMessage.data?.created_at) {
+          query = query.lt("created_at", oldestMessage.data.created_at);
+        }
+      }
+
+      const { data, error: messagesError } = await query
+        .order("created_at", { ascending: false })
+        .limit(51);
+
+      if (messagesError) {
+        console.error("Unable to load employer message history:", messagesError);
+        setError("Unable to load this conversation. Please try again.");
+        setConversations((current) => current.map((item) =>
+          item.id === conversationId ? { ...item, loadingMessages: false } : item
+        ));
+        return;
+      }
+
+      const records = (data || []) as MessageRecord[];
+      const page = records.slice(0, 50).reverse().map((record) => ({
+        id: record.id,
+        sender_id: record.sender_id,
+        recipient_id: record.recipient_id,
+        text: record.body,
+        time: formatMessageTime(record.created_at),
+        read_at: record.read_at,
+      }));
+
+      setConversations((current) => current.map((item) => {
+        if (item.id !== conversationId) return item;
+        let messages: Message[];
+        if (mode === "older") {
+          messages = [...page, ...item.messages];
+        } else if (mode === "refresh") {
+          const merged = new Map([...item.messages, ...page].map((message) => [message.id, message]));
+          messages = [...merged.values()].sort((a, b) =>
+            new Date(a.time).getTime() - new Date(b.time).getTime()
+          );
+        } else {
+          messages = page;
+        }
+        const newest = messages[messages.length - 1];
+        return {
+          ...item,
+          messages,
+          hasLoadedMessages: true,
+          hasMoreMessages: records.length > 50 || (mode === "older" && item.hasMoreMessages),
+          loadingMessages: false,
+          lastMessage: newest?.text || item.lastMessage,
+          lastMessageAt: newest ? records.find((record) => record.id === newest.id)?.created_at || item.lastMessageAt : item.lastMessageAt,
+          time: newest ? newest.time : item.time,
+        };
+      }));
+    },
+    [supabase, userId]
+  );
+
+  useEffect(() => {
+    const conversation = conversations.find((item) => item.id === activeId);
+    if (activeId && userId && conversation && !conversation.hasLoadedMessages && !conversation.loadingMessages) {
+      void loadConversationMessages(activeId, "initial");
+    }
+  }, [activeId, userId, conversations, loadConversationMessages]);
 
   // Load conversations when the page opens.
   useEffect(() => {
@@ -379,30 +425,18 @@ export default function EmployerMessagesPage() {
 
   async function openConversation(id: string) {
     setActiveId(id);
-
     if (!userId) return;
-
-    const conversation = conversations.find((item) => item.id === id);
-
-    if (!conversation) return;
-
-    const unreadIds = conversation.messages
-      .filter(
-        (message) =>
-          message.recipient_id === userId &&
-          message.read_at === null
-      )
-      .map((message) => message.id);
-
-    if (unreadIds.length === 0) return;
+    const conversation = conversationsRef.current.find((item) => item.id === id);
+    if (!conversation || conversation.unread === 0) return;
 
     const readAt = new Date().toISOString();
-
     const { error: updateError } = await supabase
       .from("messages")
       .update({ read_at: readAt })
-      .in("id", unreadIds)
-      .eq("recipient_id", userId);
+      .eq("application_id", conversation.applicationId)
+      .eq("recipient_id", userId)
+      .is("read_at", null)
+      .select("id");
 
     if (updateError) {
       console.error("Unable to mark messages as read:", updateError);
@@ -410,21 +444,22 @@ export default function EmployerMessagesPage() {
       return;
     }
 
-    setConversations((previous) =>
-      previous.map((item) =>
-        item.id === id
-          ? {
-              ...item,
-              unread: 0,
-              messages: item.messages.map((message) =>
-                unreadIds.includes(message.id)
-                  ? { ...message, read_at: readAt }
-                  : message
-              ),
-            }
-          : item
-      )
-    );
+    setConversations((previous) => previous.map((item) =>
+      item.id === id ? {
+        ...item,
+        unread: 0,
+        messages: item.messages.map((message) =>
+          message.recipient_id === userId && !message.read_at
+            ? { ...message, read_at: readAt }
+            : message
+        ),
+      } : item
+    ));
+  }
+
+  async function loadOlderMessages() {
+    if (!activeConversation || activeConversation.loadingMessages) return;
+    await loadConversationMessages(activeConversation.id, "older");
   }
 
   async function sendMessage() {
@@ -476,6 +511,8 @@ export default function EmployerMessagesPage() {
             ? {
                 ...conversation,
                 messages: [...conversation.messages, newMessage],
+                lastMessage: newMessage.text,
+                lastMessageAt: savedMessage.created_at,
                 time: formatTime(savedMessage.created_at),
               }
             : conversation
@@ -689,13 +726,7 @@ export default function EmployerMessagesPage() {
                           <span className="employer-messages-conversation-top">
                             <strong>{conversation.name}</strong>
                             <small>
-                              {conversation.messages[
-                                conversation.messages.length - 1
-                              ]
-                                ? conversation.messages[
-                                    conversation.messages.length - 1
-                                  ].time
-                                : conversation.time}
+                              {conversation.time}
                             </small>
                           </span>
 
@@ -704,9 +735,7 @@ export default function EmployerMessagesPage() {
                           </span>
 
                           <span className="employer-messages-preview">
-                            {conversation.messages[
-                              conversation.messages.length - 1
-                            ]?.text || "No messages yet. Start a conversation."}
+                            {conversation.lastMessage || "No messages yet. Start a conversation."}
                           </span>
                         </span>
 
@@ -789,7 +818,24 @@ export default function EmployerMessagesPage() {
                       <span>Conversation history</span>
                     </div>
 
-                    {activeConversation.messages.length === 0 ? (
+                    {activeConversation.loadingMessages && (
+                      <div className="employer-messages-history-status" role="status">
+                        Loading messages...
+                      </div>
+                    )}
+
+                    {activeConversation.hasMoreMessages && (
+                      <button
+                        type="button"
+                        className="employer-messages-load-older"
+                        onClick={() => void loadOlderMessages()}
+                        disabled={activeConversation.loadingMessages}
+                      >
+                        {activeConversation.loadingMessages ? "Loading older messages..." : "Load older messages"}
+                      </button>
+                    )}
+
+                    {activeConversation.messages.length === 0 && activeConversation.loadingMessages ? null : activeConversation.messages.length === 0 ? (
                       <div className="employer-messages-no-selection">
                         <MessageCircle size={30} />
                         <h2>Start a conversation</h2>
