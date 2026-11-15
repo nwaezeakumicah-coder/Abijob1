@@ -33,6 +33,7 @@ type Message = {
   recipient_id: string;
   text: string;
   time: string;
+  created_at: string;
   read_at: string | null;
 };
 
@@ -302,29 +303,7 @@ export default function EmployerMessagesPage() {
 
       const oldest = conversation.messages[0];
       if (mode === "older" && oldest) {
-        const oldestRecord = oldest.time;
-        const parsed = conversation.messages[0];
-        void oldestRecord;
-        void parsed;
-      }
-
-      if (mode === "older" && conversation.messages[0]) {
-        const oldestMessageId = conversation.messages[0].id;
-        const oldestMessage = await supabase
-          .from("messages")
-          .select("created_at")
-          .eq("id", oldestMessageId)
-          .maybeSingle();
-        if (oldestMessage.error) {
-          setConversations((current) => current.map((item) =>
-            item.id === conversationId ? { ...item, loadingMessages: false } : item
-          ));
-          setError("Unable to load older messages. Please try again.");
-          return;
-        }
-        if (oldestMessage.data?.created_at) {
-          query = query.lt("created_at", oldestMessage.data.created_at);
-        }
+        query = query.lt("created_at", oldest.created_at);
       }
 
       const { data, error: messagesError } = await query
@@ -347,6 +326,7 @@ export default function EmployerMessagesPage() {
         recipient_id: record.recipient_id,
         text: record.body,
         time: formatMessageTime(record.created_at),
+        created_at: record.created_at,
         read_at: record.read_at,
       }));
 
@@ -358,7 +338,7 @@ export default function EmployerMessagesPage() {
         } else if (mode === "refresh") {
           const merged = new Map([...item.messages, ...page].map((message) => [message.id, message]));
           messages = [...merged.values()].sort((a, b) =>
-            new Date(a.time).getTime() - new Date(b.time).getTime()
+            new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
           );
         } else {
           messages = page;
@@ -502,6 +482,7 @@ export default function EmployerMessagesPage() {
         recipient_id: savedMessage.recipient_id,
         text: savedMessage.body,
         time: formatMessageTime(savedMessage.created_at),
+        created_at: savedMessage.created_at,
         read_at: savedMessage.read_at,
       };
 
