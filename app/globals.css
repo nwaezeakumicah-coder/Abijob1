@@ -240,3 +240,72 @@ img {
     transition-duration: 0.01ms !important;
   }
 }
+
+
+/* =========================================
+   11. CONSISTENT INTERACTION BASELINE
+========================================= */
+
+/* Keep keyboard focus visible without changing normal pointer styling. */
+:where(a, button, input, select, textarea, summary, [tabindex]):focus-visible {
+  outline: 3px solid #8bbd61;
+  outline-offset: 3px;
+}
+
+:where(button, input, select, textarea) {
+  accent-color: var(--green);
+}
+
+:where(input:not([type="checkbox"]):not([type="radio"]), select) {
+  min-height: 44px;
+}
+
+:where(textarea) {
+  min-height: 112px;
+  resize: vertical;
+}
+
+:where(button, input, select, textarea) {
+  border-radius: max(0px, var(--radius-sm));
+}
+
+:where(button, a, input, select, textarea) {
+  touch-action: manipulation;
+}
+
+:where(button, input, select, textarea):disabled {
+  opacity: 0.62;
+  cursor: not-allowed;
+}
+
+:where(a, button) {
+  -webkit-tap-highlight-color: transparent;
+}
+
+:where(h1, h2, h3) {
+  text-wrap: balance;
+}
+
+:where(p, li) {
+  text-wrap: pretty;
+}
+
+:where(section, article, [id]) {
+  scroll-margin-top: 6rem;
+}
+
+@media (max-width: 640px) {
+  body {
+    font-size: 15px;
+  }
+
+  :where(input, select, textarea) {
+    font-size: 16px;
+  }
+}
+
+@media (forced-colors: active) {
+  :where(a, button, input, select, textarea, summary):focus-visible {
+    outline: 2px solid Highlight;
+  }
+}
