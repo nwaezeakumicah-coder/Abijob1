@@ -696,7 +696,9 @@ export default function HubPage() {
             </div>
 
             <div className="hub-community-grid">
-              {communities.map((community) => {
+              {communities.length === 0 ? (
+                <p className="hub-empty-state">No communities are available right now. Please check again soon.</p>
+              ) : communities.map((community) => {
                 return (
                   <article
                     className="hub-community-card"
@@ -742,7 +744,9 @@ export default function HubPage() {
             </div>
 
             <div className="hub-events-list">
-              {events.map((event) => (
+              {events.length === 0 ? (
+                <p className="hub-empty-state">There are no published upcoming events at the moment.</p>
+              ) : events.map((event) => (
                 <article className="hub-event-card" key={event.id}>
                   <div className="hub-event-date">
                     <strong>{event.day}</strong>
