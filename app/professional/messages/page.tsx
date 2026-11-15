@@ -378,6 +378,14 @@ export default function ProfessionalMessagesPage() {
   useEffect(() => {
     if (!userId) return;
 
+    const refreshActiveConversation = (kind: ConversationKind) => {
+      void loadConversations();
+      const active = conversationsRef.current.find((item) => item.id === selectedId);
+      if (active?.kind === kind) {
+        void loadConversationMessages(active.id, "refresh");
+      }
+    };
+
     const applicationChannel = supabase
       .channel(`professional-application-messages-${userId}`)
       .on(
@@ -386,10 +394,19 @@ export default function ProfessionalMessagesPage() {
           event: "*",
           schema: "public",
           table: "messages",
+          filter: `recipient_id=eq.${userId}`,
         },
-        () => {
-          void loadConversations();
-        }
+        () => refreshActiveConversation("application")
+      )
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "messages",
+          filter: `sender_id=eq.${userId}`,
+        },
+        () => refreshActiveConversation("application")
       )
       .subscribe();
 
@@ -401,10 +418,19 @@ export default function ProfessionalMessagesPage() {
           event: "*",
           schema: "public",
           table: "direct_messages",
+          filter: `recipient_id=eq.${userId}`,
         },
-        () => {
-          void loadConversations();
-        }
+        () => refreshActiveConversation("direct")
+      )
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "direct_messages",
+          filter: `sender_id=eq.${userId}`,
+        },
+        () => refreshActiveConversation("direct")
       )
       .subscribe();
 
@@ -412,7 +438,7 @@ export default function ProfessionalMessagesPage() {
       void supabase.removeChannel(applicationChannel);
       void supabase.removeChannel(directChannel);
     };
-  }, [supabase, userId, loadConversations]);
+  }, [supabase, userId, selectedId, loadConversations, loadConversationMessages]);
 
   const selectedConversation = conversations.find(
     (conversation) => conversation.id === selectedId
