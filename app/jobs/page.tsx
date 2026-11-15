@@ -439,7 +439,7 @@ export default function JobsPage() {
       setHasMoreJobs(rows.length === JOB_PAGE_SIZE);
     } catch (err) {
       console.error("More jobs loading error:", err);
-      setError(
+      setShareMessage(
         err instanceof Error
           ? err.message
           : "We could not load more opportunities. Please try again."
@@ -977,6 +977,15 @@ export default function JobsPage() {
                 >
                   Explore all opportunities
                 </button>
+                {hasMoreJobs && (
+                  <button
+                    type="button"
+                    onClick={() => void loadMoreJobs()}
+                    disabled={loadingMoreJobs}
+                  >
+                    {loadingMoreJobs ? "Loading more opportunities..." : "Load more opportunities"}
+                  </button>
+                )}
               </div>
             )}
           </section>
