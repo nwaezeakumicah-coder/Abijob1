@@ -575,13 +575,15 @@ export default function EmployerApplicantsPage() {
 
   return (
     <main className="employer-applicants-page">
-      <button
-        type="button"
-        className="employer-mobile-menu-overlay"
-        aria-label="Close employer navigation"
-        tabIndex={mobileMenuOpen ? 0 : -1}
-        onClick={() => setMobileMenuOpen(false)}
-      />
+      {mobileMenuOpen && (
+        <button
+                type="button"
+                className="employer-mobile-menu-overlay"
+                aria-label="Close employer navigation"
+                tabIndex={mobileMenuOpen ? 0 : -1}
+                onClick={() => setMobileMenuOpen(false)}
+              />
+      )}
       <aside
         className={`applicants-sidebar ${mobileMenuOpen ? "mobile-open" : ""}`}
         onClick={(event) => {
