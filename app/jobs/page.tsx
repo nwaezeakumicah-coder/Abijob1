@@ -66,6 +66,27 @@ type Job = {
 
 type FeedTab = "For You" | "Latest" | "Saved";
 
+const JOB_PAGE_SIZE = 20;
+const JOB_SELECT = `
+  id,
+  employer_id,
+  title,
+  category,
+  location,
+  employment_type,
+  salary_min,
+  salary_max,
+  salary_currency,
+  description,
+  requirements,
+  responsibilities,
+  benefits,
+  skills_required,
+  application_deadline,
+  created_at,
+  status
+`;
+
 const locations = [
   "All Abia",
   "Aba",
@@ -213,6 +234,9 @@ export default function JobsPage() {
 
   const [jobs, setJobs] = useState<Job[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadingMoreJobs, setLoadingMoreJobs] = useState(false);
+  const [hasMoreJobs, setHasMoreJobs] = useState(false);
+  const [nextJobOffset, setNextJobOffset] = useState(0);
   const [error, setError] = useState("");
 
   const [search, setSearch] = useState("");
@@ -275,47 +299,8 @@ export default function JobsPage() {
     };
   }, [supabase]);
 
-  const loadJobs = useCallback(async () => {
-    setLoading(true);
-    setError("");
-
-    try {
-      // Use the actual database column: salary_currency.
-      const { data, error: jobsError } = await supabase
-        .from("jobs")
-        .select(`
-          id,
-          employer_id,
-          title,
-          category,
-          location,
-          employment_type,
-          salary_min,
-          salary_max,
-          salary_currency,
-          description,
-          requirements,
-          responsibilities,
-          benefits,
-          skills_required,
-          application_deadline,
-          created_at,
-          status
-        `)
-        .eq("status", "approved")
-        .order("created_at", { ascending: false });
-
-      if (jobsError) {
-        throw jobsError;
-      }
-
-      const databaseJobs = ((data || []) as DatabaseJob[]).filter(
-        (job) => !isDeadlineExpired(job.application_deadline)
-      );
-
-      // jobs.employer_id references profiles.id.
-      // Use the confirmed relationship rather than assuming an
-      // unverified employer_profiles table structure.
+  const formatDatabaseJobs = useCallback(
+    async (databaseJobs: DatabaseJob[]): Promise<Job[]> => {
       const employerIds = [
         ...new Set(databaseJobs.map((job) => job.employer_id)),
       ];
@@ -324,46 +309,45 @@ export default function JobsPage() {
       let verifiedEmployers = new Set<string>();
 
       if (employerIds.length > 0) {
-        const { data: employerProfiles, error: employerError } =
-          await supabase
+        const [profilesResult, verificationResult] = await Promise.all([
+          supabase
             .from("profiles")
             .select("id, full_name")
-            .in("id", employerIds);
+            .in("id", employerIds),
+          (supabase as any).rpc("get_public_employer_verification_status", {
+            p_employer_ids: employerIds,
+          }),
+        ]);
 
-        if (employerError) {
+        if (profilesResult.error) {
           console.warn(
             "Employer names could not be loaded:",
-            employerError.message
+            profilesResult.error.message
           );
-        } else if (employerProfiles) {
+        } else if (profilesResult.data) {
           companyNames = Object.fromEntries(
-            employerProfiles.map((profile) => [
+            profilesResult.data.map((profile) => [
               profile.id,
               profile.full_name || "Abijob Employer",
             ])
           );
         }
 
-        const { data: employerVerification, error: verificationError } =
-          await (supabase as any).rpc("get_public_employer_verification_status", {
-            p_employer_ids: employerIds,
-          });
-
-        if (verificationError) {
+        if (verificationResult.error) {
           console.warn(
             "Employer verification badges could not be loaded:",
-            verificationError.message
+            verificationResult.error.message
           );
         } else {
           verifiedEmployers = new Set(
-            (employerVerification ?? [])
+            (verificationResult.data ?? [])
               .filter((row: { is_verified: boolean }) => row.is_verified)
               .map((row: { employer_id: string }) => row.employer_id)
           );
         }
       }
 
-      const formattedJobs: Job[] = databaseJobs.map((job) => ({
+      return databaseJobs.map((job) => ({
         id: job.id,
         title: job.title,
         company: companyNames[job.employer_id] || "Abijob Employer",
@@ -385,22 +369,91 @@ export default function JobsPage() {
         skills: job.skills_required || [],
         deadline: job.application_deadline,
       }));
+    },
+    [supabase]
+  );
 
+  const loadJobs = useCallback(async () => {
+    setLoading(true);
+    setError("");
+    setNextJobOffset(0);
+    setHasMoreJobs(false);
+
+    try {
+      const { data, error: jobsError } = await supabase
+        .from("jobs")
+        .select(JOB_SELECT)
+        .eq("status", "approved")
+        .order("created_at", { ascending: false })
+        .range(0, JOB_PAGE_SIZE - 1);
+
+      if (jobsError) throw jobsError;
+
+      const rows = (data || []) as DatabaseJob[];
+      const databaseJobs = rows.filter(
+        (job) => !isDeadlineExpired(job.application_deadline)
+      );
+
+      const formattedJobs = await formatDatabaseJobs(databaseJobs);
       setJobs(formattedJobs);
+      setNextJobOffset(rows.length);
+      setHasMoreJobs(rows.length === JOB_PAGE_SIZE);
     } catch (err) {
       console.error("Jobs loading error:", err);
-
       setError(
         err instanceof Error
           ? err.message
           : "We could not load job opportunities. Please try again."
       );
-
       setJobs([]);
     } finally {
       setLoading(false);
     }
-  }, [supabase]);
+  }, [formatDatabaseJobs, supabase]);
+
+  const loadMoreJobs = useCallback(async () => {
+    if (loadingMoreJobs || !hasMoreJobs) return;
+
+    setLoadingMoreJobs(true);
+    setError("");
+
+    try {
+      const start = nextJobOffset;
+      const { data, error: jobsError } = await supabase
+        .from("jobs")
+        .select(JOB_SELECT)
+        .eq("status", "approved")
+        .order("created_at", { ascending: false })
+        .range(start, start + JOB_PAGE_SIZE - 1);
+
+      if (jobsError) throw jobsError;
+
+      const rows = (data || []) as DatabaseJob[];
+      const databaseJobs = rows.filter(
+        (job) => !isDeadlineExpired(job.application_deadline)
+      );
+      const formattedJobs = await formatDatabaseJobs(databaseJobs);
+
+      setJobs((current) => [...current, ...formattedJobs]);
+      setNextJobOffset(start + rows.length);
+      setHasMoreJobs(rows.length === JOB_PAGE_SIZE);
+    } catch (err) {
+      console.error("More jobs loading error:", err);
+      setError(
+        err instanceof Error
+          ? err.message
+          : "We could not load more opportunities. Please try again."
+      );
+    } finally {
+      setLoadingMoreJobs(false);
+    }
+  }, [
+    formatDatabaseJobs,
+    hasMoreJobs,
+    loadingMoreJobs,
+    nextJobOffset,
+    supabase,
+  ]);
 
   useEffect(() => {
     loadJobs();
@@ -882,6 +935,17 @@ export default function JobsPage() {
                   );
                 })}
               </div>
+              {hasMoreJobs && (
+                <div className="jobs-feed-load-more">
+                  <button
+                    type="button"
+                    onClick={() => void loadMoreJobs()}
+                    disabled={loadingMoreJobs}
+                  >
+                    {loadingMoreJobs ? "Loading more opportunities..." : "Load more opportunities"}
+                  </button>
+                </div>
+              )}
             ) : (
               <div className="jobs-feed-empty">
                 <div>
