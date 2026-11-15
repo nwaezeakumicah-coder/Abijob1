@@ -975,6 +975,7 @@ export default function JobsPage() {
                   </button>
                 </div>
               )}
+              </>
             ) : (
               <div className="jobs-feed-empty">
                 <div>
