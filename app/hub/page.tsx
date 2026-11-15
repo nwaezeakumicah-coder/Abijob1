@@ -185,6 +185,45 @@ const events = [
   },
 ];
 
+const articleBodies: Record<number, string[]> = {
+  1: [
+    "A strong CV makes it easy for an employer to understand what you can do and why you may be a good fit. Keep the layout clean, use clear headings and put your most relevant information where it is easy to find.",
+    "Start with your name and contact details, followed by a short professional summary. Add your education, work experience, volunteering, projects, training and practical skills. If you are just starting out, include school projects, internships, community work and personal projects that demonstrate your ability.",
+    "Describe achievements with action words and specific examples. Instead of writing “responsible for sales”, explain what you did, who you served or what improved. Tailor your CV to each vacancy by reflecting the skills and requirements in the job description honestly.",
+    "Before sending it, check spelling, dates and contact details. Save it as a PDF unless the employer requests another format, use a professional filename and never include false qualifications or experience."
+  ],
+  2: [
+    "Digital skills are useful across many sectors, not only in technology companies. Businesses need people who can communicate online, manage information, create content, work with spreadsheets and use digital tools safely.",
+    "A practical starting point is digital literacy: email, document editing, online research, file management and safe internet use. You can then build towards areas such as graphic design, web development, data analysis, digital marketing or technical support.",
+    "Choose one skill and practise it through small projects. Create a sample design, build a simple website, analyse a public dataset or prepare a mock marketing plan. A portfolio gives employers and customers something concrete to assess.",
+    "Keep learning, ask for feedback and describe your skills accurately on your Abijob profile. Practical evidence and consistency matter more than simply listing many tools."
+  ],
+  3: [
+    "A successful scholarship application begins with careful research. Confirm that the programme is genuine and that you meet its academic, location, age and course requirements before spending time on an application.",
+    "Prepare documents early. These may include academic transcripts, certificates, identification, a CV, references and a personal statement. Requirements differ, so follow the official scholarship instructions rather than relying on an unofficial checklist.",
+    "Your personal statement should explain your goals, relevant experiences, achievements and how the award will help you make progress. Use clear examples and connect your plans to the purpose of the scholarship.",
+    "Submit before the deadline, keep copies of your application and monitor only the provider's official communication channels. Be wary of anyone promising a guaranteed award in exchange for a fee."
+  ],
+  4: [
+    "Small businesses grow when they understand the people they serve. Start by identifying your ideal customers, the problem you solve and what makes your product or service useful.",
+    "Make it easy for customers to recognise and trust your business. Use consistent branding, clear pricing, good photographs and accurate contact information. Respond politely, deliver what you promise and handle complaints quickly.",
+    "Ask satisfied customers for honest reviews and referrals. Share useful updates on channels your customers already use, and track which activities lead to enquiries and sales instead of spending blindly on promotion.",
+    "Keep simple records of income, expenses, stock and customer requests. Review them regularly so you can make informed decisions about pricing, service quality and where to invest next."
+  ],
+  5: [
+    "A practical skill can become a sustainable career when you combine quality work with good customer service and basic business habits. Begin by identifying the services you can deliver reliably and the customers who need them.",
+    "Build a small portfolio using photographs, descriptions or examples of completed work. Ask permission before sharing customer projects, and explain your role clearly. A portfolio helps people judge the quality of your work before they hire you.",
+    "Set prices that account for materials, transport, time and operating costs. Explain what is included, agree on timelines and put important details in writing. Avoid accepting work you cannot complete safely or to an acceptable standard.",
+    "Keep improving through practice, mentorship and feedback. A complete Abijob professional profile can also help people discover your services and understand your experience."
+  ],
+  6: [
+    "An interview is a conversation that helps an employer understand your experience, approach and interest in a role. Read the job description carefully and identify examples that show you can meet its key requirements.",
+    "Prepare a short introduction about your background and practise explaining your achievements. For experience-based questions, use a simple structure: describe the situation, the task, the action you took and the result.",
+    "Arrive or join the online meeting early, dress appropriately and keep your answers clear and honest. If you do not know an answer, explain how you would find out or approach the problem.",
+    "Prepare thoughtful questions about the responsibilities, team, expectations and next steps. After the interview, thank the interviewer and follow any instructions they provided."
+  ]
+};
+
 const categories: HubCategory[] = [
   "All",
   "Career advice",
@@ -198,7 +237,7 @@ export default function HubPage() {
   const [activeCategory, setActiveCategory] = useState<HubCategory>("All");
   const [searchTerm, setSearchTerm] = useState("");
   const [savedArticles, setSavedArticles] = useState<number[]>([]);
-  const [joinedCommunities, setJoinedCommunities] = useState<string[]>([]);
+  
   const [selectedArticle, setSelectedArticle] = useState<HubArticle | null>(
     null
   );
@@ -241,14 +280,6 @@ export default function HubPage() {
       current.includes(id)
         ? current.filter((item) => item !== id)
         : [...current, id]
-    );
-  }
-
-  function toggleCommunity(name: string) {
-    setJoinedCommunities((current) =>
-      current.includes(name)
-        ? current.filter((item) => item !== name)
-        : [...current, name]
     );
   }
 
@@ -677,10 +708,6 @@ export default function HubPage() {
 
             <div className="hub-community-grid">
               {communities.map((community) => {
-                const joined = joinedCommunities.includes(
-                  community.name
-                );
-
                 return (
                   <article
                     className="hub-community-card"
@@ -699,21 +726,9 @@ export default function HubPage() {
                     <h3>{community.name}</h3>
                     <p>{community.description}</p>
 
-                    <button
-                      type="button"
-                      className={joined ? "joined" : ""}
-                      onClick={() => toggleCommunity(community.name)}
-                    >
-                      {joined ? (
-                        <>
-                          <CheckCircle2 size={16} /> Joined
-                        </>
-                      ) : (
-                        <>
-                          Join community <ArrowRight size={15} />
-                        </>
-                      )}
-                    </button>
+                    <Link href="/hub/communities" className="hub-community-explore">
+                      Explore community <ArrowRight size={15} />
+                    </Link>
                   </article>
                 );
               })}
@@ -759,17 +774,9 @@ export default function HubPage() {
                     </div>
                   </div>
 
-                  <button
-                    type="button"
-                    className="hub-event-action"
-                    onClick={() =>
-                      alert(
-                        "Event registration will be available when AbiJob backend services are connected."
-                      )
-                    }
-                  >
+                  <Link href="/hub/events" className="hub-event-action">
                     View details <ArrowUpRight size={16} />
-                  </button>
+                  </Link>
                 </article>
               ))}
             </div>
@@ -839,12 +846,10 @@ export default function HubPage() {
 
             <p>{selectedArticle.excerpt}</p>
 
-            <div className="hub-modal-placeholder">
-              <BookOpen size={25} />
-              <p>
-                The full article will be published here when the AbiJob
-                content management system is connected.
-              </p>
+            <div className="hub-modal-article-content">
+              {(articleBodies[selectedArticle.id] ?? []).map((paragraph, index) => (
+                <p key={index}>{paragraph}</p>
+              ))}
             </div>
 
             <button
