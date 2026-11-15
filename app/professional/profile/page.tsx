@@ -531,18 +531,23 @@ export default function ProfessionalProfilePage() {
         photo_path: newPhotoPath,
       };
 
-      const { error: professionalError } = await supabase
+      const { data: savedProfessional, error: professionalError } = await supabase
         .from("professional_profiles")
-        .update({
+        .upsert({
           category: profile.professionalTitle.trim() || "General",
           skills: profile.skills,
           service_area: profile.location.trim(),
           profile_data: profileData,
           is_public: profile.isPublic,
-        })
-        .eq("user_id", user.id);
+          user_id: user.id,
+        }, { onConflict: "user_id" })
+        .select("user_id")
+        .single();
 
       if (professionalError) throw professionalError;
+      if (!savedProfessional?.user_id) {
+        throw new Error("Your professional profile was not confirmed as saved. Please try again.");
+      }
 
       let signedPhoto = profile.photo;
 
@@ -598,6 +603,17 @@ export default function ProfessionalProfilePage() {
       setSaving(false);
     }
   }
+
+  useEffect(() => {
+    if (!hydrated || saving) return;
+    if (JSON.stringify(profile) === JSON.stringify(savedSnapshot)) return;
+
+    const timeout = window.setTimeout(() => {
+      void saveProfile();
+    }, 900);
+
+    return () => window.clearTimeout(timeout);
+  }, [profile, savedSnapshot, hydrated, saving, pendingPhoto]);
 
   function cancelChanges() {
     if (
