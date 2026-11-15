@@ -613,7 +613,7 @@ export default function ProfessionalProfilePage() {
 
     const timeout = window.setTimeout(() => {
       void saveProfile();
-    }, 900);
+    }, 300);
 
     return () => window.clearTimeout(timeout);
   }, [profile, savedSnapshot, hydrated, saving, pendingPhoto]);
