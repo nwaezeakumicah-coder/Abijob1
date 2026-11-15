@@ -1136,3 +1136,34 @@
   background: #203b2b;
   color: #a9d878;
 }
+
+
+.professional-history-status {
+  padding: 10px 12px;
+  color: #68766d;
+  text-align: center;
+  font-size: 12px;
+}
+
+.professional-load-older {
+  display: block;
+  margin: 0 auto 16px;
+  padding: 8px 14px;
+  border: 1px solid #dce7de;
+  border-radius: 999px;
+  background: #fff;
+  color: #176b45;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.professional-load-older:hover:not(:disabled) {
+  border-color: #176b45;
+  background: #f5faf6;
+}
+
+.professional-load-older:disabled {
+  cursor: wait;
+  opacity: 0.65;
+}
