@@ -1,9 +1,9 @@
 
 "use client";
 
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { Menu, X } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import Logo from "./Logo";
@@ -51,10 +51,12 @@ const roleNavigation: Record<
   },
 };
 
-export default function Header() {
+function HeaderContent() {
   const router = useRouter();
+  const pathname = usePathname();
 
   const [menuOpen, setMenuOpen] = useState(false);
+  const menuButtonRef = useRef<HTMLButtonElement>(null);
   const [role, setRole] = useState<AccountRole>(null);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [authLoading, setAuthLoading] = useState(true);
@@ -167,6 +169,20 @@ export default function Header() {
     setMenuOpen(false);
   };
 
+  useEffect(() => {
+    if (!menuOpen) return;
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setMenuOpen(false);
+        menuButtonRef.current?.focus();
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [menuOpen]);
+
   const accountNavigation = role ? roleNavigation[role] : null;
 
   const firstNavigationItem = accountNavigation
@@ -230,7 +246,8 @@ export default function Header() {
             <Link
               key={item.href}
               href={item.href}
-              className="header-nav-link"
+              className={`header-nav-link ${pathname === item.href || (item.href !== "/" && pathname.startsWith(`${item.href}/`)) ? "is-active" : ""}`}
+              aria-current={pathname === item.href ? "page" : undefined}
             >
               {item.label}
             </Link>
@@ -239,7 +256,9 @@ export default function Header() {
 
         {/* Desktop Account Actions */}
         <div className="header-actions">
-          {!authLoading && (
+          {authLoading ? (
+            <span className="header-auth-loading" role="status">Checking account…</span>
+          ) : (
             <>
               {isAuthenticated ? (
                 <>
@@ -283,6 +302,7 @@ export default function Header() {
         {/* Mobile Menu Toggle */}
         <button
           type="button"
+          ref={menuButtonRef}
           className="mobile-menu-toggle"
           onClick={() => setMenuOpen(!menuOpen)}
           aria-label={menuOpen ? "Close menu" : "Open menu"}
@@ -307,7 +327,8 @@ export default function Header() {
             <Link
               key={item.href}
               href={item.href}
-              className="mobile-nav-link"
+              className={`mobile-nav-link ${pathname === item.href || (item.href !== "/" && pathname.startsWith(`${item.href}/`)) ? "is-active" : ""}`}
+              aria-current={pathname === item.href ? "page" : undefined}
               onClick={closeMenu}
             >
               {item.label}
@@ -315,7 +336,9 @@ export default function Header() {
           ))}
 
           <div className="mobile-navigation-actions">
-            {!authLoading && (
+            {authLoading ? (
+              <span className="header-auth-loading" role="status">Checking account…</span>
+            ) : (
               <>
                 {isAuthenticated ? (
                   <>
@@ -361,5 +384,14 @@ export default function Header() {
         </nav>
       </div>
     </header>
+  );
+}
+
+
+export default function Header() {
+  return (
+    <Suspense fallback={<header className="site-header" aria-label="Loading site navigation"><div className="header-container"><div className="header-brand"><Logo size="medium" /></div></div></header>}>
+      <HeaderContent />
+    </Suspense>
   );
 }

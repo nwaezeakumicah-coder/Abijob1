@@ -4,7 +4,6 @@ import {
   ArrowRight,
   BriefcaseBusiness,
   Building2,
-  Sparkles,
   Users,
   Wrench,
 } from "lucide-react";
@@ -76,31 +75,16 @@ export default function WelcomeLandingPage() {
           </div>
         </div>
 
-        <div className="welcome-art" aria-label="People, skills and employers connected through Abijob">
-          <div className="welcome-ring welcome-ring-outer" />
-          <div className="welcome-ring welcome-ring-inner" />
-          <div className="welcome-glow" />
-          <div className="welcome-center-mark">
-            <Image
-              src="/images/abijob-logo-green.png"
-              alt=""
-              width={160}
-              height={58}
-              className="welcome-center-logo"
-            />
-            <span>OPPORTUNITY STARTS HERE</span>
-          </div>
-          <div className="welcome-orbit-node welcome-node-one">
-            <span><Users size={22} /></span><small>People</small>
-          </div>
-          <div className="welcome-orbit-node welcome-node-two">
-            <span><Wrench size={22} /></span><small>Skills</small>
-          </div>
-          <div className="welcome-orbit-node welcome-node-three">
-            <span><Building2 size={22} /></span><small>Employers</small>
-          </div>
-          <div className="welcome-spark welcome-spark-one"><Sparkles size={18} /></div>
-          <div className="welcome-spark welcome-spark-two"><Sparkles size={13} /></div>
+        <div className="welcome-art" aria-label="A professional portrait representing the people and talent of Abia State">
+          <Image
+            src="/images/abimage.png"
+            alt="A confident African woman representing the talent and ambition of Abia"
+            width={900}
+            height={1100}
+            priority
+            sizes="(max-width: 700px) 100vw, 48vw"
+            className="welcome-photo"
+          />
         </div>
       </section>
 
