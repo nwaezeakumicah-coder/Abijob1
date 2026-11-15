@@ -19,6 +19,8 @@ import {
   Flag,
   ScrollText,
   Headset,
+  CalendarDays,
+  MessageCircle,
   Menu,
   X,
   LogOut,
@@ -82,6 +84,18 @@ const navigation = [
         href: "/verifications/professionals",
         permissions: ["verifications.review", "verifications.manage"],
         icon: ClipboardCheck,
+      },
+      {
+        label: "Events & Workshops",
+        href: "/events",
+        permissions: ["events.manage"],
+        icon: CalendarDays,
+      },
+      {
+        label: "Community Moderation",
+        href: "/communities",
+        permissions: ["communities.manage", "content.review"],
+        icon: MessageCircle,
       },
       {
         label: "Job Safety Reports",
