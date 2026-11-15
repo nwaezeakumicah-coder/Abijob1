@@ -218,7 +218,7 @@ export default function EmployerProfilePage() {
     setSaveError("");
   }
 
-  async function handleSave(showFeedback = true) {
+  async function handleSave() {
     if (loading || saving) return;
 
     if (!profile.companyName.trim()) {
@@ -333,7 +333,7 @@ export default function EmployerProfilePage() {
     if (snapshot === lastSavedProfileRef.current) return;
 
     const timeout = window.setTimeout(() => {
-      void handleSave(false);
+      void handleSave();
     }, 900);
 
     return () => window.clearTimeout(timeout);
