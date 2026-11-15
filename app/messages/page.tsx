@@ -275,14 +275,29 @@ export default function MessagesPage() {
         directMessageRows || []
       ) as DirectMessageRecord[];
 
+      // Group messages once instead of rescanning the complete history
+      // separately for every conversation.
+      const applicationMessagesById = new Map<string, ApplicationMessageRecord[]>();
+      for (const message of applicationMessages) {
+        const group = applicationMessagesById.get(message.application_id) ?? [];
+        group.push(message);
+        applicationMessagesById.set(message.application_id, group);
+      }
+
+      const directMessagesById = new Map<string, DirectMessageRecord[]>();
+      for (const message of directMessages) {
+        const group = directMessagesById.get(message.conversation_id) ?? [];
+        group.push(message);
+        directMessagesById.set(message.conversation_id, group);
+      }
+
       const nextConversations: Conversation[] = [];
 
       applicationContacts.forEach((contact, index) => {
         if (!contact.application_id || !contact.contact_id) return;
 
-        const conversationMessages = applicationMessages.filter(
-          (message) => message.application_id === contact.application_id
-        );
+        const conversationMessages =
+          applicationMessagesById.get(contact.application_id) ?? [];
 
         const lastMessage =
           conversationMessages[conversationMessages.length - 1];
@@ -324,10 +339,8 @@ export default function MessagesPage() {
       directContacts.forEach((contact, index) => {
         if (!contact.conversation_id || !contact.contact_id) return;
 
-        const conversationMessages = directMessages.filter(
-          (message) =>
-            message.conversation_id === contact.conversation_id
-        );
+        const conversationMessages =
+          directMessagesById.get(contact.conversation_id) ?? [];
 
         const lastMessage =
           conversationMessages[conversationMessages.length - 1];
@@ -506,6 +519,19 @@ export default function MessagesPage() {
           event: "*",
           schema: "public",
           table: "messages",
+          filter: `recipient_id=eq.${userId}`,
+        },
+        () => {
+          void loadConversations(userId);
+        }
+      )
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "messages",
+          filter: `sender_id=eq.${userId}`,
         },
         () => {
           void loadConversations(userId);
@@ -517,6 +543,19 @@ export default function MessagesPage() {
           event: "*",
           schema: "public",
           table: "direct_messages",
+          filter: `recipient_id=eq.${userId}`,
+        },
+        () => {
+          void loadConversations(userId);
+        }
+      )
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "direct_messages",
+          filter: `sender_id=eq.${userId}`,
         },
         () => {
           void loadConversations(userId);
