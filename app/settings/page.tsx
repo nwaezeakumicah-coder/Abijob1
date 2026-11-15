@@ -206,7 +206,7 @@ export default function SettingsPage() {
         if (!active) return;
 
         setAccountName(displayName);
-        setAccountRole(profile.role);
+        setAccountRole(profile.role as "job_seeker" | "professional");
         setSettings(loadedSettings);
         setAccountStorageKey(userStorageKey);
         setStorageReady(true);
