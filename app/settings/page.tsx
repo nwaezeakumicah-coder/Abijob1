@@ -812,8 +812,9 @@ export default function SettingsPage() {
                     <div>
                       <h3>Profile visibility</h3>
                       <p>
-                        Save your preference for profile visibility.
-                        This setting is stored on this device only.
+                        {accountRole === "professional"
+                          ? "When enabled, your published professional profile can appear in Abijob's public professionals directory. Your separate profile publishing control must also be enabled."
+                          : "This preference is saved to your account. Job seeker public-directory visibility is not currently offered."}
                       </p>
                     </div>
                     <button
@@ -864,9 +865,10 @@ export default function SettingsPage() {
                   <div className="settings-info-note">
                     <div><ShieldCheck size={17} /></div>
                     <p>
-                      These controls currently save preferences on this
-                      device. They do not yet change what other people can
-                      access on the platform.
+                      Your professional directory visibility is now enforced
+                      by Abijob's public directory query. Online-status
+                      visibility is saved as a preference but is not yet
+                      enforced in messaging.
                     </p>
                   </div>
                 </>
