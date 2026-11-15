@@ -265,9 +265,6 @@ img {
   resize: vertical;
 }
 
-:where(button, input, select, textarea) {
-  border-radius: max(0px, var(--radius-sm));
-}
 
 :where(button, a, input, select, textarea) {
   touch-action: manipulation;
