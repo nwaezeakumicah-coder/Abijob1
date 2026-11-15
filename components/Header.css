@@ -257,3 +257,23 @@
   outline: 3px solid #8bbd61;
   outline-offset: 3px;
 }
+
+
+.header-auth-loading {
+  display: inline-flex;
+  min-height: 44px;
+  align-items: center;
+  color: #68756c;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+@media (max-width: 850px) {
+  .header-auth-loading {
+    grid-column: 1 / -1;
+    justify-content: center;
+    min-height: 42px;
+    border-radius: 9px;
+    background: #f5f7f4;
+  }
+}
