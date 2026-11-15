@@ -1094,7 +1094,7 @@ export default function ProfilePage() {
             <button
               type="button"
               className="profile-save-button"
-              onClick={saveProfile}
+              onClick={() => saveProfile()}
               disabled={isSaving}
             >
               {isSaving ? (
