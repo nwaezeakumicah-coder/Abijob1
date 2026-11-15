@@ -109,6 +109,7 @@ export default function ProfilePage() {
   const [previewOpen, setPreviewOpen] = useState(false);
 
   const [userId, setUserId] = useState("");
+  const lastSavedProfileRef = useRef("");
   const [photoPath, setPhotoPath] = useState<string | null>(null);
   const [photoUrl, setPhotoUrl] = useState("");
   const [cvPath, setCvPath] = useState<string | null>(null);
@@ -182,7 +183,7 @@ export default function ProfilePage() {
 
       setUserId(user.id);
 
-      setProfile({
+      const loadedProfile: ProfileData = {
         fullName: data.full_name || "",
         headline: data.headline || "",
         email: user.email || "",
@@ -192,7 +193,9 @@ export default function ProfilePage() {
         skills: Array.isArray(data.skills) ? data.skills.join(", ") : "",
         experience: data.experience || "",
         education: data.education || "",
-      });
+      };
+      setProfile(loadedProfile);
+      lastSavedProfileRef.current = JSON.stringify(loadedProfile);
 
       const savedPhotoPath = data.avatar_url || null;
       const savedCVPath = data.cv_path || null;
@@ -253,7 +256,7 @@ export default function ProfilePage() {
     (completedCount / completionItems.length) * 100
   );
 
-  const saveProfile = async () => {
+  const saveProfile = async (showFeedback = true) => {
     if (!userId) {
       showNotice("error", "Your session has expired. Please log in again.");
       return;
@@ -296,13 +299,30 @@ export default function ProfilePage() {
 
       if (error) throw error;
 
-      showNotice("success", "Your profile has been saved successfully.");
+      lastSavedProfileRef.current = JSON.stringify(profile);
+      if (showFeedback) {
+        showNotice("success", "Your profile has been saved successfully.");
+      }
     } catch (error) {
       showNotice("error", getReadableError(error));
     } finally {
       setIsSaving(false);
     }
   };
+
+  useEffect(() => {
+    if (isLoading || !userId) return;
+    if (!profile.fullName.trim() || !profile.phone.trim() || !profile.location.trim()) return;
+
+    const snapshot = JSON.stringify(profile);
+    if (snapshot === lastSavedProfileRef.current) return;
+
+    const timeout = window.setTimeout(() => {
+      void saveProfile(false);
+    }, 900);
+
+    return () => window.clearTimeout(timeout);
+  }, [profile, isLoading, userId]);
 
   const uploadPhoto = async (file?: File) => {
     if (!file || !userId) return;
