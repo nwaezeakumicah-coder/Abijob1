@@ -1,4 +1,5 @@
 
+import Image from "next/image";
 import Link from "next/link";
 import Header from "../components/Header";
 import Footer from "../components/Footer";
@@ -50,38 +51,24 @@ export default function HomePage() {
               </div>
             </div>
 
-            <div className="home-hero-visual">
-              <div className="hero-visual-circle hero-circle-one" />
-              <div className="hero-visual-circle hero-circle-two" />
-
-              <div className="hero-visual-card">
-                <span className="hero-card-label">
-                  OPPORTUNITIES ARE WAITING
-                </span>
-
-                <div className="hero-card-icon">✦</div>
-
-                <h2>
-                  Put your skills
-                  <br />
-                  to work.
-                </h2>
-
-                <p>
-                  Find meaningful work and connect with people
-                  who need what you do best.
-                </p>
-
-                <div className="hero-card-bottom">
-                  <span>Discover your next move</span>
-                  <span>↗</span>
+            <div className="home-hero-visual home-hero-visual--abia">
+              <div className="home-hero-image-frame">
+                <Image
+                  src="/images/abimage.webp"
+                  alt="The Enyimba City elephant monument beside a major road in Abia State"
+                  fill
+                  priority
+                  sizes="(max-width: 760px) 100vw, 48vw"
+                  className="home-hero-image"
+                />
+                <div className="home-hero-image-shade" aria-hidden="true" />
+                <div className="home-hero-image-caption">
+                  <span className="home-hero-image-kicker">ROOTED IN ABIA</span>
+                  <strong>Local talent. Wider opportunities.</strong>
+                  <span>Opportunity Starts Here</span>
                 </div>
               </div>
-
-              <div className="hero-floating-card">
-                <span className="floating-dot" />
-                New opportunities start here
-              </div>
+              <div className="home-hero-image-accent" aria-hidden="true" />
             </div>
 
           </div>
