@@ -76,24 +76,15 @@ export default function WelcomeLandingPage() {
         </div>
 
         <div className="welcome-art" aria-label="A professional portrait representing the people and talent of Abia State">
-          <div className="welcome-photo-frame">
-            <Image
-              src="/images/abimage.png"
-              alt="A confident African woman representing the talent and ambition of Abia"
-              fill
-              priority
-              sizes="(max-width: 700px) 90vw, 44vw"
-              className="welcome-photo"
-            />
-            <div className="welcome-photo-shade" aria-hidden="true" />
-            <div className="welcome-photo-caption">
-              <span>ROOTED IN ABIA</span>
-              <strong>Local talent. Wider opportunities.</strong>
-              <small>Opportunity Starts Here</small>
-            </div>
-          </div>
-          <div className="welcome-photo-accent" aria-hidden="true" />
-          <div className="welcome-photo-note"><span /> People. Skills. Possibilities.</div>
+          <Image
+            src="/images/abimage.png"
+            alt="A confident African woman representing the talent and ambition of Abia"
+            width={900}
+            height={1100}
+            priority
+            sizes="(max-width: 700px) 100vw, 48vw"
+            className="welcome-photo"
+          />
         </div>
       </section>
 
