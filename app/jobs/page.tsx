@@ -843,7 +843,8 @@ export default function JobsPage() {
                 </button>
               </div>
             ) : filteredJobs.length > 0 ? (
-              <div className="jobs-feed-list">
+              <>
+                <div className="jobs-feed-list">
                 {filteredJobs.map((job) => {
                   const isSaved = savedJobs.includes(job.id);
 
