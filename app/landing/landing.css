@@ -77,3 +77,9 @@
 @media(max-width:700px){.welcome-hero{grid-template-columns:1fr;gap:0;padding-top:42px}.welcome-art{min-height:0;height:auto;max-height:none;margin:12px -3vw 0;justify-content:center}.welcome-photo{width:min(100%,560px)!important;max-height:unset;max-height: min(115vw,620px);object-fit:contain}}
 @media(max-width:420px){.welcome-art{margin:8px -4vw 0}.welcome-photo{max-height:120vw}}
 @media(prefers-reduced-motion:reduce){.welcome-photo{transition:none}}
+
+
+/* Keep the hero portrait completely still: no entrance or hover animation. */
+.welcome-art{animation:none!important}
+.welcome-photo{transition:none!important;transform:none!important}
+.welcome-art:hover .welcome-photo{transform:none!important}
