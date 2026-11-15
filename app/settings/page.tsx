@@ -208,6 +208,23 @@ export default function SettingsPage() {
           }
         }
 
+        const { data: jobAlertPreference, error: jobAlertError } = await (supabase as any)
+          .from("job_alert_preferences")
+          .select("is_enabled")
+          .eq("user_id", user.id)
+          .maybeSingle();
+
+        if (jobAlertError) {
+          throw new Error("We could not load your opportunity alert settings.");
+        }
+
+        if (jobAlertPreference) {
+          loadedSettings = {
+            ...loadedSettings,
+            jobAlerts: jobAlertPreference.is_enabled,
+          };
+        }
+
         if (!active) return;
 
         setAccountName(displayName);
@@ -293,9 +310,21 @@ export default function SettingsPage() {
         updated_at: new Date().toISOString(),
       }, { onConflict: "user_id" });
 
+    if (error) {
+      setSaveMessage("Could not save your settings. Please try again.");
+      return;
+    }
+
+    const { error: alertError } = await (supabase as any)
+      .from("job_alert_preferences")
+      .upsert({
+        user_id: user.id,
+        is_enabled: settings.jobAlerts,
+      }, { onConflict: "user_id" });
+
     setSaveMessage(
-      error
-        ? "Could not save your settings. Please try again."
+      alertError
+        ? "Your settings were saved, but opportunity alerts could not be updated."
         : "Your settings have been saved to your Abijob account."
     );
   }
@@ -327,9 +356,21 @@ export default function SettingsPage() {
         updated_at: new Date().toISOString(),
       }, { onConflict: "user_id" });
 
+    if (error) {
+      setSaveMessage("Could not reset your settings. Please try again.");
+      return;
+    }
+
+    const { error: alertError } = await (supabase as any)
+      .from("job_alert_preferences")
+      .upsert({
+        user_id: user.id,
+        is_enabled: DEFAULT_SETTINGS.jobAlerts,
+      }, { onConflict: "user_id" });
+
     setSaveMessage(
-      error
-        ? "Could not reset your settings. Please try again."
+      alertError
+        ? "Your settings were reset, but opportunity alerts could not be restored."
         : "Settings have been restored to their defaults on your account."
     );
   }
