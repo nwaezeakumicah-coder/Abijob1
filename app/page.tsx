@@ -54,8 +54,8 @@ export default function HomePage() {
             <div className="home-hero-visual home-hero-visual--abia">
               <div className="home-hero-image-frame">
                 <Image
-                  src="/images/abimage.webp"
-                  alt="The Enyimba City elephant monument beside a major road in Abia State"
+                  src="/images/abimage.png"
+                  alt="A professional portrait representing the people and talent of Abia State"
                   fill
                   priority
                   sizes="(max-width: 760px) 100vw, 48vw"
