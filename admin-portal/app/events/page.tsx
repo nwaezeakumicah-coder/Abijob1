@@ -11,11 +11,14 @@ export default async function EventsAdminPage(){
  const db=createAdminClient();
  const [{data:events,error:eventError},{data:registrations,error:registrationError}]=await Promise.all([
   db.from("career_events").select("id,title,event_type,starts_at,ends_at,status,capacity,venue").order("starts_at",{ascending:false}).limit(100),
-  db.from("career_event_registrations").select("id,event_id,user_id,status,registered_at").order("registered_at",{ascending:false}).limit(300)
+  db.from("career_event_registrations").select("id,event_id,user_id,status,registered_at").order("registered_at",{ascending:false}).limit(1000)
  ]);
  const rows=events??[],signups=registrations??[];
+ const attendeeIds=Array.from(new Set(signups.map(r=>r.user_id)));
+ const {data:attendees}=attendeeIds.length?await db.from("profiles").select("id,full_name").in("id",attendeeIds):{data:[]};
+ const attendeeNames=new Map((attendees??[]).map(person=>[person.id,person.full_name]));
  const counts=new Map<string,number>();for(const r of signups)if(["registered","attended"].includes(r.status))counts.set(r.event_id,(counts.get(r.event_id)??0)+1);
- return <AdminShell><main className="event-admin"><header><span>CAREER HUB MANAGEMENT</span><h1>Events & workshops</h1><p>Create real events, publish verified details and manage participant registration and attendance.</p></header>
+ return <AdminShell><main className="event-admin"><header><span>CAREER HUB MANAGEMENT</span><h1>Events & workshops</h1><p>Create real events, publish verified details and manage participant registration and attendance. The attendee list below shows the latest 1,000 registrations.</p></header>
  <section className="event-admin-form"><h2>Create an event</h2><p>Online events require a real HTTPS meeting link. Save as draft until details are confirmed.</p><form action={createCareerEvent}>
  <label>Event title<input name="title" required minLength={5} maxLength={160}/></label>
  <label>Description<textarea name="description" required minLength={20} maxLength={5000} rows={4}/></label>
@@ -26,6 +29,6 @@ export default async function EventsAdminPage(){
  <div className="event-admin-form-actions"><button name="publish" value="false" type="submit" className="secondary">Save draft</button><button name="publish" value="true" type="submit">Publish event</button></div>
  </form></section>
  <section className="event-admin-list"><h2>Published and scheduled events</h2>{eventError?<p>Events could not be loaded.</p>:rows.length===0?<p>No events have been created yet.</p>:rows.map(e=><article className="event-admin-card" key={e.id}><div className="event-admin-card-head"><div><span className={"event-admin-status "+e.status}>{e.status}</span><h3>{e.title}</h3><p>{e.event_type.replace("_"," ")} · {date(e.starts_at)} – {date(e.ends_at)}</p><small>{counts.get(e.id)??0} active registrations{e.capacity?" / "+e.capacity:""} {e.venue?" · "+e.venue:""}</small></div><form action={setCareerEventStatus}><input type="hidden" name="event_id" value={e.id}/><select name="status" defaultValue={e.status}><option value="draft">Draft</option><option value="published">Published</option><option value="cancelled">Cancelled</option><option value="completed">Completed</option></select><button type="submit" className="secondary">Update</button></form></div>
- {registrationError?<small>Registration records could not be loaded.</small>:signups.filter(r=>r.event_id===e.id).length>0&&<details><summary>Manage participants ({signups.filter(r=>r.event_id===e.id).length})</summary><div className="event-admin-attendees">{signups.filter(r=>r.event_id===e.id).map(r=><div key={r.id}><span>{r.user_id.slice(0,8)}… · {r.status}</span>{new Date(e.ends_at)<=new Date()&&<form action={markEventAttendance}><input type="hidden" name="registration_id" value={r.id}/><button name="status" value="attended" type="submit" className="secondary">Attended</button><button name="status" value="no_show" type="submit" className="secondary">No-show</button></form>}</div>)}</div></details>}</article>)}</section>
+ {registrationError?<small>Registration records could not be loaded.</small>:signups.filter(r=>r.event_id===e.id).length>0&&<details><summary>Manage participants ({signups.filter(r=>r.event_id===e.id).length})</summary><div className="event-admin-attendees">{signups.filter(r=>r.event_id===e.id).map(r=><div key={r.id}><span>{attendeeNames.get(r.user_id)||"Abijob member"} · {r.status}</span>{new Date(e.ends_at)<=new Date()&&<form action={markEventAttendance}><input type="hidden" name="registration_id" value={r.id}/><button name="status" value="attended" type="submit" className="secondary">Attended</button><button name="status" value="no_show" type="submit" className="secondary">No-show</button></form>}</div>)}</div></details>}</article>)}</section>
  </main></AdminShell>;
 }
