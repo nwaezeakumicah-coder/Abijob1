@@ -501,6 +501,18 @@ export default function MessagesPage() {
     (conversation) => conversation.id === activeId
   );
 
+  useEffect(() => {
+    if (!activeId || !userId) return;
+    const conversation = conversations.find((item) => item.id === activeId);
+    if (
+      conversation &&
+      !conversation.hasLoadedMessages &&
+      !conversation.loadingMessages
+    ) {
+      void loadConversationMessages(activeId, "initial");
+    }
+  }, [activeId, userId, conversations, loadConversationMessages]);
+
   const filteredConversations = useMemo(() => {
     return conversations.filter((conversation) => {
       const query = search.trim().toLowerCase();
@@ -527,12 +539,10 @@ export default function MessagesPage() {
     setMobileListOpen(false);
     setError("");
 
-    let conversation = conversations.find((item) => item.id === id);
+    const conversation = conversations.find((item) => item.id === id);
     if (!conversation || !userId) return;
-    if (!conversation.hasLoadedMessages) {
-      await loadConversationMessages(id, "initial");
-      conversation = conversations.find((item) => item.id === id);
-    }
+
+    if (conversation.unread === 0) return;
 
     const readAt = new Date().toISOString();
     const updateResult = conversation.kind === "application"
