@@ -348,7 +348,7 @@ export default function EmployerMessagesPage() {
           ...item,
           messages,
           hasLoadedMessages: true,
-          hasMoreMessages: records.length > 50 || (mode === "older" && item.hasMoreMessages),
+          hasMoreMessages: records.length > 50,
           loadingMessages: false,
           lastMessage: newest?.text || item.lastMessage,
           lastMessageAt: newest ? records.find((record) => record.id === newest.id)?.created_at || item.lastMessageAt : item.lastMessageAt,
