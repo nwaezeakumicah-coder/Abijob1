@@ -1081,3 +1081,34 @@
   line-height: 1.2;
   white-space: nowrap;
 }
+
+
+/* Paginated opportunity feed */
+.jobs-feed-load-more {
+  display: flex;
+  justify-content: center;
+  padding: 24px 0 8px;
+}
+
+.jobs-feed-load-more button {
+  min-height: 44px;
+  padding: 0 22px;
+  border: 1px solid #176b45;
+  border-radius: 8px;
+  color: #176b45;
+  background: #fff;
+  font-size: 13px;
+  font-weight: 750;
+  cursor: pointer;
+  transition: background 160ms ease, color 160ms ease;
+}
+
+.jobs-feed-load-more button:hover:not(:disabled) {
+  color: #fff;
+  background: #176b45;
+}
+
+.jobs-feed-load-more button:disabled {
+  cursor: wait;
+  opacity: 0.65;
+}
