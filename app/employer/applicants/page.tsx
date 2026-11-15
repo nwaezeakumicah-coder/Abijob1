@@ -4,6 +4,8 @@
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
+  Menu,
+  X,
   ArrowLeft,
   BriefcaseBusiness,
   Building2,
@@ -156,6 +158,17 @@ function normaliseSkills(
 }
 
 export default function EmployerApplicantsPage() {
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+
+  useEffect(() => {
+    if (!mobileMenuOpen) return;
+    const handleEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setMobileMenuOpen(false);
+    };
+    window.addEventListener("keydown", handleEscape);
+    return () => window.removeEventListener("keydown", handleEscape);
+  }, [mobileMenuOpen]);
+
   const supabase = useMemo(() => createClient(), []);
 
   const [applicants, setApplicants] = useState<Applicant[]>([]);
@@ -562,7 +575,27 @@ export default function EmployerApplicantsPage() {
 
   return (
     <main className="employer-applicants-page">
-      <aside className="applicants-sidebar">
+      <button
+        type="button"
+        className="employer-mobile-menu-overlay"
+        aria-label="Close employer navigation"
+        tabIndex={mobileMenuOpen ? 0 : -1}
+        onClick={() => setMobileMenuOpen(false)}
+      />
+      <aside
+        className={`applicants-sidebar ${mobileMenuOpen ? "mobile-open" : ""}`}
+        onClick={(event) => {
+          if ((event.target as HTMLElement).closest("a")) setMobileMenuOpen(false);
+        }}
+      >
+        <button
+          type="button"
+          className="employer-mobile-menu-close"
+          aria-label="Close navigation menu"
+          onClick={() => setMobileMenuOpen(false)}
+        >
+          <X size={21} />
+        </button>
         <div className="applicants-brand">
           <Logo href="/" size="medium" light />
         </div>
@@ -646,6 +679,15 @@ export default function EmployerApplicantsPage() {
 
       <section className="applicants-main">
         <header className="applicants-topbar">
+          <button
+            type="button"
+            className="employer-mobile-menu-toggle"
+            aria-label="Open navigation menu"
+            aria-expanded={mobileMenuOpen}
+            onClick={() => setMobileMenuOpen(true)}
+          >
+            <Menu size={22} />
+          </button>
           <div>
             <span>EMPLOYER WORKSPACE</span>
             <p>Find the right people for your team</p>
