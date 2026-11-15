@@ -276,6 +276,7 @@ export default function ApplicationsPage() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [cvLoading, setCvLoading] = useState(false);
+  const [withdrawingId, setWithdrawingId] = useState<string | null>(null);
   const [error, setError] = useState("");
 
   const loadApplications = useCallback(
@@ -581,6 +582,52 @@ export default function ApplicationsPage() {
       );
     } finally {
       setCvLoading(false);
+    }
+  }
+
+  async function withdrawApplication(application: Application) {
+    if (!["Submitted", "Under review", "Shortlisted"].includes(application.status)) {
+      return;
+    }
+
+    setWithdrawingId(application.id);
+    setError("");
+
+    try {
+      const { data, error: withdrawError } = await supabase
+        .from("job_applications")
+        .update({ status: "withdrawn" })
+        .eq("id", application.id)
+        .eq("applicant_id", applicantId)
+        .in("status", ["submitted", "under_review", "shortlisted"])
+        .select("id")
+        .maybeSingle();
+
+      if (withdrawError) throw withdrawError;
+      if (!data) {
+        throw new Error("This application can no longer be withdrawn.");
+      }
+
+      setApplications((previous) =>
+        previous.map((item) =>
+          item.id === application.id
+            ? { ...item, status: "Withdrawn", updated: "Just now" }
+            : item
+        )
+      );
+      setSelectedApplication((previous) =>
+        previous?.id === application.id
+          ? { ...previous, status: "Withdrawn", updated: "Just now" }
+          : previous
+      );
+    } catch (err) {
+      setError(
+        err instanceof Error
+          ? err.message
+          : "We could not withdraw this application. Please try again."
+      );
+    } finally {
+      setWithdrawingId(null);
     }
   }
 
@@ -1262,6 +1309,21 @@ export default function ApplicationsPage() {
                 {cvLoading ? "Opening CV..." : "View submitted CV"}
 
                 <ArrowRight size={15} />
+              </button>
+            )}
+
+            {["Submitted", "Under review", "Shortlisted"].includes(
+              selectedApplication.status
+            ) && (
+              <button
+                type="button"
+                className="application-details-button"
+                onClick={() => void withdrawApplication(selectedApplication)}
+                disabled={withdrawingId === selectedApplication.id}
+              >
+                {withdrawingId === selectedApplication.id
+                  ? "Withdrawing..."
+                  : "Withdraw application"}
               </button>
             )}
 
