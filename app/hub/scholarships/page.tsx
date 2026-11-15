@@ -1,2 +1,2 @@
 import HubSubpage from "../_components/HubSubpage";
-export default function ScholarshipsPage() { return <HubSubpage section="scholarships" />; }
+export default function ScholarshipsPage() { return <HubSubpage />; }
