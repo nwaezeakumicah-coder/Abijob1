@@ -206,7 +206,7 @@ export default function HubPage() {
           })));
         }
         if (!eventResult.error) {
-          setEvents((eventResult.data ?? []).map((item: any) => {
+          setEvents((eventResult.data ?? []).filter((item: any) => new Date(item.starts_at) > new Date()).map((item: any) => {
             const start = new Date(item.starts_at);
             return {
               id: item.id,
