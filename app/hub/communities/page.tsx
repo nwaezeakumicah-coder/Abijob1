@@ -1,2 +1,2 @@
-import HubSubpage from "../_components/HubSubpage";
-export default function CommunitiesPage() { return <HubSubpage section="communities" />; }
+import CommunityForum from "./CommunityForum";
+export default function CommunitiesPage() { return <CommunityForum />; }
