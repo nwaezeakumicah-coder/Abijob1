@@ -283,7 +283,7 @@ export default function ProfilePage() {
     try {
       const cleanSkills = skillsList;
 
-      const { error } = await supabase
+      const { data: savedProfile, error } = await supabase
         .from("profiles")
         .update({
           full_name: profile.fullName.trim(),
@@ -295,9 +295,12 @@ export default function ProfilePage() {
           experience: profile.experience.trim(),
           education: profile.education.trim(),
         })
-        .eq("id", userId);
+        .eq("id", userId)
+        .select("id")
+        .single();
 
       if (error) throw error;
+      if (!savedProfile?.id) throw new Error("Your profile was not confirmed as saved. Please try again.");
 
       lastSavedProfileRef.current = JSON.stringify(profile);
       if (showFeedback) {
