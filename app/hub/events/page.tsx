@@ -1,2 +1,2 @@
-import HubSubpage from "../_components/HubSubpage";
-export default function EventsPage() { return <HubSubpage section="events" />; }
+import EventBoard from "./EventBoard";
+export default function EventsPage() { return <EventBoard />; }
