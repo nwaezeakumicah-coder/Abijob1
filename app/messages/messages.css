@@ -1375,3 +1375,44 @@
     animation: none;
   }
 }
+
+
+.messages-history-status {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 12px;
+  color: #68766d;
+  font-size: 12px;
+}
+
+.messages-history-status .messages-access-spinner {
+  width: 16px;
+  height: 16px;
+  margin: 0;
+  border-width: 2px;
+}
+
+.messages-load-older {
+  display: block;
+  margin: 0 auto 18px;
+  padding: 9px 15px;
+  border: 1px solid #dce7de;
+  border-radius: 999px;
+  background: #fff;
+  color: #176b45;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.messages-load-older:hover:not(:disabled) {
+  border-color: #176b45;
+  background: #f5faf6;
+}
+
+.messages-load-older:disabled {
+  cursor: wait;
+  opacity: 0.65;
+}
