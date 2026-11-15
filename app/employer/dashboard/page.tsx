@@ -476,13 +476,15 @@ export default function EmployerDashboardPage() {
 
   return (
     <main className="employer-dashboard">
-      <button
-        type="button"
-        className="employer-mobile-menu-overlay"
-        aria-label="Close employer navigation"
-        tabIndex={mobileMenuOpen ? 0 : -1}
-        onClick={() => setMobileMenuOpen(false)}
-      />
+      {mobileMenuOpen && (
+        <button
+                type="button"
+                className="employer-mobile-menu-overlay"
+                aria-label="Close employer navigation"
+                tabIndex={mobileMenuOpen ? 0 : -1}
+                onClick={() => setMobileMenuOpen(false)}
+              />
+      )}
       <aside
         className={`employer-sidebar ${mobileMenuOpen ? "mobile-open" : ""}`}
         onClick={(event) => {
