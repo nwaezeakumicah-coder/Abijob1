@@ -50,8 +50,6 @@ const DEFAULT_SETTINGS: SettingsState = {
   location: "Abia State",
 };
 
-const STORAGE_KEY = "abijob-account-settings";
-
 type SettingsTab =
   | "preferences"
   | "notifications"
@@ -108,7 +106,6 @@ export default function SettingsPage() {
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   const [logoutLoading, setLogoutLoading] = useState(false);
   const [logoutError, setLogoutError] = useState("");
-  const [accountStorageKey, setAccountStorageKey] = useState("");
 
   useEffect(() => {
     let active = true;
@@ -182,25 +179,33 @@ export default function SettingsPage() {
           user.email?.split("@")[0] ||
           (profile.role === "job_seeker" ? "Job seeker" : "Professional");
 
-        const userStorageKey = `${STORAGE_KEY}:${user.id}`;
-
         let loadedSettings = DEFAULT_SETTINGS;
 
-        try {
-          const saved = localStorage.getItem(userStorageKey);
+        const { data: savedPreferences, error: preferencesError } = await (supabase as any)
+          .from("account_preferences")
+          .select("email_notifications, application_updates, job_alerts, profile_visibility, show_online_status, weekly_digest, language, location")
+          .eq("user_id", user.id)
+          .maybeSingle();
 
-          if (saved) {
-            const parsed: unknown = JSON.parse(saved);
+        if (preferencesError) {
+          throw new Error("We could not load your account preferences. Please try again.");
+        }
 
-            if (isValidSettings(parsed)) {
-              loadedSettings = {
-                ...DEFAULT_SETTINGS,
-                ...parsed,
-              };
-            }
+        if (savedPreferences) {
+          const accountSettings = {
+            emailNotifications: savedPreferences.email_notifications,
+            applicationUpdates: savedPreferences.application_updates,
+            jobAlerts: savedPreferences.job_alerts,
+            profileVisibility: savedPreferences.profile_visibility,
+            showOnlineStatus: savedPreferences.show_online_status,
+            weeklyDigest: savedPreferences.weekly_digest,
+            language: savedPreferences.language,
+            location: savedPreferences.location,
+          };
+
+          if (isValidSettings(accountSettings)) {
+            loadedSettings = { ...DEFAULT_SETTINGS, ...accountSettings };
           }
-        } catch {
-          console.warn("Could not load saved account preferences.");
         }
 
         if (!active) return;
@@ -208,7 +213,6 @@ export default function SettingsPage() {
         setAccountName(displayName);
         setAccountRole(profile.role as "job_seeker" | "professional");
         setSettings(loadedSettings);
-        setAccountStorageKey(userStorageKey);
         setStorageReady(true);
         setAccessChecked(true);
       } catch (error) {
@@ -263,36 +267,71 @@ export default function SettingsPage() {
     setSaveMessage("");
   }
 
-  function saveSettings() {
-    if (!accountStorageKey || !storageReady) return;
+  async function saveSettings() {
+    if (!storageReady) return;
 
-    try {
-      localStorage.setItem(
-        accountStorageKey,
-        JSON.stringify(settings)
-      );
+    setSaveMessage("");
 
-      setSaveMessage("Your settings have been saved on this device.");
-    } catch {
-      setSaveMessage("Could not save your settings. Please try again.");
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    if (authError || !user) {
+      setSaveMessage("Your session has expired. Please sign in again.");
+      return;
     }
+
+    const { error } = await (supabase as any)
+      .from("account_preferences")
+      .upsert({
+        user_id: user.id,
+        email_notifications: settings.emailNotifications,
+        application_updates: settings.applicationUpdates,
+        job_alerts: settings.jobAlerts,
+        profile_visibility: settings.profileVisibility,
+        show_online_status: settings.showOnlineStatus,
+        weekly_digest: settings.weeklyDigest,
+        language: settings.language,
+        location: settings.location,
+        updated_at: new Date().toISOString(),
+      }, { onConflict: "user_id" });
+
+    setSaveMessage(
+      error
+        ? "Could not save your settings. Please try again."
+        : "Your settings have been saved to your Abijob account."
+    );
   }
 
-  function resetSettings() {
-    if (!accountStorageKey || !storageReady) return;
+  async function resetSettings() {
+    if (!storageReady) return;
 
     setSettings(DEFAULT_SETTINGS);
+    setSaveMessage("");
 
-    try {
-      localStorage.setItem(
-        accountStorageKey,
-        JSON.stringify(DEFAULT_SETTINGS)
-      );
-
-      setSaveMessage("Settings have been restored to their defaults.");
-    } catch {
-      setSaveMessage("Could not reset settings. Please try again.");
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    if (authError || !user) {
+      setSaveMessage("Your session has expired. Please sign in again.");
+      return;
     }
+
+    const { error } = await (supabase as any)
+      .from("account_preferences")
+      .upsert({
+        user_id: user.id,
+        email_notifications: DEFAULT_SETTINGS.emailNotifications,
+        application_updates: DEFAULT_SETTINGS.applicationUpdates,
+        job_alerts: DEFAULT_SETTINGS.jobAlerts,
+        profile_visibility: DEFAULT_SETTINGS.profileVisibility,
+        show_online_status: DEFAULT_SETTINGS.showOnlineStatus,
+        weekly_digest: DEFAULT_SETTINGS.weeklyDigest,
+        language: DEFAULT_SETTINGS.language,
+        location: DEFAULT_SETTINGS.location,
+        updated_at: new Date().toISOString(),
+      }, { onConflict: "user_id" });
+
+    setSaveMessage(
+      error
+        ? "Could not reset your settings. Please try again."
+        : "Settings have been restored to their defaults on your account."
+    );
   }
 
   const tabs: {
