@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { Suspense, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { Menu, X } from "lucide-react";
@@ -51,7 +51,7 @@ const roleNavigation: Record<
   },
 };
 
-export default function Header() {
+function HeaderContent() {
   const router = useRouter();
   const pathname = usePathname();
 
@@ -384,5 +384,14 @@ export default function Header() {
         </nav>
       </div>
     </header>
+  );
+}
+
+
+export default function Header() {
+  return (
+    <Suspense fallback={<header className="site-header" aria-label="Loading site navigation"><div className="header-container"><div className="header-brand"><Logo size="medium" /></div></div></header>}>
+      <HeaderContent />
+    </Suspense>
   );
 }
