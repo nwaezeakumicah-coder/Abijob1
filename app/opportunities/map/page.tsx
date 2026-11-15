@@ -4,7 +4,6 @@ import Footer from "../../../components/Footer";
 import { createClient } from "../../../lib/supabase/server";
 import { MapPin, BriefcaseBusiness, Users, ArrowRight } from "lucide-react";
 
-export const dynamic = "force-dynamic";
 
 type LgaRow = { lga: string; approved_jobs: number; public_professionals: number };
 type MapSummary = { unassigned_approved_jobs: number; unassigned_public_professionals: number };
