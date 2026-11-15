@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { Menu, X } from "lucide-react";
@@ -56,6 +56,7 @@ export default function Header() {
   const pathname = usePathname();
 
   const [menuOpen, setMenuOpen] = useState(false);
+  const menuButtonRef = useRef<HTMLButtonElement>(null);
   const [role, setRole] = useState<AccountRole>(null);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [authLoading, setAuthLoading] = useState(true);
@@ -167,6 +168,20 @@ export default function Header() {
   const closeMenu = () => {
     setMenuOpen(false);
   };
+
+  useEffect(() => {
+    if (!menuOpen) return;
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setMenuOpen(false);
+        menuButtonRef.current?.focus();
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [menuOpen]);
 
   const accountNavigation = role ? roleNavigation[role] : null;
 
@@ -285,6 +300,7 @@ export default function Header() {
         {/* Mobile Menu Toggle */}
         <button
           type="button"
+          ref={menuButtonRef}
           className="mobile-menu-toggle"
           onClick={() => setMenuOpen(!menuOpen)}
           aria-label={menuOpen ? "Close menu" : "Open menu"}
