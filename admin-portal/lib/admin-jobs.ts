@@ -69,7 +69,7 @@ export async function getAdminJobs(filters: {
 } = {}) {
   const supabase = createAdminClient();
   const page = Math.max(1, Math.floor(filters.page ?? 1));
-  const search = (filters.search ?? "").trim().replace(/[,%()\\]/g, " ").replace(/\s+/g, " ").slice(0, 100);
+  const search = (filters.search ?? "").trim().replace(/[,%()\\%_'"*]/g, " ").replace(/\s+/g, " ").slice(0, 100);
   const status = VALID_STATUSES.includes(filters.status as JobStatus)
     ? (filters.status as JobStatus)
     : null;
