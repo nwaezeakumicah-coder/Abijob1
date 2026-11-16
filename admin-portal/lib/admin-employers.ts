@@ -40,7 +40,7 @@ export async function getAdminEmployers(filters: {
   const page = Math.max(1, Math.floor(filters.page ?? 1));
   const search = (filters.search ?? "")
     .trim()
-    .replace(/[,%()\\*]/g, " ")
+    .replace(/[,%()\\*%_'""]/g, " ")
     .replace(/\s+/g, " ")
     .slice(0, 100);
   const status = VALID_STATUSES.includes(filters.status as EmployerVerificationStatus)
