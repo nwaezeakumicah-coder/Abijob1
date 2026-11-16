@@ -10,6 +10,7 @@ type JobsPageProps = {
   searchParams: Promise<{
     q?: string;
     status?: string;
+    page?: string;
   }>;
 };
 
@@ -69,28 +70,18 @@ export default async function JobsPage({ searchParams }: JobsPageProps) {
     admin.permissions.includes("jobs.review") ||
     admin.permissions.includes("jobs.manage");
 
-  const [{ jobs, counts }, params] = await Promise.all([
-    getAdminJobs(),
-    searchParams,
-  ]);
-
-  const searchTerm = (params.q ?? "").trim().toLowerCase();
-  const selectedStatus = params.status ?? "all";
-
+  const params = await searchParams;
+  const searchTerm = (params.q ?? "").trim();
   const validStatuses = ["all", "pending", "approved", "rejected", "closed"];
+  const selectedStatus = validStatuses.includes(params.status ?? "all")
+    ? (params.status ?? "all")
+    : "all";
+  const currentPage = Math.max(1, Number.parseInt(params.page ?? "1", 10) || 1);
 
-  const filteredJobs = jobs.filter((job) => {
-    const matchesSearch =
-      !searchTerm ||
-      job.title.toLowerCase().includes(searchTerm) ||
-      job.category.toLowerCase().includes(searchTerm) ||
-      job.location.toLowerCase().includes(searchTerm) ||
-      job.employer_id.toLowerCase().includes(searchTerm);
-
-    const matchesStatus =
-      selectedStatus === "all" || job.status === selectedStatus;
-
-    return matchesSearch && matchesStatus;
+  const { jobs, counts, page, totalPages, totalFiltered } = await getAdminJobs({
+    page: currentPage,
+    search: searchTerm,
+    status: selectedStatus,
   });
 
   const statusCards = [
@@ -127,7 +118,7 @@ export default async function JobsPage({ searchParams }: JobsPageProps) {
               href={
                 card.key === "all"
                   ? "/jobs"
-                  : `/jobs?status=${card.key}`
+                  : `/jobs?status=${card.key}${searchTerm ? `&q=${encodeURIComponent(searchTerm)}` : ""}`
               }
               className={`jobs-stat-card ${
                 selectedStatus === card.key ? "active" : ""
@@ -144,8 +135,8 @@ export default async function JobsPage({ searchParams }: JobsPageProps) {
             <div>
               <h2>Job submissions</h2>
               <p>
-                {filteredJobs.length}{" "}
-                {filteredJobs.length === 1 ? "job" : "jobs"} displayed
+                {totalFiltered} {totalFiltered === 1 ? "job" : "jobs"} matched ·
+                page {page} of {totalPages}
               </p>
             </div>
 
@@ -169,13 +160,13 @@ export default async function JobsPage({ searchParams }: JobsPageProps) {
             </form>
           </div>
 
-          {filteredJobs.length === 0 ? (
+          {jobs.length === 0 ? (
             <div className="jobs-empty-state">
               <h3>No jobs found</h3>
               <p>
-                {jobs.length === 0
+                {counts.total === 0
                   ? "There are currently no job submissions in the database."
-                  : "Try another search term or status filter."}
+                  : "No jobs match these filters. Try another search term or status filter."}
               </p>
               {(searchTerm || selectedStatus !== "all") && (
                 <a href="/jobs">Clear filters</a>
@@ -183,7 +174,7 @@ export default async function JobsPage({ searchParams }: JobsPageProps) {
             </div>
           ) : (
             <div className="jobs-list">
-              {filteredJobs.map((job) => (
+              {jobs.map((job) => (
                 <article className="admin-job-card" key={job.id}>
                   <div className="admin-job-top">
                     <div>
@@ -319,8 +310,20 @@ export default async function JobsPage({ searchParams }: JobsPageProps) {
               ))}
             </div>
           )}
+          {totalPages > 1 && (
+            <nav aria-label="Job results pages" className="jobs-pagination">
+              {page > 1 ? (
+                <a href={`/jobs?page=${page - 1}${selectedStatus !== "all" ? `&status=${selectedStatus}` : ""}${searchTerm ? `&q=${encodeURIComponent(searchTerm)}` : ""}`}>← Previous</a>
+              ) : <span aria-disabled="true">← Previous</span>}
+              <span>Page {page} of {totalPages}</span>
+              {page < totalPages ? (
+                <a href={`/jobs?page=${page + 1}${selectedStatus !== "all" ? `&status=${selectedStatus}` : ""}${searchTerm ? `&q=${encodeURIComponent(searchTerm)}` : ""}`}>Next →</a>
+              ) : <span aria-disabled="true">Next →</span>}
+            </nav>
+          )}
         </section>
       </main>
+      <style>{`.jobs-pagination{display:flex;align-items:center;justify-content:center;gap:18px;padding:22px 12px;color:#526157;font-size:13px}.jobs-pagination a{color:#176b45;font-weight:700;text-decoration:none}.jobs-pagination span[aria-disabled="true"]{color:#9aa59b}`}</style>
     </AdminShell>
   );
 }

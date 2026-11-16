@@ -83,24 +83,32 @@ export async function getAdminEmployers() {
     { email: string; created_at: string }
   >();
 
-  for (const userId of userIds) {
-    const { data, error } =
-      await supabase.auth.admin.getUserById(userId);
+  const unresolvedUserIds = new Set(userIds);
+  const authPageSize = 1000;
+  const maxAuthPages = 20;
+
+  for (let page = 1; page <= maxAuthPages && unresolvedUserIds.size > 0; page += 1) {
+    const { data, error } = await supabase.auth.admin.listUsers({
+      page,
+      perPage: authPageSize,
+    });
 
     if (error) {
-      console.error(
-        `EMPLOYER AUTH LOOKUP ERROR (${userId}):`,
-        error.message
-      );
-      continue;
+      console.error("EMPLOYER AUTH BATCH LOOKUP ERROR:", error.message);
+      break;
     }
 
-    if (data.user) {
-      authUsers.set(userId, {
-        email: data.user.email ?? "Email unavailable",
-        created_at: data.user.created_at,
+    const users = data?.users ?? [];
+    for (const user of users) {
+      if (!unresolvedUserIds.has(user.id)) continue;
+      authUsers.set(user.id, {
+        email: user.email ?? "Email unavailable",
+        created_at: user.created_at,
       });
+      unresolvedUserIds.delete(user.id);
     }
+
+    if (users.length < authPageSize) break;
   }
 
   const profileMap = new Map(

@@ -6,7 +6,7 @@ on:
       - "admin-portal/**"
       - ".github/workflows/admin-portal-ci.yml"
   push:
-    branches: [SIRMIC, "fix/**"]
+    branches: [SIRMIC, "fix/**", "perf/**"]
     paths:
       - "admin-portal/**"
       - ".github/workflows/admin-portal-ci.yml"
@@ -38,4 +38,9 @@ jobs:
         run: npx tsc --noEmit
 
       - name: Build admin portal
+        # Placeholder public values let Next prerender the login shell in CI.
+        # Real Supabase credentials remain environment-specific and are never stored here.
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: https://ci-placeholder.supabase.co
+          NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: sb_publishable_ci_placeholder
         run: npm run build
