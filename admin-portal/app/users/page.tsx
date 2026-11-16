@@ -97,23 +97,11 @@ export default async function UsersPage({ searchParams }: PageProps) {
     : "all";
 
   const pageNumber = Math.max(1, Number(params.page) || 1);
-  const result = await getAdminUsers(pageNumber);
-
-  const filteredUsers = result.users.filter((user) => {
-    const matchesCategory =
-      selectedCategory === "all" || user.category === selectedCategory;
-
-    const searchText = [
-      user.email,
-      user.phone ?? "",
-      user.profileLabel,
-      user.profileDetail,
-    ]
-      .join(" ")
-      .toLowerCase();
-
-    return matchesCategory && searchText.includes(query.toLowerCase());
+  const result = await getAdminUsers(pageNumber, {
+    search: query,
+    category: selectedCategory,
   });
+  const filteredUsers = result.users;
 
   const canManageUsers = admin.permissions.includes("users.manage");
 
@@ -159,9 +147,9 @@ export default async function UsersPage({ searchParams }: PageProps) {
             <div>
               <h2>Registered accounts</h2>
               <p>
-                Showing accounts {result.users.length === 0 ? 0 : (pageNumber - 1) * 50 + 1}
-                {"–"}
-                {(pageNumber - 1) * 50 + result.users.length} on this page.
+                {query || selectedCategory !== "all"
+                  ? "Matching accounts across the directory."
+                  : `Showing accounts ${result.users.length === 0 ? 0 : (pageNumber - 1) * 50 + 1}–${(pageNumber - 1) * 50 + result.users.length} on this page.`}
               </p>
             </div>
             <span className="management-page-count">
@@ -195,13 +183,20 @@ export default async function UsersPage({ searchParams }: PageProps) {
             <button type="submit">Search accounts</button>
           </form>
 
+          {result.searchLimitReached && (
+            <div className="management-notice">
+              <ShieldCheck size={18} />
+              <p>Search reached the 50,000-account safety limit. Narrow your filters to search more precisely.</p>
+            </div>
+          )}
+
           {filteredUsers.length === 0 ? (
             <div className="management-empty">
               <Search size={28} />
               <h3>No matching accounts</h3>
               <p>
-                There are no accounts matching these filters on this page.
-                Try another search or category.
+                There are no accounts matching these filters.
+                Try another search term or account category.
               </p>
             </div>
           ) : (

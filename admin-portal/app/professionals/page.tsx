@@ -50,56 +50,35 @@ export default async function ProfessionalsPage({
   const params = await searchParams;
 
   const query = (params.q ?? "").trim();
-  const statusFilter = params.status ?? "all";
+  const validStatuses = ["all", "active", "unverified", "suspended", "deleted"];
+  const statusFilter = validStatuses.includes(params.status ?? "all")
+    ? (params.status ?? "all")
+    : "all";
   const pageNumber = Math.max(
     1,
     Number.parseInt(params.page ?? "1", 10) || 1
   );
 
-  const result = await getAdminUsers(pageNumber);
-
-  const professionals = result.users.filter(
-    (user) => user.category === "professional"
-  );
-
-  const filteredProfessionals = professionals.filter((professional) => {
-    const searchText = [
-      professional.email,
-      professional.phone ?? "",
-      professional.profileLabel,
-      professional.profileDetail,
-    ]
-      .join(" ")
-      .toLowerCase();
-
-    const matchesSearch =
-      !query || searchText.includes(query.toLowerCase());
-
-    let accountStatus = "active";
-
-    if (professional.deletedAt) {
-      accountStatus = "deleted";
-    } else if (professional.bannedUntil) {
-      accountStatus = "suspended";
-    } else if (!professional.emailConfirmedAt) {
-      accountStatus = "unverified";
-    }
-
-    const matchesStatus =
-      statusFilter === "all" || accountStatus === statusFilter;
-
-    return matchesSearch && matchesStatus;
+  const result = await getAdminUsers(pageNumber, {
+    search: query,
+    category: "professional",
+    status: statusFilter as "all" | "active" | "unverified" | "suspended" | "deleted",
   });
+  const professionals = result.users;
+  const filteredProfessionals = professionals;
 
   const totalOnPage = professionals.length;
   const activeCount = professionals.filter(
-    (user) => !user.deletedAt && !user.bannedUntil
+    (user) =>
+      !user.deletedAt &&
+      user.emailConfirmedAt &&
+      !(user.bannedUntil && new Date(user.bannedUntil) > new Date())
   ).length;
   const unverifiedCount = professionals.filter(
     (user) => !user.emailConfirmedAt
   ).length;
   const suspendedCount = professionals.filter(
-    (user) => Boolean(user.bannedUntil)
+    (user) => Boolean(user.bannedUntil && new Date(user.bannedUntil) > new Date())
   ).length;
 
   const createPageUrl = (page: number) => {
@@ -122,8 +101,7 @@ export default async function ProfessionalsPage({
             <p className="management-eyebrow">USER MANAGEMENT</p>
             <h1>Skilled Professionals & Artisans</h1>
             <p>
-              View and monitor professionals registered on the Abi Job
-              platform.
+              View and monitor Skilled Professionals & Artisans registered on Abijob.
             </p>
           </div>
 
@@ -136,8 +114,7 @@ export default async function ProfessionalsPage({
           <ShieldCheck size={18} />
           <span>
             This directory currently provides read-only account information.
-            Verification and account-management actions will be added after
-            their database workflows are confirmed.
+            Submitted professional credentials are reviewed in the Verification Centre. This directory is read-only.
           </span>
         </div>
 
@@ -183,13 +160,19 @@ export default async function ProfessionalsPage({
           </article>
         </section>
 
+        {result.searchLimitReached && (
+          <div className="management-notice">
+            <ShieldCheck size={18} />
+            <span>Search reached the 50,000-account safety limit. Narrow your filters to search more precisely.</span>
+          </div>
+        )}
+
         <section className="management-panel">
           <div className="management-panel-heading">
             <div>
               <h2>Professionals directory</h2>
               <p>
-                Search and filter professional accounts on the current
-                account page.
+                Search and filter matching professional accounts across the directory.
               </p>
             </div>
           </div>
