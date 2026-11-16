@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { connection } from "next/server";
 import Header from "../../../components/Header";
 import Footer from "../../../components/Footer";
 import { createClient } from "../../../lib/supabase/server";
@@ -10,6 +11,9 @@ type LgaRow = { lga: string; approved_jobs: number; public_professionals: number
 type MapSummary = { unassigned_approved_jobs: number; unassigned_public_professionals: number };
 
 export default async function OpportunityMapPage() {
+  // This route reads a request-scoped Supabase session. Defer rendering until
+  // a request exists instead of trying to evaluate that session at build time.
+  await connection();
   const supabase = await createClient();
   const [{ data, error }, { data: summaryData }] = await Promise.all([
     supabase.rpc("get_abia_opportunity_map"),
