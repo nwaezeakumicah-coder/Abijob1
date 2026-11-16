@@ -160,7 +160,7 @@ export default async function JobsPage({ searchParams }: JobsPageProps) {
             </form>
           </div>
 
-          {filteredJobs.length === 0 ? (
+          {jobs.length === 0 ? (
             <div className="jobs-empty-state">
               <h3>No jobs found</h3>
               <p>
