@@ -191,7 +191,49 @@ export default async function PaymentsPage({ searchParams }: PageProps) {
     );
   }
 
-  const payments = (data ?? []) as Payment[];
+  const totalFiltered = count ?? 0;
+  const totalPages = Math.max(1, Math.ceil(totalFiltered / pageSize));
+  const pageNumber = Math.min(requestedPage, totalPages);
+  let paymentRows = data ?? [];
+
+  // If a stale page number is requested after records were filtered/deleted,
+  // load the final valid page instead of showing a misleading empty table.
+  if (pageNumber !== requestedPage) {
+    let fallbackQuery = supabase
+      .from("payment_transactions")
+      .select(
+        "id,user_id,subscription_id,provider,provider_reference,amount_kobo,currency,billing_interval,status,paid_at,created_at,updated_at"
+      )
+      .order("created_at", { ascending: false })
+      .range((pageNumber - 1) * pageSize, pageNumber * pageSize - 1);
+
+    if (selectedStatus !== "all") fallbackQuery = fallbackQuery.eq("status", selectedStatus);
+    if (selectedProvider !== "all") fallbackQuery = fallbackQuery.eq("provider", selectedProvider);
+    if (query) {
+      const clauses = [`provider_reference.ilike.%${query}%`];
+      if (/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(query)) {
+        clauses.push(`id.eq.${query}`, `user_id.eq.${query}`, `subscription_id.eq.${query}`);
+      }
+      fallbackQuery = fallbackQuery.or(clauses.join(","));
+    }
+
+    const fallbackResult = await fallbackQuery;
+    if (fallbackResult.error) {
+      console.error("PAYMENTS PAGE FALLBACK QUERY ERROR:", fallbackResult.error);
+      return (
+        <AdminShell>
+          <div className="payments-error">
+            <AlertCircle size={32} />
+            <h1>Unable to load payments</h1>
+            <p>Supabase could not retrieve the requested payment page.</p>
+          </div>
+        </AdminShell>
+      );
+    }
+    paymentRows = fallbackResult.data ?? [];
+  }
+
+  const payments = paymentRows as Payment[];
 
   const userIds = Array.from(new Set(payments.map((payment) => payment.user_id)));
 
@@ -238,10 +280,6 @@ export default async function PaymentsPage({ searchParams }: PageProps) {
   ).sort();
 
   const filteredPayments = payments;
-  const totalFiltered = count ?? 0;
-  const totalPages = Math.max(1, Math.ceil(totalFiltered / pageSize));
-  const pageNumber = Math.min(requestedPage, totalPages);
-
   const pageUrl = (nextPage: number) => {
     const search = new URLSearchParams();
     if (query) search.set("q", query);
