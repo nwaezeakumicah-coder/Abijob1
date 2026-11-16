@@ -38,6 +38,7 @@ type PageProps = {
     q?: string;
     status?: string;
     provider?: string;
+    page?: string;
   }>;
 };
 
@@ -128,20 +129,47 @@ export default async function PaymentsPage({ searchParams }: PageProps) {
   }
 
   const params = await searchParams;
-  const query = (params.q ?? "").trim().toLowerCase();
-  const selectedStatus = params.status ?? "all";
-  const selectedProvider = params.provider ?? "all";
+  const query = (params.q ?? "").trim()
+    .replace(/[,%()\\*%_'""]/g, " ")
+    .replace(/\\s+/g, " ")
+    .slice(0, 100);
+  const validStatuses = ["all", "success", "successful", "paid", "pending", "processing", "failed", "cancelled", "abandoned", "refunded"];
+  const selectedStatus = validStatuses.includes(params.status ?? "all")
+    ? (params.status ?? "all")
+    : "all";
+  const selectedProvider = params.provider === "paystack" ? "paystack" : "all";
+  const requestedPage = Math.max(1, Number.parseInt(params.page ?? "1", 10) || 1);
+  const pageSize = 50;
 
   const supabase = createAdminClient();
 
-  const { data, error, count } = await supabase
+  let paymentQuery = supabase
     .from("payment_transactions")
     .select(
       "id,user_id,subscription_id,provider,provider_reference,amount_kobo,currency,billing_interval,status,paid_at,created_at,updated_at",
       { count: "exact" }
     )
     .order("created_at", { ascending: false })
-    .limit(200);
+    .range((requestedPage - 1) * pageSize, requestedPage * pageSize - 1);
+
+  if (selectedStatus !== "all") {
+    paymentQuery = paymentQuery.eq("status", selectedStatus);
+  }
+  if (selectedProvider !== "all") {
+    paymentQuery = paymentQuery.eq("provider", selectedProvider);
+  }
+  if (query) {
+    const clauses = [`provider_reference.ilike.%${query}%`];
+    if (/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(query)) {
+      clauses.push(`id.eq.${query}`, `user_id.eq.${query}`, `subscription_id.eq.${query}`);
+    }
+    paymentQuery = paymentQuery.or(clauses.join(","));
+  }
+
+  const [{ data, error, count }, providerResult] = await Promise.all([
+    paymentQuery,
+    supabase.from("payment_transactions").select("provider").not("provider", "is", null).limit(1000),
+  ]);
 
   if (error) {
     console.error("PAYMENTS PAGE ERROR:", error);
@@ -200,36 +228,25 @@ export default async function PaymentsPage({ searchParams }: PageProps) {
 
   const providers = Array.from(
     new Set(
-      payments
-        .map((payment) => payment.provider)
+      (providerResult.data ?? [])
+        .map((item) => item.provider)
         .filter((provider): provider is string => Boolean(provider))
     )
   ).sort();
 
-  const filteredPayments = payments.filter((payment) => {
-    const email = emailMap.get(payment.user_id) ?? "";
+  const filteredPayments = payments;
+  const totalFiltered = count ?? 0;
+  const totalPages = Math.max(1, Math.ceil(totalFiltered / pageSize));
+  const pageNumber = Math.min(requestedPage, totalPages);
 
-    const matchesSearch = [
-      email,
-      payment.user_id,
-      payment.id,
-      payment.provider_reference ?? "",
-      payment.subscription_id ?? "",
-    ]
-      .join(" ")
-      .toLowerCase()
-      .includes(query);
-
-    const matchesStatus =
-      selectedStatus === "all" ||
-      normaliseStatus(payment.status) === selectedStatus.toLowerCase();
-
-    const matchesProvider =
-      selectedProvider === "all" ||
-      payment.provider?.toLowerCase() === selectedProvider.toLowerCase();
-
-    return matchesSearch && matchesStatus && matchesProvider;
-  });
+  const pageUrl = (nextPage: number) => {
+    const search = new URLSearchParams();
+    if (query) search.set("q", query);
+    if (selectedStatus !== "all") search.set("status", selectedStatus);
+    if (selectedProvider !== "all") search.set("provider", selectedProvider);
+    search.set("page", String(nextPage));
+    return `/payments?${search.toString()}`;
+  };
 
   const successfulPayments = payments.filter((payment) =>
     isSuccessful(payment.status)
@@ -288,7 +305,7 @@ export default async function PaymentsPage({ searchParams }: PageProps) {
             <div>
               <span>Total transactions</span>
               <strong>{count ?? payments.length}</strong>
-              <small>Latest 200 records displayed</small>
+              <small>Matching transactions across all pages</small>
             </div>
           </article>
 
@@ -301,7 +318,7 @@ export default async function PaymentsPage({ searchParams }: PageProps) {
               <strong>
                 {formatMoney(successfulRevenue, "NGN")}
               </strong>
-              <small>Successful transactions in loaded records</small>
+              <small>Successful transactions on this page</small>
             </div>
           </article>
 
@@ -312,7 +329,7 @@ export default async function PaymentsPage({ searchParams }: PageProps) {
             <div>
               <span>Successful payments</span>
               <strong>{successfulPayments.length}</strong>
-              <small>Loaded records</small>
+              <small>Transactions on this page</small>
             </div>
           </article>
 
@@ -350,7 +367,7 @@ export default async function PaymentsPage({ searchParams }: PageProps) {
             </div>
 
             <span className="payments-count">
-              {filteredPayments.length} shown
+              {filteredPayments.length} shown · {totalFiltered} matching · Page {pageNumber} of {totalPages}
             </span>
           </div>
 
@@ -361,7 +378,7 @@ export default async function PaymentsPage({ searchParams }: PageProps) {
                 type="search"
                 name="q"
                 defaultValue={params.q ?? ""}
-                placeholder="Search email, reference or transaction ID..."
+                placeholder="Search reference or exact transaction/account ID..."
               />
             </label>
 
@@ -482,10 +499,16 @@ export default async function PaymentsPage({ searchParams }: PageProps) {
             </div>
           )}
 
+          {totalPages > 1 && (
+            <nav className="payments-pagination" aria-label="Payment history pages">
+              {pageNumber > 1 ? <Link href={pageUrl(pageNumber - 1)}>← Previous</Link> : <span>← Previous</span>}
+              <strong>Page {pageNumber} of {totalPages}</strong>
+              {pageNumber < totalPages ? <Link href={pageUrl(pageNumber + 1)}>Next →</Link> : <span>Next →</span>}
+            </nav>
+          )}
+
           <p className="payments-data-note">
-            Showing up to 200 most recent transactions. Revenue and status
-            summaries are calculated from these loaded records, not the
-            entire payment history.
+            Showing {pageSize} transactions per page. Revenue and status summaries are calculated from the visible page.
           </p>
         </section>
 
@@ -498,6 +521,7 @@ export default async function PaymentsPage({ searchParams }: PageProps) {
           </div>
         )}
       </div>
+      <style>{`.payments-pagination{display:flex;justify-content:center;align-items:center;gap:18px;padding:22px 12px;color:#526157;font-size:13px}.payments-pagination a{color:#176b45;font-weight:700;text-decoration:none}.payments-pagination span{color:#9aa59b}`}</style>
     </AdminShell>
   );
 }
