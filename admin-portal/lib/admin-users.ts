@@ -32,6 +32,17 @@ export type AdminUser = {
   profileDetail: string;
 };
 
+type AuthUser = {
+  id: string;
+  email?: string | null;
+  phone?: string | null;
+  created_at: string;
+  last_sign_in_at?: string | null;
+  email_confirmed_at?: string | null;
+  banned_until?: string | null;
+  deleted_at?: string | null;
+};
+
 type UserFilters = {
   search?: string;
   category?: UserCategory | "all";
@@ -47,7 +58,7 @@ function getAccountStatus(user: AdminUser): UserAccountStatus {
 
 async function mapAuthUsers(
   supabase: ReturnType<typeof createAdminClient>,
-  authUsers: Awaited<ReturnType<ReturnType<typeof createAdminClient>["auth"]["admin"]["listUsers"]>>["data"]["users"]
+  authUsers: AuthUser[]
 ): Promise<AdminUser[]> {
   const userIds = authUsers.map((user) => user.id);
   if (userIds.length === 0) return [];
