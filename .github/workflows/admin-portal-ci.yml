@@ -6,7 +6,7 @@ on:
       - "admin-portal/**"
       - ".github/workflows/admin-portal-ci.yml"
   push:
-    branches: [SIRMIC]
+    branches: [SIRMIC, "fix/**"]
     paths:
       - "admin-portal/**"
       - ".github/workflows/admin-portal-ci.yml"
