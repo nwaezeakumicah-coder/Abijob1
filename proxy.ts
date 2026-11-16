@@ -41,8 +41,10 @@ function getRequiredRole(pathname: string): AccountRole | null {
     return "job_seeker";
   }
 
+  // Job applications are shared by job seekers and skilled professionals.
+  // The route remains protected; the role allowlist is checked after profile lookup.
   if (/^\/jobs\/[^/]+\/apply\/?$/.test(pathname)) {
-    return "job_seeker";
+    return null;
   }
 
   return null;
@@ -118,9 +120,11 @@ export async function proxy(request: NextRequest) {
     pathname,
     "/interview-practice"
   );
+  const isJobApplicationRoute = /^\/jobs\/[^/]+\/apply\/?$/.test(pathname);
 
   const requiresAuthentication =
     requiredRole !== null ||
+    isJobApplicationRoute ||
     isSettingsRoute ||
     isSubscriptionRoute ||
     isCvBuilderRoute ||
@@ -246,6 +250,18 @@ export async function proxy(request: NextRequest) {
   }
 
   const role = profile.role as AccountRole;
+
+  if (isJobApplicationRoute) {
+    if (role === "job_seeker" || role === "professional") {
+      return response;
+    }
+
+    return redirectWithCookies(
+      request,
+      response,
+      dashboardRoutes[role]
+    );
+  }
 
   if (isSettingsRoute) {
     if (role !== "job_seeker") {
