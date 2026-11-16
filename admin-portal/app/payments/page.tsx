@@ -137,7 +137,10 @@ export default async function PaymentsPage({ searchParams }: PageProps) {
   const selectedStatus = validStatuses.includes(params.status ?? "all")
     ? (params.status ?? "all")
     : "all";
-  const selectedProvider = params.provider === "paystack" ? "paystack" : "all";
+  const selectedProvider =
+    params.provider && /^[a-z0-9_-]{1,30}$/i.test(params.provider)
+      ? params.provider.toLowerCase()
+      : "all";
   const requestedPage = Math.max(1, Number.parseInt(params.page ?? "1", 10) || 1);
   const pageSize = 50;
 
@@ -303,7 +306,7 @@ export default async function PaymentsPage({ searchParams }: PageProps) {
               <ReceiptText size={20} />
             </span>
             <div>
-              <span>Total transactions</span>
+              <span>Matching transactions</span>
               <strong>{count ?? payments.length}</strong>
               <small>Matching transactions across all pages</small>
             </div>
