@@ -1,4 +1,5 @@
 
+import Link from "next/link";
 import {
   Building2,
   Search,
@@ -25,6 +26,7 @@ type PageProps = {
     success?: string;
     error?: string;
     warning?: string;
+    page?: string;
   }>;
 };
 
@@ -84,29 +86,21 @@ export default async function EmployersPage({
     ? params.status!
     : "all";
 
-  const result = await getAdminEmployers();
-
-  const filteredEmployers = result.employers.filter((employer) => {
-    const matchesStatus =
-      selectedStatus === "all" ||
-      employer.verificationStatus === selectedStatus;
-
-    const searchText = [
-      employer.email,
-      employer.fullName,
-      employer.businessName,
-      employer.businessType,
-      employer.address,
-      employer.businessPhone,
-    ]
-      .join(" ")
-      .toLowerCase();
-
-    return (
-      matchesStatus &&
-      searchText.includes(query.toLowerCase())
-    );
+  const pageNumber = Math.max(1, Number.parseInt(params.page ?? "1", 10) || 1);
+  const result = await getAdminEmployers({
+    page: pageNumber,
+    search: query,
+    status: selectedStatus,
   });
+  const filteredEmployers = result.employers;
+
+  const pageUrl = (nextPage: number) => {
+    const search = new URLSearchParams();
+    if (query) search.set("q", query);
+    if (selectedStatus !== "all") search.set("status", selectedStatus);
+    search.set("page", String(nextPage));
+    return `/employers?${search.toString()}`;
+  };
 
   return (
     <AdminShell>
@@ -191,7 +185,7 @@ export default async function EmployersPage({
             </div>
 
             <span className="management-page-count">
-              {filteredEmployers.length} results
+              {result.totalFiltered} results · Page {result.page} of {result.totalPages}
             </span>
           </div>
 
@@ -206,7 +200,7 @@ export default async function EmployersPage({
                 type="search"
                 name="q"
                 defaultValue={query}
-                placeholder="Search business, email or phone..."
+                placeholder="Search business name, type, address or phone..."
               />
             </div>
 
@@ -415,8 +409,16 @@ export default async function EmployersPage({
               records but not approve or reject them.
             </p>
           )}
+          {result.totalPages > 1 && (
+            <nav className="employer-pagination" aria-label="Employer directory pages">
+              {result.page > 1 ? <Link href={pageUrl(result.page - 1)}>← Previous</Link> : <span>← Previous</span>}
+              <strong>Page {result.page} of {result.totalPages}</strong>
+              {result.page < result.totalPages ? <Link href={pageUrl(result.page + 1)}>Next →</Link> : <span>Next →</span>}
+            </nav>
+          )}
         </section>
       </div>
+      <style>{`.employer-pagination{display:flex;justify-content:center;align-items:center;gap:18px;padding:22px 12px;color:#526157;font-size:13px}.employer-pagination a{color:#176b45;font-weight:700;text-decoration:none}.employer-pagination span{color:#9aa59b}`}</style>
     </AdminShell>
   );
 }
