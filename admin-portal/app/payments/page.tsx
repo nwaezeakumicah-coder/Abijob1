@@ -164,20 +164,39 @@ export default async function PaymentsPage({ searchParams }: PageProps) {
 
   const userIds = Array.from(new Set(payments.map((payment) => payment.user_id)));
 
-  const emailEntries = await Promise.all(
-    userIds.map(async (userId) => {
-      const { data: result, error: userError } =
-        await supabase.auth.admin.getUserById(userId);
+  // Resolve payment owners in bounded batches instead of issuing one Auth
+  // request per transaction (the previous implementation was an N+1 query).
+  const emailMap = new Map<string, string>();
+  const unresolvedUserIds = new Set(userIds);
+  const authPageSize = 1000;
+  const maxAuthPages = 20;
 
-      if (userError) {
-        console.error("PAYMENT USER LOOKUP ERROR:", userError);
+  for (let page = 1; page <= maxAuthPages && unresolvedUserIds.size > 0; page += 1) {
+    const { data: userPage, error: userPageError } =
+      await supabase.auth.admin.listUsers({
+        page,
+        perPage: authPageSize,
+      });
+
+    if (userPageError) {
+      console.error("PAYMENT USER BATCH LOOKUP ERROR:", userPageError);
+      break;
+    }
+
+    const users = userPage?.users ?? [];
+    for (const user of users) {
+      if (unresolvedUserIds.has(user.id)) {
+        emailMap.set(user.id, user.email ?? "Email unavailable");
+        unresolvedUserIds.delete(user.id);
       }
+    }
 
-      return [userId, result?.user?.email ?? "Email unavailable"] as const;
-    })
-  );
+    if (users.length < authPageSize) break;
+  }
 
-  const emailMap = new Map(emailEntries);
+  for (const userId of unresolvedUserIds) {
+    emailMap.set(userId, "Email unavailable");
+  }
 
   const providers = Array.from(
     new Set(
