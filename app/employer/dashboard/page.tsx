@@ -504,6 +504,7 @@ export default function EmployerDashboardPage() {
         </div>
 
         <nav
+          id="employer-mobile-navigation"
           className="employer-mobile-nav"
           aria-label="Employer workspace navigation"
         >
@@ -610,19 +611,25 @@ export default function EmployerDashboardPage() {
 
       <section className="employer-main">
         <header className="employer-topbar">
-          <button
-            type="button"
-            className="employer-mobile-menu-toggle"
-            aria-label="Open navigation menu"
-            aria-expanded={mobileMenuOpen}
-            onClick={() => setMobileMenuOpen(true)}
-          >
-            <Menu size={22} />
-          </button>
-          <div className="employer-breadcrumb">
-            <span>Employer workspace</span>
-            <span>/</span>
-            <strong>Dashboard</strong>
+          <div className="employer-topbar-start">
+            <button
+              type="button"
+              className="employer-mobile-menu-toggle"
+              aria-label="Open navigation menu"
+              aria-expanded={mobileMenuOpen}
+              aria-controls="employer-mobile-navigation"
+              onClick={() => setMobileMenuOpen(true)}
+            >
+              <Menu size={22} />
+            </button>
+            <div className="employer-mobile-brand">
+              <Logo href="/" size="small" />
+            </div>
+            <div className="employer-breadcrumb">
+              <span>Employer workspace</span>
+              <span>/</span>
+              <strong>Dashboard</strong>
+            </div>
           </div>
 
           <div className="employer-topbar-actions">
