@@ -69,13 +69,16 @@ export default async function ProfessionalsPage({
 
   const totalOnPage = professionals.length;
   const activeCount = professionals.filter(
-    (user) => !user.deletedAt && !user.bannedUntil
+    (user) =>
+      !user.deletedAt &&
+      user.emailConfirmedAt &&
+      !(user.bannedUntil && new Date(user.bannedUntil) > new Date())
   ).length;
   const unverifiedCount = professionals.filter(
     (user) => !user.emailConfirmedAt
   ).length;
   const suspendedCount = professionals.filter(
-    (user) => Boolean(user.bannedUntil)
+    (user) => Boolean(user.bannedUntil && new Date(user.bannedUntil) > new Date())
   ).length;
 
   const createPageUrl = (page: number) => {
@@ -156,6 +159,13 @@ export default async function ProfessionalsPage({
             </div>
           </article>
         </section>
+
+        {result.searchLimitReached && (
+          <div className="management-notice">
+            <ShieldCheck size={18} />
+            <span>Search reached the 50,000-account safety limit. Narrow your filters to search more precisely.</span>
+          </div>
+        )}
 
         <section className="management-panel">
           <div className="management-panel-heading">
