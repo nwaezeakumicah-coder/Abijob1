@@ -2,10 +2,11 @@
 import "server-only";
 
 import { redirect } from "next/navigation";
+import { cache } from "react";
 import { createClient } from "./supabase/server";
 import { createAdminClient } from "./supabase/admin";
 
-export async function getActiveAdmin() {
+async function getActiveAdminUncached() {
   const supabase = await createClient();
 
   const {
@@ -77,3 +78,7 @@ export async function getActiveAdmin() {
     permissions: permissionKeys,
   };
 }
+
+// Reuse the same verified administrator context across a page render.
+// AdminShell and individual pages both request this context.
+export const getActiveAdmin = cache(getActiveAdminUncached);
