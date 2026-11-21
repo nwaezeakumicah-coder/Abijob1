@@ -1587,3 +1587,25 @@
     padding: 14px;
   }
 }
+
+
+/* EMPLOYER DRAWER: vertical menu and header alignment correction */
+@media (max-width: 850px) {
+  .employer-dashboard .employer-topbar {
+    display:flex; align-items:center; justify-content:space-between;
+    min-height:68px; height:auto; padding:10px 16px; box-sizing:border-box;
+  }
+  .employer-dashboard .employer-topbar-start { display:flex; align-items:center; gap:10px; min-width:0; }
+  .employer-dashboard .employer-mobile-menu-toggle { margin:0; flex:0 0 42px; }
+  .employer-dashboard .employer-mobile-brand { display:flex; align-items:center; min-width:0; }
+  .employer-dashboard .employer-topbar-actions { align-items:center; gap:8px; }
+  .employer-dashboard .employer-sidebar .employer-mobile-nav { flex-direction:column !important; align-items:stretch !important; width:100% !important; }
+  .employer-dashboard .employer-sidebar .employer-mobile-nav a { display:flex !important; flex-direction:row !important; align-items:center !important; justify-content:flex-start !important; width:100% !important; box-sizing:border-box; }
+  .employer-dashboard .employer-sidebar .employer-mobile-nav a span { text-align:left; }
+}
+@media (max-width: 480px) {
+  .employer-dashboard .employer-topbar { padding-inline:12px; gap:8px; }
+  .employer-dashboard .employer-topbar-start { gap:8px; }
+  .employer-dashboard .employer-mobile-brand .abi-logo__image { width:100px; }
+  .employer-dashboard .employer-topbar-actions { gap:6px; }
+}
