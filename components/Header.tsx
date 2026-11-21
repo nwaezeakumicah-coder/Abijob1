@@ -308,7 +308,7 @@ function HeaderContent() {
                     aria-label={`${accountName} dashboard`}
                     title={accountName}
                   >
-                    {avatarUrl ? <img src={avatarUrl} alt="" /> : <span>{accountName.trim().split(/\\s+/).slice(0, 2).map((part) => part[0]?.toUpperCase()).join("") || "A"}</span>}
+                    {avatarUrl ? <img src={avatarUrl} alt="" /> : <span>{accountName.trim().split(/\s+/).slice(0, 2).map((part) => part[0]?.toUpperCase()).join("") || "A"}</span>}
                   </Link>
                   <Link
                     href={dashboardHref}
@@ -396,7 +396,7 @@ function HeaderContent() {
                       aria-label={`${accountName} dashboard`}
                       onClick={closeMenu}
                     >
-                      {avatarUrl ? <img src={avatarUrl} alt="" /> : <span>{accountName.trim().split(/\\s+/).slice(0, 2).map((part) => part[0]?.toUpperCase()).join("") || "A"}</span>}
+                      {avatarUrl ? <img src={avatarUrl} alt="" /> : <span>{accountName.trim().split(/\s+/).slice(0, 2).map((part) => part[0]?.toUpperCase()).join("") || "A"}</span>}
                     </Link>
                     <Link
                       href={dashboardHref}
