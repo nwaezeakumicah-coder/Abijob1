@@ -31,6 +31,7 @@ import {
   RefreshCw,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
+import ProfileImage from "@/components/ProfileImage";
 import "./opportunities.css";
 
 type DatabaseJob = {
@@ -217,6 +218,7 @@ export default function ProfessionalOpportunitiesPage() {
   const [showFilters, setShowFilters] = useState(false);
 
   const [fullName, setFullName] = useState("");
+  const [accountAvatarPath, setAccountAvatarPath] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
@@ -254,7 +256,7 @@ export default function ProfessionalOpportunitiesPage() {
 
       const { data: profile, error: profileError } = await supabase
         .from("profiles")
-        .select("id, role, full_name")
+        .select("id, role, full_name, avatar_url")
         .eq("id", user.id)
         .single();
 
@@ -283,6 +285,7 @@ export default function ProfessionalOpportunitiesPage() {
       setFullName(
         typedProfile.full_name || user.email || "Professional"
       );
+      setAccountAvatarPath(typedProfile.avatar_url || null);
 
       const storedIds = readSavedJobIds();
       setSavedJobIds(storedIds);
