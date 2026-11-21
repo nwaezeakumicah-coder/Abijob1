@@ -83,6 +83,7 @@ const initialProfile: ProfileData = {
 };
 
 const STORAGE_BUCKET = "abi-job-profile-files";
+const PUBLIC_IMAGE_BUCKET = "abi-job-public-images";
 
 export default function ProfessionalProfilePage() {
   const supabase = useMemo(() => createClient(), []);
@@ -163,7 +164,11 @@ export default function ProfessionalProfilePage() {
         const storedPhotoPath =
           extra.photo_path || personal.avatar_url || "";
 
-        if (storedPhotoPath) {
+        if (storedPhotoPath.startsWith("avatars/")) {
+          signedPhoto = supabase.storage
+            .from(PUBLIC_IMAGE_BUCKET)
+            .getPublicUrl(storedPhotoPath).data.publicUrl;
+        } else if (storedPhotoPath) {
           const { data: signedData, error: signedError } =
             await supabase.storage
               .from(STORAGE_BUCKET)
@@ -493,10 +498,10 @@ export default function ProfessionalProfilePage() {
             ?.toLowerCase()
             .replace(/[^a-z0-9]/g, "") || "jpg";
 
-        const uploadPath = `${user.id}/professional/avatar-${Date.now()}.${extension}`;
+        const uploadPath = `avatars/${user.id}/professional-${Date.now()}.${extension}`;
 
         const { error: uploadError } = await supabase.storage
-          .from(STORAGE_BUCKET)
+          .from(PUBLIC_IMAGE_BUCKET)
           .upload(uploadPath, pendingPhoto, {
             upsert: false,
             contentType: pendingPhoto.type,
@@ -555,14 +560,9 @@ export default function ProfessionalProfilePage() {
       let signedPhoto = profile.photo;
 
       if (newPhotoPath) {
-        const { data: signedData, error: signedError } =
-          await supabase.storage
-            .from(STORAGE_BUCKET)
-            .createSignedUrl(newPhotoPath, 60 * 60 * 24 * 7);
-
-        if (signedError) throw signedError;
-
-        signedPhoto = signedData.signedUrl;
+        signedPhoto = supabase.storage
+          .from(PUBLIC_IMAGE_BUCKET)
+          .getPublicUrl(newPhotoPath).data.publicUrl;
       }
 
       const updatedProfile: ProfileData = {
@@ -586,7 +586,7 @@ export default function ProfessionalProfilePage() {
 
       if (uploadedPhotoPath) {
         const { error: cleanupError } = await supabase.storage
-          .from(STORAGE_BUCKET)
+          .from(PUBLIC_IMAGE_BUCKET)
           .remove([uploadedPhotoPath]);
 
         if (cleanupError) {
