@@ -14,10 +14,8 @@ SET public = true,
     allowed_mime_types = ARRAY['image/jpeg', 'image/png', 'image/webp'];
 
 DROP POLICY IF EXISTS "Public profile images are viewable by everyone" ON storage.objects;
-CREATE POLICY "Public profile images are viewable by everyone"
-  ON storage.objects FOR SELECT
-  TO anon, authenticated
-  USING (bucket_id = 'abi-job-public-images');
+-- Public bucket downloads bypass object SELECT policies; leaving SELECT ungranted
+-- prevents anonymous users from listing every object in the bucket.
 
 DROP POLICY IF EXISTS "Users upload their own public profile images" ON storage.objects;
 CREATE POLICY "Users upload their own public profile images"
