@@ -136,6 +136,7 @@ function HeaderContent() {
               .getPublicUrl(logo).data.publicUrl;
           }
         }
+        if (!mounted || currentRequest !== requestVersion) return;
         setAvatarUrl(nextAvatarUrl);
 
         if (
