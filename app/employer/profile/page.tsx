@@ -262,6 +262,7 @@ export default function EmployerProfilePage() {
     setSaving(true);
     setSaved(false);
     setSaveError("");
+    let uploadedLogoPath = "";
 
     try {
       const supabase = createClient();
@@ -279,7 +280,6 @@ export default function EmployerProfilePage() {
       }
 
       let nextLogoUrl = companyLogoUrl;
-      let uploadedLogoPath = "";
 
       if (pendingLogo) {
         const extension = pendingLogo.name.split(".").pop()?.toLowerCase().replace(/[^a-z0-9]/g, "") || "jpg";
@@ -368,6 +368,12 @@ export default function EmployerProfilePage() {
       setSaved(true);
       setSaveError("");
     } catch (error) {
+      if (uploadedLogoPath) {
+        const { error: cleanupError } = await createClient().storage
+          .from("abi-job-public-images")
+          .remove([uploadedLogoPath]);
+        if (cleanupError) console.error("Uploaded company logo cleanup failed:", cleanupError);
+      }
       console.error("Employer profile save error:", error);
 
       setSaveError(
@@ -423,7 +429,7 @@ export default function EmployerProfilePage() {
 
         <div className="employer-profile-company">
           <div className="employer-profile-company-icon">
-            <Building2 size={21} />
+            {companyLogoPreview ? <img src={companyLogoPreview} alt="" /> : <Building2 size={21} />}
           </div>
 
           <div>
@@ -518,7 +524,7 @@ export default function EmployerProfilePage() {
 
           <div className="employer-profile-account">
             <div className="employer-profile-account-icon">
-              <Building2 size={18} />
+              {companyLogoPreview ? <img src={companyLogoPreview} alt="" /> : <Building2 size={18} />}
             </div>
 
             <div>
