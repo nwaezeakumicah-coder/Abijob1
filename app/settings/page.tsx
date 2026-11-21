@@ -25,6 +25,7 @@ import {
 import Logo from "@/components/Logo";
 import PasskeySettings from "@/components/PasskeySettings";
 import { createClient } from "@/lib/supabase/client";
+import ProfileImage from "@/components/ProfileImage";
 
 import "./settings.css";
 
@@ -100,6 +101,7 @@ export default function SettingsPage() {
   const [accessError, setAccessError] = useState("");
   const [retryCount, setRetryCount] = useState(0);
   const [accountName, setAccountName] = useState("Account");
+  const [accountAvatarPath, setAccountAvatarPath] = useState<string | null>(null);
   const [accountRole, setAccountRole] = useState<"job_seeker" | "professional">("job_seeker");
   const [saveMessage, setSaveMessage] = useState("");
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
@@ -135,7 +137,7 @@ export default function SettingsPage() {
 
         const { data: profile, error: profileError } = await supabase
           .from("profiles")
-          .select("id, role, full_name")
+          .select("id, role, full_name, avatar_url")
           .eq("id", user.id)
           .maybeSingle();
 
@@ -228,6 +230,7 @@ export default function SettingsPage() {
         if (!active) return;
 
         setAccountName(displayName);
+        setAccountAvatarPath(profile.avatar_url || null);
         setAccountRole(profile.role as "job_seeker" | "professional");
         setSettings(loadedSettings);
         setStorageReady(true);
@@ -468,7 +471,9 @@ export default function SettingsPage() {
         </div>
 
         <div className="settings-user-card">
-          <div className="settings-avatar">{accountRole === "job_seeker" ? "JS" : "SP"}</div>
+          <div className="settings-avatar">
+            <ProfileImage name={accountName} path={accountAvatarPath} />
+          </div>
           <div>
             <strong>{accountName}</strong>
             <span>{accountRole === "job_seeker" ? "Job seeker" : "Skilled professional"}</span>
