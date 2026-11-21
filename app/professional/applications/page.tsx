@@ -196,6 +196,7 @@ export default function ProfessionalApplicationsPage() {
     useState<Application | null>(null);
 
   const [fullName, setFullName] = useState("Professional");
+  const [accountAvatarPath, setAccountAvatarPath] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [applicantId, setApplicantId] = useState("");
@@ -218,7 +219,7 @@ export default function ProfessionalApplicationsPage() {
 
       const { data: profile, error: profileError } = await supabase
         .from("profiles")
-        .select("id, role, full_name")
+        .select("id, role, full_name, avatar_url")
         .eq("id", user.id)
         .maybeSingle();
 
@@ -246,6 +247,7 @@ export default function ProfessionalApplicationsPage() {
       }
 
       setFullName(profile.full_name?.trim() || "Professional");
+      setAccountAvatarPath(profile.avatar_url || null);
       setApplicantId(user.id);
 
       const { data: applicationRows, error: applicationsError } =
@@ -495,7 +497,7 @@ export default function ProfessionalApplicationsPage() {
             href="/professional/profile"
             className="professional-applications-profile-link"
           >
-            <div className="professional-applications-avatar">{initials}</div>
+            <div className="professional-applications-avatar"><ProfileImage name={fullName} path={accountAvatarPath} /></div>
             <div>
               <strong>My profile</strong>
               <span>{fullName}</span>
