@@ -62,6 +62,7 @@ type Profile = {
   id: string;
   role: string;
   full_name: string | null;
+  avatar_url: string | null;
 };
 
 type ApplicationRecord = {
