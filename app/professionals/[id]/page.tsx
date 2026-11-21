@@ -32,6 +32,7 @@ type Professional = {
   professional_bio: string | null;
   service_area: string | null;
   portfolio_url: string | null;
+  avatar_path: string | null;
 };
 
 function getInitials(name: string) {
@@ -263,7 +264,12 @@ function ProfessionalProfileContent() {
               <section className="public-profile-hero">
                 <div className="public-profile-identity">
                   <div className="public-profile-avatar">
-                    {getInitials(name)}
+                    {professional.avatar_path ? (
+                      <img
+                        src={supabase.storage.from("abi-job-public-images").getPublicUrl(professional.avatar_path).data.publicUrl}
+                        alt=""
+                      />
+                    ) : getInitials(name)}
                   </div>
 
                   <div className="public-profile-name-block">
