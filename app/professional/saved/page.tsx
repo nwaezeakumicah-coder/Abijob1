@@ -4,6 +4,7 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
+import ProfileImage from "@/components/ProfileImage";
 import Logo from "../../../components/Logo";
 import {
   ArrowRight,
@@ -40,6 +41,8 @@ export default function ProfessionalSavedPage() {
   const [selectedJob, setSelectedJob] = useState<SavedJob | null>(null);
   const [confirmRemove, setConfirmRemove] = useState<string | null>(null);
   const [isLoaded, setIsLoaded] = useState(false);
+  const [accountName, setAccountName] = useState("Professional");
+  const [accountAvatarPath, setAccountAvatarPath] = useState<string | null>(null);
 
   const jobTypes = ["All", "Full-time", "Part-time", "Remote", "Contract"];
 
@@ -62,7 +65,7 @@ export default function ProfessionalSavedPage() {
 
         const { data: profile, error: profileError } = await supabase
           .from("profiles")
-          .select("role")
+          .select("role, full_name, avatar_url")
           .eq("id", user.id)
           .maybeSingle();
 
@@ -78,6 +81,9 @@ export default function ProfessionalSavedPage() {
           );
           return;
         }
+
+        setAccountName(profile.full_name?.trim() || "Professional");
+        setAccountAvatarPath(profile.avatar_url || null);
 
         const { data: access, error: accessError } = await supabase.rpc(
           "has_platform_access"
@@ -300,7 +306,7 @@ export default function ProfessionalSavedPage() {
             href="/professional/profile"
             className="professional-saved-profile"
           >
-            <div className="professional-saved-avatar">MN</div>
+            <div className="professional-saved-avatar"><ProfileImage name={accountName} path={accountAvatarPath} /></div>
             <div>
               <strong>My profile</strong>
               <span>Professional account</span>
