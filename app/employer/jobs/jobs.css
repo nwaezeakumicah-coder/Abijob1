@@ -1107,3 +1107,23 @@
     animation: none;
   }
 }
+
+
+/* Mobile drawer: force vertical navigation */
+@media (max-width: 850px) {
+  .employer-jobs-page .employer-jobs-nav {
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: stretch !important;
+    justify-content: flex-start !important;
+    width: 100% !important;
+    gap: 6px !important;
+  }
+
+  .employer-jobs-page .employer-jobs-nav a {
+    display: flex !important;
+    width: 100% !important;
+    min-height: 46px;
+    flex: 0 0 auto !important;
+  }
+}

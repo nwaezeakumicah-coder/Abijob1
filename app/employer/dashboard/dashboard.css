@@ -1609,3 +1609,23 @@
   .employer-dashboard .employer-mobile-brand .abi-logo__image { width:100px; }
   .employer-dashboard .employer-topbar-actions { gap:6px; }
 }
+/* Mobile drawer: force vertical navigation */
+@media (max-width: 850px) {
+  .employer-dashboard .employer-nav,
+  .employer-dashboard .employer-mobile-nav {
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: stretch !important;
+    justify-content: flex-start !important;
+    width: 100% !important;
+    gap: 6px !important;
+  }
+
+  .employer-dashboard .employer-nav a,
+  .employer-dashboard .employer-mobile-nav a {
+    display: flex !important;
+    width: 100% !important;
+    min-height: 46px;
+    flex: 0 0 auto !important;
+  }
+}
