@@ -60,6 +60,7 @@ type EmployerProfileRecord = {
   facebook_url: string | null;
   instagram_url: string | null;
   linkedin_url: string | null;
+  logo_url: string | null;
 };
 
 const defaultProfile: CompanyProfile = {
@@ -102,6 +103,8 @@ export default function EmployerProfilePage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [companyLogoPreview, setCompanyLogoPreview] = useState("");
+  const [companyLogoUrl, setCompanyLogoUrl] = useState("");
+  const [pendingLogo, setPendingLogo] = useState<File | null>(null);
   const lastSavedProfileRef = useRef("");
 
   useEffect(() => {
@@ -130,7 +133,7 @@ export default function EmployerProfilePage() {
         const { data, error } = await supabase
           .from("employer_profiles")
           .select(
-            "user_id, business_name, business_type, company_size, address, website, business_email, phone, founded_year, description, facebook_url, instagram_url, linkedin_url"
+            "user_id, business_name, business_type, company_size, address, website, business_email, phone, founded_year, description, facebook_url, instagram_url, linkedin_url, logo_url"
           )
           .eq("user_id", user.id)
           .maybeSingle();
@@ -158,6 +161,8 @@ export default function EmployerProfilePage() {
             instagram: company.instagram_url ?? "",
             linkedin: company.linkedin_url ?? "",
           };
+          setCompanyLogoUrl(company.logo_url ?? "");
+          setCompanyLogoPreview(company.logo_url ?? "");
           setProfile(loadedProfile);
           lastSavedProfileRef.current = JSON.stringify(loadedProfile);
         }
@@ -205,6 +210,7 @@ export default function EmployerProfilePage() {
     reader.onload = () => {
       if (typeof reader.result === "string") {
         setCompanyLogoPreview(reader.result);
+        setPendingLogo(file);
         setSaveError("");
         setSaved(false);
       }
@@ -272,8 +278,28 @@ export default function EmployerProfilePage() {
         return;
       }
 
+      let nextLogoUrl = companyLogoUrl;
+      let uploadedLogoPath = "";
+
+      if (pendingLogo) {
+        const extension = pendingLogo.name.split(".").pop()?.toLowerCase().replace(/[^a-z0-9]/g, "") || "jpg";
+        uploadedLogoPath = `employer-logos/${user.id}/${crypto.randomUUID()}.${extension}`;
+        const { error: logoUploadError } = await supabase.storage
+          .from("abi-job-public-images")
+          .upload(uploadedLogoPath, pendingLogo, {
+            contentType: pendingLogo.type,
+            cacheControl: "3600",
+            upsert: false,
+          });
+        if (logoUploadError) throw logoUploadError;
+        nextLogoUrl = supabase.storage
+          .from("abi-job-public-images")
+          .getPublicUrl(uploadedLogoPath).data.publicUrl;
+      }
+
       const profileData = {
         user_id: user.id,
+        logo_url: nextLogoUrl || null,
         business_name: nullableText(profile.companyName),
         business_type: nullableText(profile.industry),
         company_size: nullableText(profile.companySize),
@@ -312,6 +338,7 @@ export default function EmployerProfilePage() {
             facebook_url: profileData.facebook_url,
             instagram_url: profileData.instagram_url,
             linkedin_url: profileData.linkedin_url,
+            logo_url: profileData.logo_url,
           })
           .eq("user_id", user.id);
 
@@ -324,6 +351,19 @@ export default function EmployerProfilePage() {
         if (insertError) throw insertError;
       }
 
+      const previousLogoUrl = companyLogoUrl;
+      setCompanyLogoUrl(nextLogoUrl);
+      if (nextLogoUrl) setCompanyLogoPreview(nextLogoUrl);
+      setPendingLogo(null);
+      if (previousLogoUrl && previousLogoUrl !== nextLogoUrl) {
+        const oldPath = previousLogoUrl.split("/abi-job-public-images/")[1]?.split("?")[0];
+        if (oldPath) {
+          const { error: oldLogoError } = await supabase.storage
+            .from("abi-job-public-images")
+            .remove([decodeURIComponent(oldPath)]);
+          if (oldLogoError) console.error("Old company logo could not be removed:", oldLogoError);
+        }
+      }
       lastSavedProfileRef.current = JSON.stringify(profile);
       setSaved(true);
       setSaveError("");
@@ -811,15 +851,13 @@ export default function EmployerProfilePage() {
             <div>
               <h3>Company branding</h3>
               <p>
-                Choose a company logo using the camera icon above.
-                Your selected image is currently previewed on this page.
-                Permanent logo storage will be connected when the company
-                logo storage integration is implemented.
+                Your company logo is stored securely as a public brand image and
+                appears across employer listings and your workspace.
               </p>
             </div>
 
             <span>
-              {companyLogoPreview ? "Logo selected" : "Storage integration pending"}
+              {pendingLogo ? "Ready to save" : companyLogoUrl ? "Logo saved" : "No logo uploaded"}
             </span>
           </section>
 
