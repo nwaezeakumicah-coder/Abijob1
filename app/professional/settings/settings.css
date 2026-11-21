@@ -675,3 +675,12 @@
     font-size: 11px;
   }
 }
+
+.ps-account-avatar img,
+.settings-avatar img {
+  width: 100%;
+  height: 100%;
+  display: block;
+  object-fit: cover;
+  border-radius: inherit;
+}
