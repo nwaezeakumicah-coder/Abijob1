@@ -167,6 +167,7 @@ export default function ProfessionalNotificationsPage() {
   const [isLoaded, setIsLoaded] = useState(false);
   const [isWorking, setIsWorking] = useState(false);
   const [fullName, setFullName] = useState("Professional");
+  const [accountAvatarPath, setAccountAvatarPath] = useState<string | null>(null);
   const [userId, setUserId] = useState("");
   const [error, setError] = useState("");
 
@@ -227,7 +228,7 @@ export default function ProfessionalNotificationsPage() {
 
       const { data: profile, error: profileError } = await supabase
         .from("profiles")
-        .select("id, role, full_name")
+        .select("id, role, full_name, avatar_url")
         .eq("id", user.id)
         .maybeSingle();
 
@@ -256,6 +257,7 @@ export default function ProfessionalNotificationsPage() {
 
       setUserId(user.id);
       setFullName(profile.full_name?.trim() || "Professional");
+      setAccountAvatarPath(profile.avatar_url || null);
 
       await loadNotifications(user.id);
     } catch (loadError) {
@@ -552,7 +554,7 @@ export default function ProfessionalNotificationsPage() {
 
           <div className="pn-topbar-right">
             <div className="pn-user">
-              <div className="pn-avatar">{initials}</div>
+              <div className="pn-avatar"><ProfileImage name={fullName} path={accountAvatarPath} /></div>
               <div>
                 <strong>{fullName}</strong>
                 <span>Professional account</span>
