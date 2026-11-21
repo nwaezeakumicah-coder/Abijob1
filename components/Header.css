@@ -277,3 +277,35 @@
     background: #f5f7f4;
   }
 }
+
+
+/* Signed-in account image */
+.header-account-avatar,
+.mobile-account-avatar {
+  width: 42px;
+  height: 42px;
+  flex: 0 0 42px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 50%;
+  background: #edf4ef;
+  color: var(--green);
+  font-size: 13px;
+  font-weight: 800;
+  text-decoration: none;
+}
+
+.header-account-avatar img,
+.mobile-account-avatar img {
+  width: 100%;
+  height: 100%;
+  display: block;
+  object-fit: cover;
+}
+
+.mobile-account-avatar {
+  margin: 0 auto;
+}
