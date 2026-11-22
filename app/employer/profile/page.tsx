@@ -365,6 +365,7 @@ export default function EmployerProfilePage() {
         }
       }
       lastSavedProfileRef.current = JSON.stringify(profile);
+      window.dispatchEvent(new Event("abijob:profile-updated"));
       setSaved(true);
       setSaveError("");
     } catch (error) {
