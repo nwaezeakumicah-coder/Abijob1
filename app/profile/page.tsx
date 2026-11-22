@@ -318,6 +318,7 @@ export default function ProfilePage() {
       if (!savedProfile?.id) throw new Error("Your profile was not confirmed as saved. Please try again.");
 
       lastSavedProfileRef.current = JSON.stringify(profile);
+      window.dispatchEvent(new Event("abijob:profile-updated"));
       if (showFeedback) {
         showNotice("success", "Your profile has been saved successfully.");
       }
@@ -388,6 +389,7 @@ export default function ProfilePage() {
 
       setPhotoPath(uploadedPath);
       setPhotoUrl(newSignedUrl);
+      window.dispatchEvent(new Event("abijob:profile-updated"));
 
       if (photoPath && photoPath !== uploadedPath) {
         const { error: oldFileError } = await supabase.storage
@@ -439,6 +441,7 @@ export default function ProfilePage() {
 
       setPhotoPath(null);
       setPhotoUrl("");
+      window.dispatchEvent(new Event("abijob:profile-updated"));
 
       showNotice("success", "Your profile photo has been removed.");
     } catch (error) {
