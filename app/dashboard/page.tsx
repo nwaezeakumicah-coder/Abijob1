@@ -160,8 +160,20 @@ export default function DashboardPage() {
 
     loadDashboard();
 
+    const refreshDashboard = () => {
+      if (document.visibilityState === "visible") void loadDashboard();
+    };
+    window.addEventListener("focus", refreshDashboard);
+    window.addEventListener("pageshow", refreshDashboard);
+    window.addEventListener("abijob:profile-updated", refreshDashboard);
+    document.addEventListener("visibilitychange", refreshDashboard);
+
     return () => {
       active = false;
+      window.removeEventListener("focus", refreshDashboard);
+      window.removeEventListener("pageshow", refreshDashboard);
+      window.removeEventListener("abijob:profile-updated", refreshDashboard);
+      document.removeEventListener("visibilitychange", refreshDashboard);
     };
   }, [router]);
 
