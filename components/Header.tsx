@@ -58,6 +58,8 @@ function HeaderContent() {
   const [menuOpen, setMenuOpen] = useState(false);
   const menuButtonRef = useRef<HTMLButtonElement>(null);
   const [role, setRole] = useState<AccountRole>(null);
+  const [accountName, setAccountName] = useState("");
+  const [avatarUrl, setAvatarUrl] = useState("");
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [authLoading, setAuthLoading] = useState(true);
   const [loggingOut, setLoggingOut] = useState(false);
@@ -75,6 +77,8 @@ function HeaderContent() {
         if (mounted && currentRequest === requestVersion) {
           setIsAuthenticated(false);
           setRole(null);
+          setAccountName("");
+          setAvatarUrl("");
           setAuthLoading(false);
         }
 
@@ -87,7 +91,7 @@ function HeaderContent() {
 
       const { data, error } = await supabase
         .from("profiles")
-        .select("role")
+        .select("role, full_name, avatar_url")
         .eq("id", userId)
         .maybeSingle();
 
@@ -98,8 +102,42 @@ function HeaderContent() {
       if (error) {
         console.error("Could not load account role:", error);
         setRole(null);
+        setAccountName("");
+        setAvatarUrl("");
       } else {
         const accountRole = data?.role;
+        setAccountName(data?.full_name || "Account");
+
+        let nextAvatarUrl = "";
+        const avatarPath = data?.avatar_url || "";
+        if (avatarPath.startsWith("avatars/")) {
+          nextAvatarUrl = supabase.storage
+            .from("abi-job-public-images")
+            .getPublicUrl(avatarPath).data.publicUrl;
+        } else if (avatarPath) {
+          const { data: signedAvatar } = await supabase.storage
+            .from("abi-job-profile-files")
+            .createSignedUrl(avatarPath, 60 * 60);
+          nextAvatarUrl = signedAvatar?.signedUrl || "";
+        }
+
+        if (accountRole === "employer") {
+          const { data: employer } = await supabase
+            .from("employer_profiles")
+            .select("logo_url")
+            .eq("user_id", userId)
+            .maybeSingle();
+          const logo = employer?.logo_url || "";
+          if (logo.startsWith("http://") || logo.startsWith("https://")) {
+            nextAvatarUrl = logo;
+          } else if (logo) {
+            nextAvatarUrl = supabase.storage
+              .from("abi-job-public-images")
+              .getPublicUrl(logo).data.publicUrl;
+          }
+        }
+        if (!mounted || currentRequest !== requestVersion) return;
+        setAvatarUrl(nextAvatarUrl);
 
         if (
           accountRole === "job_seeker" ||
@@ -220,6 +258,8 @@ function HeaderContent() {
 
       setIsAuthenticated(false);
       setRole(null);
+      setAccountName("");
+      setAvatarUrl("");
       closeMenu();
 
       router.replace("/");
@@ -262,6 +302,14 @@ function HeaderContent() {
             <>
               {isAuthenticated ? (
                 <>
+                  <Link
+                    href={dashboardHref}
+                    className="header-account-avatar"
+                    aria-label={`${accountName} dashboard`}
+                    title={accountName}
+                  >
+                    {avatarUrl ? <img src={avatarUrl} alt="" /> : <span>{accountName.trim().split(/\s+/).slice(0, 2).map((part) => part[0]?.toUpperCase()).join("") || "A"}</span>}
+                  </Link>
                   <Link
                     href={dashboardHref}
                     className="header-login"
@@ -342,6 +390,14 @@ function HeaderContent() {
               <>
                 {isAuthenticated ? (
                   <>
+                    <Link
+                      href={dashboardHref}
+                      className="mobile-account-avatar"
+                      aria-label={`${accountName} dashboard`}
+                      onClick={closeMenu}
+                    >
+                      {avatarUrl ? <img src={avatarUrl} alt="" /> : <span>{accountName.trim().split(/\s+/).slice(0, 2).map((part) => part[0]?.toUpperCase()).join("") || "A"}</span>}
+                    </Link>
                     <Link
                       href={dashboardHref}
                       className="mobile-login"

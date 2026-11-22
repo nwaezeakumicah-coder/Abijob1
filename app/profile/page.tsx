@@ -37,6 +37,7 @@ import { createClient } from "@/lib/supabase/client";
 import "./profile.css";
 
 const BUCKET = "abi-job-profile-files";
+const PUBLIC_IMAGE_BUCKET = "abi-job-public-images";
 const MAX_PHOTO_SIZE = 3 * 1024 * 1024;
 const MAX_CV_SIZE = 5 * 1024 * 1024;
 
@@ -141,6 +142,17 @@ export default function ProfilePage() {
     [supabase]
   );
 
+  const getPhotoUrl = useCallback(
+    async (path: string | null) => {
+      if (!path) return "";
+      if (path.startsWith("avatars/")) {
+        return supabase.storage.from(PUBLIC_IMAGE_BUCKET).getPublicUrl(path).data.publicUrl;
+      }
+      return getSignedFileUrl(path);
+    },
+    [getSignedFileUrl, supabase]
+  );
+
   const loadProfile = useCallback(async () => {
     setIsLoading(true);
     setNotice(null);
@@ -204,7 +216,7 @@ export default function ProfilePage() {
       setCvPath(savedCVPath);
 
       const [signedPhotoUrl, signedCVUrl] = await Promise.all([
-        getSignedFileUrl(savedPhotoPath),
+        getPhotoUrl(savedPhotoPath),
         getSignedFileUrl(savedCVPath),
       ]);
 
@@ -220,7 +232,7 @@ export default function ProfilePage() {
     } finally {
       setIsLoading(false);
     }
-  }, [getSignedFileUrl, router, showNotice, supabase]);
+  }, [getPhotoUrl, getSignedFileUrl, router, showNotice, supabase]);
 
   useEffect(() => {
     void loadProfile();
@@ -349,10 +361,10 @@ export default function ProfilePage() {
 
     try {
       const extension = getExtension(file.name) || "jpg";
-      uploadedPath = `${userId}/avatar/${crypto.randomUUID()}.${extension}`;
+      uploadedPath = `avatars/${userId}/${crypto.randomUUID()}.${extension}`;
 
       const { error: uploadError } = await supabase.storage
-        .from(BUCKET)
+        .from(PUBLIC_IMAGE_BUCKET)
         .upload(uploadedPath, file, {
           contentType: file.type,
           upsert: false,
@@ -370,14 +382,16 @@ export default function ProfilePage() {
         throw updateError;
       }
 
-      const newSignedUrl = await getSignedFileUrl(uploadedPath);
+      const newSignedUrl = supabase.storage
+        .from(PUBLIC_IMAGE_BUCKET)
+        .getPublicUrl(uploadedPath).data.publicUrl;
 
       setPhotoPath(uploadedPath);
       setPhotoUrl(newSignedUrl);
 
       if (photoPath && photoPath !== uploadedPath) {
         const { error: oldFileError } = await supabase.storage
-          .from(BUCKET)
+          .from(photoPath.startsWith("avatars/") ? PUBLIC_IMAGE_BUCKET : BUCKET)
           .remove([photoPath]);
 
         if (oldFileError) {
@@ -388,7 +402,7 @@ export default function ProfilePage() {
       showNotice("success", "Your profile photo has been uploaded.");
     } catch (error) {
       if (uploadedPath) {
-        await supabase.storage.from(BUCKET).remove([uploadedPath]);
+        await supabase.storage.from(PUBLIC_IMAGE_BUCKET).remove([uploadedPath]);
       }
 
       showNotice("error", getReadableError(error));
@@ -416,7 +430,7 @@ export default function ProfilePage() {
       if (updateError) throw updateError;
 
       const { error: removeError } = await supabase.storage
-        .from(BUCKET)
+        .from(photoPath.startsWith("avatars/") ? PUBLIC_IMAGE_BUCKET : BUCKET)
         .remove([photoPath]);
 
       if (removeError) {

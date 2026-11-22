@@ -19,6 +19,7 @@ import {
 } from "lucide-react";
 import Logo from "@/components/Logo";
 import { createClient } from "@/lib/supabase/client";
+import ProfileImage from "@/components/ProfileImage";
 import "./messages.css";
 
 type ConversationKind = "direct" | "application";
@@ -160,6 +161,7 @@ export default function ProfessionalMessagesPage() {
   const [messageInput, setMessageInput] = useState("");
   const [userId, setUserId] = useState("");
   const [userName, setUserName] = useState("Professional");
+  const [userAvatarPath, setUserAvatarPath] = useState<string | null>(null);
   const [loaded, setLoaded] = useState(false);
   const [sending, setSending] = useState(false);
   const [error, setError] = useState("");
@@ -201,7 +203,7 @@ export default function ProfessionalMessagesPage() {
 
       const { data: profile, error: profileError } = await supabase
         .from("profiles")
-        .select("role, full_name")
+        .select("role, full_name, avatar_url")
         .eq("id", user.id)
         .maybeSingle();
 
@@ -220,6 +222,7 @@ export default function ProfessionalMessagesPage() {
 
       setUserId(user.id);
       setUserName(profile.full_name || "Professional");
+      setUserAvatarPath(profile.avatar_url || null);
 
       const { data: summaryRows, error: summaryError } = await supabase.rpc(
         "get_message_conversation_summaries"
@@ -605,7 +608,7 @@ export default function ProfessionalMessagesPage() {
 
         <div className="professional-sidebar-profile">
           <div className="professional-sidebar-avatar">
-            {getInitials(userName)}
+            <ProfileImage name={userName} path={userAvatarPath} />
           </div>
           <div>
             <strong>{userName}</strong>

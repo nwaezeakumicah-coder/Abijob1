@@ -964,7 +964,6 @@
   }
 }
 
-
 /* Mobile drawer: force vertical navigation */
 @media (max-width: 850px) {
   .employer-profile-page .employer-profile-nav {
@@ -982,4 +981,13 @@
     min-height: 46px;
     flex: 0 0 auto !important;
   }
+}
+
+.employer-profile-company-icon img,
+.employer-profile-account-icon img {
+  width: 100%;
+  height: 100%;
+  display: block;
+  object-fit: cover;
+  border-radius: inherit;
 }
