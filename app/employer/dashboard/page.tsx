@@ -409,7 +409,22 @@ export default function EmployerDashboardPage() {
   );
 
   useEffect(() => {
-    loadDashboard();
+    void loadDashboard();
+
+    const refreshDashboard = () => {
+      if (document.visibilityState === "visible") void loadDashboard(true);
+    };
+    window.addEventListener("focus", refreshDashboard);
+    window.addEventListener("pageshow", refreshDashboard);
+    window.addEventListener("abijob:profile-updated", refreshDashboard);
+    document.addEventListener("visibilitychange", refreshDashboard);
+
+    return () => {
+      window.removeEventListener("focus", refreshDashboard);
+      window.removeEventListener("pageshow", refreshDashboard);
+      window.removeEventListener("abijob:profile-updated", refreshDashboard);
+      document.removeEventListener("visibilitychange", refreshDashboard);
+    };
   }, [loadDashboard]);
 
   if (loading) {
