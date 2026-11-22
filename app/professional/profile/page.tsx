@@ -577,6 +577,7 @@ export default function ProfessionalProfilePage() {
       setSavedPhotoPath(newPhotoPath);
       setPendingPhoto(null);
       setSaved(true);
+      window.dispatchEvent(new Event("abijob:profile-updated"));
 
       if (photoInputRef.current) {
         photoInputRef.current.value = "";
