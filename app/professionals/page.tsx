@@ -33,6 +33,7 @@ type Professional = {
   service_area: string | null;
   portfolio_url: string | null;
   is_verified: boolean | null;
+  avatar_path: string | null;
 };
 
 function getInitials(name: string) {
@@ -426,7 +427,12 @@ export default function ProfessionalsPage() {
                       >
                         <div className="professional-card-top">
                           <div className="professional-avatar">
-                            {getInitials(name)}
+                            {person.avatar_path ? (
+                              <img
+                                src={supabase.storage.from("abi-job-public-images").getPublicUrl(person.avatar_path).data.publicUrl}
+                                alt=""
+                              />
+                            ) : getInitials(name)}
                           </div>
                           {person.is_verified && (
                             <span className="professional-verified-badge" style={{ display: "inline-flex", alignItems: "center", gap: 5, padding: "6px 9px", borderRadius: 20, background: "#edf7ef", color: "#176b45", fontSize: 11, fontWeight: 800 }}>
@@ -632,9 +638,12 @@ export default function ProfessionalsPage() {
             </button>
 
             <div className="professional-details-avatar">
-              {getInitials(
-                selectedProfessional.full_name || "Professional"
-              )}
+              {selectedProfessional.avatar_path ? (
+                <img
+                  src={supabase.storage.from("abi-job-public-images").getPublicUrl(selectedProfessional.avatar_path).data.publicUrl}
+                  alt=""
+                />
+              ) : getInitials(selectedProfessional.full_name || "Professional")}
             </div>
 
             <span className="professional-details-eyebrow">

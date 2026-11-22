@@ -32,6 +32,7 @@ import {
   UserRound,
   X,
 } from "lucide-react";
+import ProfileImage from "@/components/ProfileImage";
 import "./professional-dashboard.css";
 
 type ProfileRow = {
@@ -80,6 +81,7 @@ type DashboardApplication = ApplicationRow & {
 
 type DashboardData = {
   fullName: string;
+  avatarPath: string | null;
   headline: string;
   location: string;
   profileCompleteness: number;
@@ -94,6 +96,7 @@ const SAVED_JOBS_KEY = "abijob-professional-saved-jobs";
 
 const INITIAL_DATA: DashboardData = {
   fullName: "Professional",
+  avatarPath: null,
   headline: "",
   location: "",
   profileCompleteness: 0,
@@ -393,6 +396,7 @@ export default function ProfessionalDashboardPage() {
 
       setData({
         fullName: typedProfile.full_name?.trim() || "Professional",
+        avatarPath: typedProfile.avatar_url,
         headline:
           professional?.category?.trim() ||
           typedProfile.headline?.trim() ||
@@ -649,7 +653,9 @@ export default function ProfessionalDashboardPage() {
               className="pd-user"
               aria-label="Open professional profile"
             >
-              <span className="pd-avatar">{initials}</span>
+              <span className="pd-avatar">
+                <ProfileImage name={data.fullName} path={data.avatarPath} />
+              </span>
               <span className="pd-user-copy">
                 <strong>{data.fullName}</strong>
                 <small>Professional account</small>

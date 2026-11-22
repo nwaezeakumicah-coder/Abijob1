@@ -7,6 +7,7 @@ import { useRouter } from "next/navigation";
 import Logo from "../../../components/Logo";
 import PasskeySettings from "@/components/PasskeySettings";
 import { createClient } from "@/lib/supabase/client";
+import ProfileImage from "@/components/ProfileImage";
 import {
   Activity,
   Bell,
@@ -152,6 +153,7 @@ export default function ProfessionalSettingsPage() {
   const [accessError, setAccessError] = useState("");
   const [retryCount, setRetryCount] = useState(0);
   const [accountName, setAccountName] = useState("Professional");
+  const [accountAvatarPath, setAccountAvatarPath] = useState<string | null>(null);
   const [accountStorageKey, setAccountStorageKey] = useState("");
   const [logoutLoading, setLogoutLoading] = useState(false);
   const [logoutError, setLogoutError] = useState("");
@@ -192,7 +194,7 @@ export default function ProfessionalSettingsPage() {
           error: profileError,
         } = await supabase
           .from("profiles")
-          .select("id, role, full_name")
+          .select("id, role, full_name, avatar_url")
           .eq("id", user.id)
           .maybeSingle();
 
@@ -262,6 +264,7 @@ export default function ProfessionalSettingsPage() {
         if (!active) return;
 
         setAccountName(displayName);
+        setAccountAvatarPath(profile.avatar_url || null);
         setPreferences(loadedPreferences);
         setAccountStorageKey(userStorageKey);
         setAccessChecked(true);
@@ -448,12 +451,7 @@ export default function ProfessionalSettingsPage() {
         <div className="ps-sidebar-bottom">
           <div className="ps-account-card">
             <div className="ps-account-avatar">
-              {accountName
-                .split(/\s+/)
-                .filter(Boolean)
-                .slice(0, 2)
-                .map((part) => part[0]?.toUpperCase())
-                .join("") || "SP"}
+              <ProfileImage name={accountName} path={accountAvatarPath} />
             </div>
 
             <div className="ps-account-info">

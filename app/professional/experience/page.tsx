@@ -1,9 +1,11 @@
 
 "use client";
 
-import { useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import Link from "next/link";
 import Logo from "../../../components/Logo";
+import ProfileImage from "@/components/ProfileImage";
+import { createClient } from "@/lib/supabase/client";
 import {
   Activity,
   ArrowLeft,
@@ -96,6 +98,28 @@ const initialCertificates: Certificate[] = [
 ];
 
 export default function ProfessionalExperiencePage() {
+  const [accountName, setAccountName] = useState("Professional");
+  const [accountAvatarPath, setAccountAvatarPath] = useState<string | null>(null);
+
+  useEffect(() => {
+    let active = true;
+    async function loadAccountImage() {
+      const supabase = createClient();
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("role, full_name, avatar_url")
+        .eq("id", user.id)
+        .maybeSingle();
+      if (!active || profile?.role !== "professional") return;
+      setAccountName(profile.full_name || "Professional");
+      setAccountAvatarPath(profile.avatar_url || null);
+    }
+    void loadAccountImage();
+    return () => { active = false; };
+  }, []);
+
   const [experiences, setExperiences] =
     useState<Experience[]>(initialExperiences);
 
@@ -325,7 +349,7 @@ export default function ProfessionalExperiencePage() {
               Profile active
             </div>
 
-            <div className="professional-avatar">MJ</div>
+            <div className="professional-avatar"><ProfileImage name={accountName} path={accountAvatarPath} /></div>
           </div>
         </header>
 

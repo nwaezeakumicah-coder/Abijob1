@@ -22,6 +22,7 @@ import {
   XCircle,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
+import ProfileImage from "@/components/ProfileImage";
 import Logo from "@/components/Logo";
 import "./notifications.css";
 
@@ -164,6 +165,8 @@ export default function NotificationsPage() {
   const [selectedNotification, setSelectedNotification] =
     useState<NotificationItem | null>(null);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+  const [accountName, setAccountName] = useState("Job Seeker");
+  const [accountAvatarPath, setAccountAvatarPath] = useState<string | null>(null);
   const [actionLoading, setActionLoading] = useState(false);
 
   const loadNotifications = useCallback(async (userId: string) => {
@@ -205,7 +208,7 @@ export default function NotificationsPage() {
 
         const { data: profile, error: profileError } = await supabase
           .from("profiles")
-          .select("role")
+          .select("role, full_name, avatar_url")
           .eq("id", user.id)
           .maybeSingle();
 
@@ -243,6 +246,8 @@ export default function NotificationsPage() {
         }
 
         setCurrentUserId(user.id);
+        setAccountName(profile.full_name?.trim() || "Job Seeker");
+        setAccountAvatarPath(profile.avatar_url || null);
         setAccessChecked(true);
 
         await loadNotifications(user.id);
@@ -519,9 +524,9 @@ export default function NotificationsPage() {
         </div>
 
         <div className="notifications-user-card">
-          <div className="notifications-avatar">JS</div>
+          <div className="notifications-avatar"><ProfileImage name={accountName} path={accountAvatarPath} /></div>
           <div>
-            <strong>Job Seeker</strong>
+            <strong>{accountName}</strong>
             <span>Personal account</span>
           </div>
         </div>

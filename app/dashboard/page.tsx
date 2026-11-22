@@ -29,6 +29,7 @@ import {
   X,
 } from "lucide-react";
 import { createClient } from "../../lib/supabase/client";
+import ProfileImage from "../../components/ProfileImage";
 import "./dashboard.css";
 
 type JobSeekerProfile = {
@@ -356,7 +357,7 @@ export default function DashboardPage() {
 
           <div className="dashboard-sidebar-user">
             <div className="dashboard-avatar">
-              {userName.charAt(0).toUpperCase()}
+              <ProfileImage name={userName} path={profile?.avatar_url} />
             </div>
 
             <div>
