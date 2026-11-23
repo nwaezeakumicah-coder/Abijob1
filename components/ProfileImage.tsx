@@ -55,7 +55,7 @@ export default function ProfileImage({
 
         const { data, error } = await supabase.storage
           .from("abi-job-profile-files")
-          .createSignedUrl(imagePath, 60 * 60);
+          .createSignedUrl(imagePath, 60 * 60 * 24 * 7);
 
         if (error) throw error;
         if (active) setImageUrl(data.signedUrl);
