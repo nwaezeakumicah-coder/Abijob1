@@ -69,8 +69,8 @@ export default function ProfileImage({
   }, [path, supabase]);
 
   if (imageUrl && !imageFailed) {
-    return <img className={className} src={imageUrl} alt="" onError={() => setImageFailed(true)} />;
+    return <img className={className} src={imageUrl} alt="" onError={() => setImageFailed(true)} style={{ width: "100%", height: "100%", display: "block", objectFit: "cover" }} />;
   }
 
-  return <span className={className} aria-hidden="true">{initials(name)}</span>;
+  return <span className={className} aria-hidden="true" style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center", overflow: "hidden" }}>{initials(name)}</span>;
 }
