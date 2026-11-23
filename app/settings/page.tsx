@@ -229,18 +229,23 @@ export default function SettingsPage() {
 
         if (!active) return;
 
+        let professionalPhotoPath: string | null = null;
         if (profile.role === "professional") {
-        const { data: professionalPhotoRecord } = await supabase
-          .from("professional_profiles")
-          .select("profile_data")
-          .eq("user_id", user.id)
-          .maybeSingle();
-        const professionalPhotoPath = (
-          (professionalPhotoRecord?.profile_data || {}) as { photo_path?: string }
-        ).photo_path || null;
+          const { data: professionalPhotoRecord } = await supabase
+            .from("professional_profiles")
+            .select("profile_data")
+            .eq("user_id", user.id)
+            .maybeSingle();
+          professionalPhotoPath = (
+            (professionalPhotoRecord?.profile_data || {}) as { photo_path?: string }
+          ).photo_path || null;
         }
         setAccountName(displayName);
-        setAccountAvatarPath(profile.role === "professional" ? professionalPhotoPath || profile.avatar_url || null : profile.avatar_url || null);
+        setAccountAvatarPath(
+          profile.role === "professional"
+            ? professionalPhotoPath || profile.avatar_url || null
+            : profile.avatar_url || null
+        );
         setAccountRole(profile.role as "job_seeker" | "professional");
         setSettings(loadedSettings);
         setStorageReady(true);
