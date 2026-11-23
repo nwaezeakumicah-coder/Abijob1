@@ -318,8 +318,6 @@ export default function ProfessionalNotificationsPage() {
     return notification.category === activeFilter;
   });
 
-  const initials = getInitials(fullName);
-
   function getIcon(category: NotificationCategory) {
     switch (category) {
       case "Application":
