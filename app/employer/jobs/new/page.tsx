@@ -24,6 +24,7 @@ import {
   Wallet,
 } from "lucide-react";
 import Logo from "../../../../components/Logo";
+import ProfileImage from "@/components/ProfileImage";
 import { createClient } from "@/lib/supabase/client";
 import "./create-job.css";
 import "../jobs.css";
@@ -68,6 +69,7 @@ export default function CreateJobPage() {
   const [saving, setSaving] = useState(false);
   const [authChecking, setAuthChecking] = useState(true);
   const [companyName, setCompanyName] = useState("Your Company");
+  const [companyLogoPath, setCompanyLogoPath] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState("");
 
   useEffect(() => {
@@ -106,7 +108,7 @@ export default function CreateJobPage() {
 
         const { data: employer, error: employerError } = await supabase
           .from("employer_profiles")
-          .select("business_name")
+          .select("business_name, logo_url")
           .eq("user_id", user.id)
           .maybeSingle();
 
@@ -119,6 +121,7 @@ export default function CreateJobPage() {
         if (employer?.business_name) {
           setCompanyName(employer.business_name);
         }
+        setCompanyLogoPath(employer?.logo_url || null);
 
         setAuthChecking(false);
       } catch (error) {
@@ -291,7 +294,7 @@ export default function CreateJobPage() {
 
         <div className="employer-jobs-company">
           <div className="company-avatar">
-            <Building2 size={22} />
+            <ProfileImage name={companyName} path={companyLogoPath} />
           </div>
 
           <div>
