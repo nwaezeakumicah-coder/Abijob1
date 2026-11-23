@@ -60,6 +60,7 @@ function HeaderContent() {
   const [role, setRole] = useState<AccountRole>(null);
   const [accountName, setAccountName] = useState("");
   const [avatarUrl, setAvatarUrl] = useState("");
+  const [avatarFailed, setAvatarFailed] = useState(false);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [authLoading, setAuthLoading] = useState(true);
   const [loggingOut, setLoggingOut] = useState(false);
@@ -138,6 +139,7 @@ function HeaderContent() {
         }
         if (!mounted || currentRequest !== requestVersion) return;
         setAvatarUrl(nextAvatarUrl);
+        setAvatarFailed(false);
 
         if (
           accountRole === "job_seeker" ||
