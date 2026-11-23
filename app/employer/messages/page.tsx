@@ -167,6 +167,7 @@ export default function EmployerMessagesPage() {
   const [search, setSearch] = useState("");
   const [messageText, setMessageText] = useState("");
   const [companyName, setCompanyName] = useState("Your Company");
+  const [companyLogoPath, setCompanyLogoPath] = useState<string | null>(null);
   const [userId, setUserId] = useState<string | null>(null);
 
   const [loading, setLoading] = useState(true);
@@ -236,7 +237,7 @@ export default function EmployerMessagesPage() {
       const { data: employerProfile, error: employerProfileError } =
         await supabase
           .from("employer_profiles")
-          .select("business_name")
+          .select("business_name, logo_url")
           .eq("user_id", user.id)
           .maybeSingle();
 
@@ -245,6 +246,7 @@ export default function EmployerMessagesPage() {
       if (employerProfile?.business_name) {
         setCompanyName(employerProfile.business_name);
       }
+      setCompanyLogoPath(employerProfile?.logo_url || null);
 
       // Load lightweight, role-authorized conversation summaries only.
       const { data: summaries, error: summariesError } = await supabase.rpc(
@@ -577,7 +579,7 @@ export default function EmployerMessagesPage() {
 
         <div className="employer-messages-company">
           <div className="employer-messages-company-icon">
-            <Building2 size={21} />
+            <ProfileImage name={companyName} path={companyLogoPath} fit="contain" />
           </div>
 
           <div>
@@ -671,7 +673,7 @@ export default function EmployerMessagesPage() {
 
           <div className="employer-messages-account">
             <div className="employer-messages-account-icon">
-              <Building2 size={18} />
+              <ProfileImage name={companyName} path={companyLogoPath} fit="contain" />
             </div>
 
             <div>
@@ -762,7 +764,7 @@ export default function EmployerMessagesPage() {
                         <span
                           className={`employer-messages-avatar ${conversation.color}`}
                         >
-                          <ProfileImage name={conversation.name} path={conversation.avatarUrl} />
+                          <ProfileImage name={conversation.name} path={conversation.avatarUrl} fit={conversation.role.toLowerCase().includes("employer") ? "contain" : "cover"} />
                         </span>
 
                         <span className="employer-messages-conversation-info">
@@ -827,7 +829,7 @@ export default function EmployerMessagesPage() {
                       <span
                         className={`employer-messages-avatar large ${activeConversation.color}`}
                       >
-                        <ProfileImage name={activeConversation.name} path={activeConversation.avatarUrl} />
+                        <ProfileImage name={activeConversation.name} path={activeConversation.avatarUrl} fit={activeConversation.role.toLowerCase().includes("employer") ? "contain" : "cover"} />
                       </span>
 
                       <div>
