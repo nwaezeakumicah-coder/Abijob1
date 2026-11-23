@@ -136,16 +136,6 @@ const normalizeInterval = (interval: string | null | undefined) => {
   return normalized;
 };
 
-const getInitials = (name: string) => {
-  const parts = name.trim().split(/\s+/).filter(Boolean);
-
-  if (!parts.length) return "EM";
-
-  return parts
-    .slice(0, 2)
-    .map((part) => part[0].toUpperCase())
-    .join("");
-};
 
 const getTransactionDate = (transaction: {
   paid_at: string | null;
@@ -496,7 +486,7 @@ export default function EmployerSubscriptionPage() {
               href="/employer/profile"
               className="employer-subscription-profile"
             >
-              {getInitials(fullName)}
+              <ProfileImage name={fullName} path={accountAvatarPath} />
             </Link>
           </div>
         </header>
