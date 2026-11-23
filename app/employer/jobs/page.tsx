@@ -30,6 +30,7 @@ import {
 } from "lucide-react";
 
 import Logo from "../../../components/Logo";
+import ProfileImage from "@/components/ProfileImage";
 import { createClient } from "@/lib/supabase/client";
 import "./jobs.css";
 
@@ -115,6 +116,7 @@ export default function EmployerJobsPage() {
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
 
   const [companyName, setCompanyName] = useState("Your Company");
+  const [companyLogoPath, setCompanyLogoPath] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [refreshing, setRefreshing] = useState(false);
@@ -157,13 +159,14 @@ export default function EmployerJobsPage() {
 
       const { data: employerProfile } = await supabase
         .from("employer_profiles")
-        .select("business_name")
-        .eq("id", user.id)
+        .select("business_name, logo_url")
+        .eq("user_id", user.id)
         .maybeSingle();
 
       if (employerProfile?.business_name) {
         setCompanyName(employerProfile.business_name);
       }
+      setCompanyLogoPath(employerProfile?.logo_url || null);
 
       const { data, error: jobsError } = await supabase
         .from("jobs")
@@ -287,7 +290,7 @@ export default function EmployerJobsPage() {
 
         <div className="employer-jobs-company">
           <div className="company-avatar">
-            <Building2 size={22} />
+            <ProfileImage name={companyName} path={companyLogoPath} />
           </div>
 
           <div>
