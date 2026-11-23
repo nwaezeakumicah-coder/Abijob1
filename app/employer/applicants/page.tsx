@@ -49,6 +49,7 @@ type Applicant = {
   email: string;
   phone: string;
   initials: string;
+  avatarPath: string | null;
   role: string;
   skills: string;
   experience: string;
@@ -63,6 +64,7 @@ type Applicant = {
 type ApplicantProfile = {
   id: string;
   full_name: string | null;
+  avatar_url?: string | null;
   headline: string | null;
   skills: string[] | null;
   experience: string | null;
@@ -370,6 +372,7 @@ export default function EmployerApplicantsPage() {
               email: application.applicant_email || "",
               phone: application.applicant_phone || "",
               initials: getInitials(name),
+              avatarPath: applicantProfile?.avatar_url || null,
               role: jobMap.get(application.job_id) || "Job vacancy",
               skills: normaliseSkills(
                 snapshotSkills,
@@ -880,7 +883,7 @@ export default function EmployerApplicantsPage() {
                   key={applicant.id}
                 >
                   <div className="applicant-avatar green">
-                    {applicant.initials}
+                    <ProfileImage name={applicant.name} path={applicant.avatarPath} />
                   </div>
 
                   <div className="applicant-details">
