@@ -28,6 +28,7 @@ import {
 
 import { createClient } from "../../../lib/supabase/client";
 import PasskeySettings from "../../../components/PasskeySettings";
+import ProfileImage from "@/components/ProfileImage";
 import "./settings.css";
 
 type EmployerPreferences = {
@@ -81,6 +82,7 @@ export default function EmployerSettingsPage() {
     useState<EmployerPreferences>(defaultPreferences);
 
   const [companyName, setCompanyName] = useState("Your Company");
+  const [companyLogoPath, setCompanyLogoPath] = useState<string | null>(null);
   const [privacy, setPrivacy] = useState({
     publicProfile: true,
     showContactDetails: true,
@@ -146,7 +148,7 @@ export default function EmployerSettingsPage() {
         const { data: employerProfile, error: profileError } =
           await supabase
             .from("employer_profiles")
-            .select("business_name, is_public, show_contact_details, is_active")
+            .select("business_name, logo_url, is_public, show_contact_details, is_active")
             .eq("user_id", user.id)
             .maybeSingle();
 
@@ -170,6 +172,7 @@ export default function EmployerSettingsPage() {
         if (employerProfile?.business_name) {
           setCompanyName(employerProfile.business_name);
         }
+        setCompanyLogoPath(employerProfile?.logo_url || null);
 
         if (employerProfile) {
           setPrivacy({
@@ -420,7 +423,7 @@ export default function EmployerSettingsPage() {
 
         <div className="employer-settings-company">
           <div className="employer-settings-company-icon">
-            <Building2 size={21} />
+            <ProfileImage name={companyName} path={companyLogoPath} />
           </div>
 
           <div>
@@ -509,7 +512,7 @@ export default function EmployerSettingsPage() {
 
           <div className="employer-settings-account">
             <div className="employer-settings-account-icon">
-              <Building2 size={18} />
+              <ProfileImage name={companyName} path={companyLogoPath} />
             </div>
 
             <div>
