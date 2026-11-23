@@ -13,6 +13,7 @@ import {
 import { useRouter } from "next/navigation";
 import Logo from "../../components/Logo";
 import { createClient } from "@/lib/supabase/client";
+import ProfileImage from "@/components/ProfileImage";
 import {
   ArrowLeft,
   Bell,
@@ -106,6 +107,7 @@ type Conversation = {
   name: string;
   role: string;
   initials: string;
+  avatarUrl: string | null;
   color: string;
   unread: number;
   lastMessage: string;
@@ -232,6 +234,7 @@ export default function MessagesPage() {
           name,
           role: isDirect ? "Skilled Professional" : row.job_title?.trim() || "Job application",
           initials: getInitials(name),
+          avatarUrl: row.avatar_url || null,
           color: AVATAR_COLORS[index % AVATAR_COLORS.length],
           unread: Number(row.unread_count || 0),
           lastMessage: row.last_message || (isDirect
@@ -887,7 +890,7 @@ export default function MessagesPage() {
                       <div
                         className={`messages-avatar avatar-${conversation.color}`}
                       >
-                        {conversation.initials}
+                        <ProfileImage name={conversation.name} path={conversation.avatarUrl} />
                       </div>
 
                       <div className="messages-conversation-details">
@@ -949,7 +952,7 @@ export default function MessagesPage() {
                       <div
                         className={`messages-avatar avatar-${activeConversation.color}`}
                       >
-                        {activeConversation.initials}
+                        <ProfileImage name={activeConversation.name} path={activeConversation.avatarUrl} />
                       </div>
 
                       <div>
