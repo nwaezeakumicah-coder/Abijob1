@@ -267,6 +267,7 @@ export default function ApplicationsPage() {
   const [applications, setApplications] = useState<Application[]>([]);
   const [applicantId, setApplicantId] = useState("");
   const [accountAvatarPath, setAccountAvatarPath] = useState<string | null>(null);
+  const [accountName, setAccountName] = useState("Job seeker");
 
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("All");
@@ -307,7 +308,7 @@ export default function ApplicationsPage() {
 
         const { data: profile, error: profileError } = await supabase
           .from("profiles")
-          .select("role, avatar_url")
+          .select("role, full_name, avatar_url")
           .eq("id", user.id)
           .single();
 
@@ -318,6 +319,7 @@ export default function ApplicationsPage() {
         }
 
         setAccountAvatarPath(profile.avatar_url || null);
+        setAccountName(profile.full_name || user.email || "Job seeker");
 
         if (profile.role !== "job_seeker") {
           if (profile.role === "professional") {
@@ -767,7 +769,7 @@ export default function ApplicationsPage() {
               <Bell size={20} />
             </Link>
 
-            <div className="applications-user-avatar"><ProfileImage name="My Account" path={accountAvatarPath} /></div>
+            <div className="applications-user-avatar"><ProfileImage name={accountName} path={accountAvatarPath} /></div>
 
             <div className="applications-user-details">
               <strong>My Account</strong>
