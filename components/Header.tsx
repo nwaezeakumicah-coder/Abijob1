@@ -110,15 +110,23 @@ function HeaderContent() {
         setAccountName(data?.full_name || "Account");
 
         let nextAvatarUrl = "";
-        const avatarPath = data?.avatar_url || "";
-        if (avatarPath.startsWith("avatars/")) {
+        const avatarPath = data?.avatar_url?.trim() || "";
+        if (avatarPath.startsWith("http://") || avatarPath.startsWith("https://")) {
+          nextAvatarUrl = avatarPath;
+        } else if (
+          avatarPath.startsWith("avatars/") ||
+          avatarPath.startsWith("employer-logos/")
+        ) {
           nextAvatarUrl = supabase.storage
             .from("abi-job-public-images")
             .getPublicUrl(avatarPath).data.publicUrl;
         } else if (avatarPath) {
-          const { data: signedAvatar } = await supabase.storage
+          const { data: signedAvatar, error: avatarError } = await supabase.storage
             .from("abi-job-profile-files")
             .createSignedUrl(avatarPath, 60 * 60);
+          if (avatarError) {
+            console.error("Could not resolve account profile image:", avatarError);
+          }
           nextAvatarUrl = signedAvatar?.signedUrl || "";
         }
 
