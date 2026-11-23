@@ -263,8 +263,17 @@ export default function ProfessionalSettingsPage() {
 
         if (!active) return;
 
+        const { data: professionalPhotoRecord } = await supabase
+          .from("professional_profiles")
+          .select("profile_data")
+          .eq("user_id", user.id)
+          .maybeSingle();
+        const professionalPhotoPath = (
+          (professionalPhotoRecord?.profile_data || {}) as { photo_path?: string }
+        ).photo_path || null;
+
         setAccountName(displayName);
-        setAccountAvatarPath(profile.avatar_url || null);
+        setAccountAvatarPath(professionalPhotoPath || profile.avatar_url || null);
         setPreferences(loadedPreferences);
         setAccountStorageKey(userStorageKey);
         setAccessChecked(true);
