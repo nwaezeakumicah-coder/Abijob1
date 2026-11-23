@@ -685,8 +685,6 @@ export default function MessagesPage() {
     );
   }
 
-  const avatarInitials = getInitials(userName);
-
   return (
     <main className="messages-page">
       <aside className="messages-sidebar">
