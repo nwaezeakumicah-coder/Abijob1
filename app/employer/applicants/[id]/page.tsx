@@ -31,6 +31,7 @@ import {
 } from "lucide-react";
 
 import Logo from "../../../../components/Logo";
+import ProfileImage from "@/components/ProfileImage";
 import { createClient } from "@/lib/supabase/client";
 import "./applicant-detail.css";
 
@@ -47,6 +48,7 @@ type ApplicantDetails = {
   applicantId: string;
   jobId: string;
   name: string;
+  avatarPath: string | null;
   email: string;
   phone: string;
   headline: string;
@@ -63,6 +65,7 @@ type ApplicantDetails = {
 type ApplicantProfile = {
   id: string;
   full_name: string | null;
+  avatar_url?: string | null;
   headline: string | null;
   skills: string[] | null;
   experience: string | null;
@@ -357,6 +360,7 @@ function EmployerApplicantDetailsContent() {
           applicantId: application.applicant_id,
           jobId: application.job_id,
           name,
+          avatarPath: applicantProfile?.avatar_url || null,
           email: application.applicant_email || "",
           phone: application.applicant_phone || "",
           headline:
@@ -686,7 +690,7 @@ function EmployerApplicantDetailsContent() {
 
           <section className="applicant-detail-profile-card">
             <div className="applicant-detail-avatar">
-              {getInitials(applicant.name)}
+              <ProfileImage name={applicant.name} path={applicant.avatarPath} />
             </div>
 
             <div className="applicant-detail-identity">
