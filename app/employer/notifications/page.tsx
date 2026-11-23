@@ -617,7 +617,7 @@ export default function EmployerNotificationsPage() {
               className="employer-notifications-avatar"
               aria-label="Company profile"
             >
-              <ProfileImage name="Employer" path={companyLogoPath} />
+              <ProfileImage name="Employer" path={companyLogoPath} fit="contain" />
             </Link>
           </div>
         </header>
