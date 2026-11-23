@@ -423,7 +423,7 @@ export default function EmployerSettingsPage() {
 
         <div className="employer-settings-company">
           <div className="employer-settings-company-icon">
-            <ProfileImage name={companyName} path={companyLogoPath} />
+            <ProfileImage name={companyName} path={companyLogoPath} fit="contain" />
           </div>
 
           <div>
@@ -512,7 +512,7 @@ export default function EmployerSettingsPage() {
 
           <div className="employer-settings-account">
             <div className="employer-settings-account-icon">
-              <ProfileImage name={companyName} path={companyLogoPath} />
+              <ProfileImage name={companyName} path={companyLogoPath} fit="contain" />
             </div>
 
             <div>
