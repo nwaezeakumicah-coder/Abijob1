@@ -535,13 +535,6 @@ export default function ProfessionalOpportunitiesPage() {
     setJobType("All types");
   }
 
-  const initials = fullName
-    .split(/\s+/)
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((part) => part[0]?.toUpperCase())
-    .join("");
-
   return (
     <div className="po-page">
       <aside className="po-sidebar">
