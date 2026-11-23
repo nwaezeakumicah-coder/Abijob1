@@ -60,7 +60,7 @@ function HeaderContent() {
   const menuButtonRef = useRef<HTMLButtonElement>(null);
   const [role, setRole] = useState<AccountRole>(null);
   const [accountName, setAccountName] = useState("");
-  const [avatarUrl, setAvatarUrl] = useState("");
+  const [avatarPath, setAvatarPath] = useState("");
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [authLoading, setAuthLoading] = useState(true);
   const [loggingOut, setLoggingOut] = useState(false);
@@ -81,7 +81,7 @@ function HeaderContent() {
           setIsAuthenticated(false);
           setRole(null);
           setAccountName("");
-          setAvatarUrl("");
+          setAvatarPath("");
           setAuthLoading(false);
         }
 
@@ -106,35 +106,14 @@ function HeaderContent() {
         console.error("Could not load account role:", error);
         setRole(null);
         setAccountName("");
-        setAvatarUrl("");
+        setAvatarPath("");
       } else {
         const accountRole = data?.role;
         setAccountName(data?.full_name || "Account");
 
-        let nextAvatarUrl = "";
-        const avatarPath = data?.avatar_url?.trim() || "";
-        if (avatarPath.startsWith("http://") || avatarPath.startsWith("https://")) {
-          nextAvatarUrl = avatarPath;
-        } else if (
-          avatarPath.startsWith("avatars/") ||
-          avatarPath.startsWith("employer-logos/")
-        ) {
-          nextAvatarUrl = supabase.storage
-            .from("abi-job-public-images")
-            .getPublicUrl(avatarPath).data.publicUrl;
-        } else if (avatarPath) {
-          const { data: signedAvatar, error: avatarError } = await supabase.storage
-            .from("abi-job-profile-files")
-            .createSignedUrl(avatarPath, 60 * 60);
-          if (avatarError) {
-            console.error("Could not resolve account profile image:", avatarError);
-          }
-          nextAvatarUrl = signedAvatar?.signedUrl || "";
-        }
+        let nextAvatarPath = data?.avatar_url?.trim() || "";
 
         if (accountRole === "professional") {
-          // Professional photos are stored in profile_data.photo_path;
-          // profiles.avatar_url is also maintained as the shared fallback.
           const { data: professional } = await supabase
             .from("professional_profiles")
             .select("profile_data")
@@ -143,19 +122,7 @@ function HeaderContent() {
           const profileData = (professional?.profile_data || {}) as {
             photo_path?: string;
           };
-          const professionalPhoto = profileData.photo_path || avatarPath;
-          if (professionalPhoto.startsWith("http://") || professionalPhoto.startsWith("https://")) {
-            nextAvatarUrl = professionalPhoto;
-          } else if (professionalPhoto.startsWith("avatars/")) {
-            nextAvatarUrl = supabase.storage
-              .from("abi-job-public-images")
-              .getPublicUrl(professionalPhoto).data.publicUrl;
-          } else if (professionalPhoto) {
-            const { data: signedPhoto } = await supabase.storage
-              .from("abi-job-profile-files")
-              .createSignedUrl(professionalPhoto, 60 * 60);
-            nextAvatarUrl = signedPhoto?.signedUrl || nextAvatarUrl;
-          }
+          nextAvatarPath = profileData.photo_path?.trim() || nextAvatarPath;
         }
 
         if (accountRole === "employer") {
@@ -164,22 +131,10 @@ function HeaderContent() {
             .select("logo_url")
             .eq("user_id", userId)
             .maybeSingle();
-          const logo = employer?.logo_url || "";
-          if (logo.startsWith("http://") || logo.startsWith("https://")) {
-            nextAvatarUrl = logo;
-          } else if (logo.startsWith("employer-logos/") || logo.startsWith("avatars/")) {
-            nextAvatarUrl = supabase.storage
-              .from("abi-job-public-images")
-              .getPublicUrl(logo).data.publicUrl;
-          } else if (logo) {
-            const { data: signedLogo } = await supabase.storage
-              .from("abi-job-profile-files")
-              .createSignedUrl(logo, 60 * 60);
-            nextAvatarUrl = signedLogo?.signedUrl || nextAvatarUrl;
-          }
+          nextAvatarPath = employer?.logo_url?.trim() || nextAvatarPath;
         }
         if (!mounted || currentRequest !== requestVersion) return;
-        setAvatarUrl(nextAvatarUrl);
+        setAvatarPath(nextAvatarPath);
 
         if (
           accountRole === "job_seeker" ||
@@ -307,7 +262,7 @@ function HeaderContent() {
       setIsAuthenticated(false);
       setRole(null);
       setAccountName("");
-      setAvatarUrl("");
+      setAvatarPath("");
       closeMenu();
 
       router.replace("/");
@@ -356,7 +311,7 @@ function HeaderContent() {
                     aria-label={`${accountName} dashboard`}
                     title={accountName}
                   >
-                    <ProfileImage name={accountName} path={avatarUrl} fit={role === "employer" ? "contain" : "cover"} />
+                    <ProfileImage name={accountName} path={avatarPath} fit={role === "employer" ? "contain" : "cover"} />
                   </Link>
                   <Link
                     href={dashboardHref}
