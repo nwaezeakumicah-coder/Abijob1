@@ -586,7 +586,7 @@ export default function SettingsPage() {
             <span className="settings-account-status">
               <span /> {accountRole === "job_seeker" ? "Job seeker workspace" : "Professional workspace"}
             </span>
-            <div className="settings-topbar-avatar">{accountRole === "job_seeker" ? "JS" : "SP"}</div>
+            <div className="settings-topbar-avatar"><ProfileImage name={accountName} path={accountAvatarPath} /></div>
           </div>
         </header>
 
