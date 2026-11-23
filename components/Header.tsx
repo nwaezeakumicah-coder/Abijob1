@@ -70,8 +70,10 @@ function HeaderContent() {
 
     let mounted = true;
     let requestVersion = 0;
+    let currentUserId: string | null = null;
 
     const loadAccount = async (userId: string | null) => {
+      currentUserId = userId;
       const currentRequest = ++requestVersion;
 
       if (!userId) {
@@ -234,9 +236,15 @@ function HeaderContent() {
       }
     };
 
+    const handleProfileUpdated = () => {
+      if (currentUserId) void loadAccount(currentUserId);
+    };
+    window.addEventListener("abijob:profile-updated", handleProfileUpdated);
+
     void checkInitialSession();
 
     return () => {
+      window.removeEventListener("abijob:profile-updated", handleProfileUpdated);
       mounted = false;
       requestVersion++;
       subscription.unsubscribe();
