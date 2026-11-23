@@ -290,7 +290,7 @@ export default function EmployerJobsPage() {
 
         <div className="employer-jobs-company">
           <div className="company-avatar">
-            <ProfileImage name={companyName} path={companyLogoPath} />
+            <ProfileImage name={companyName} path={companyLogoPath} fit="contain" />
           </div>
 
           <div>
