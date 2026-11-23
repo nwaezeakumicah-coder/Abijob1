@@ -421,7 +421,7 @@ export default function DashboardPage() {
 
             <Link href="/profile" className="dashboard-topbar-profile">
               <div className="dashboard-avatar dashboard-avatar-small">
-                {userName.charAt(0).toUpperCase()}
+                <ProfileImage name={userName} path={profile?.avatar_url} />
               </div>
               <span>My account</span>
             </Link>
