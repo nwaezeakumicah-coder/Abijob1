@@ -53,6 +53,7 @@ type ProfessionalProfileRow = {
   service_area: string | null;
   profile_data: {
     website?: string;
+    photo_path?: string;
     experiences?: unknown[];
   } | null;
   is_public: boolean | null;
@@ -396,7 +397,7 @@ export default function ProfessionalDashboardPage() {
 
       setData({
         fullName: typedProfile.full_name?.trim() || "Professional",
-        avatarPath: typedProfile.avatar_url,
+        avatarPath: extra.photo_path || typedProfile.avatar_url,
         headline:
           professional?.category?.trim() ||
           typedProfile.headline?.trim() ||
