@@ -607,7 +607,7 @@ function EmployerApplicantDetailsContent() {
           </div>
 
           <div className="applicant-detail-topbar-company">
-            <ProfileImage name={companyName} path={companyLogoPath} fit="contain" />
+            <span className="applicant-detail-topbar-company-avatar"><ProfileImage name={companyName} path={companyLogoPath} fit="contain" /></span>
             <span>{companyName}</span>
           </div>
         </header>
