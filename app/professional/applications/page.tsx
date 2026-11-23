@@ -247,8 +247,16 @@ export default function ProfessionalApplicationsPage() {
         return;
       }
 
+      const { data: professionalPhotoRecord } = await supabase
+        .from("professional_profiles")
+        .select("profile_data")
+        .eq("user_id", user.id)
+        .maybeSingle();
+      const professionalPhotoPath = (
+        (professionalPhotoRecord?.profile_data || {}) as { photo_path?: string }
+      ).photo_path || null;
       setFullName(profile.full_name?.trim() || "Professional");
-      setAccountAvatarPath(profile.avatar_url || null);
+      setAccountAvatarPath(professionalPhotoPath || profile.avatar_url || null);
       setApplicantId(user.id);
 
       const { data: applicationRows, error: applicationsError } =
@@ -382,8 +390,6 @@ export default function ProfessionalApplicationsPage() {
 
   const countStatus = (status: ApplicationStatus) =>
     applications.filter((item) => item.status === status).length;
-
-  const initials = getInitials(fullName);
 
   async function withdrawApplication(application: Application) {
     if (!["Submitted", "Under review", "Shortlisted"].includes(application.status)) {
@@ -536,7 +542,7 @@ export default function ProfessionalApplicationsPage() {
               className="professional-applications-top-avatar"
               aria-label="My profile"
             >
-              {initials}
+              <ProfileImage name={fullName} path={accountAvatarPath} />
             </Link>
           </div>
         </header>
