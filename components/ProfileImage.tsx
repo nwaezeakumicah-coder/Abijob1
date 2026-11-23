@@ -36,25 +36,26 @@ export default function ProfileImage({
     async function loadImage() {
       setImageUrl("");
       setImageFailed(false);
-      if (!path) return;
+      const imagePath = path?.trim();
+      if (!imagePath) return;
 
       try {
-        if (path.startsWith("http://") || path.startsWith("https://")) {
-          if (active) setImageUrl(path);
+        if (imagePath.startsWith("http://") || imagePath.startsWith("https://")) {
+          if (active) setImageUrl(imagePath);
           return;
         }
 
-        if (path.startsWith("avatars/") || path.startsWith("employer-logos/")) {
+        if (imagePath.startsWith("avatars/") || imagePath.startsWith("employer-logos/")) {
           const url = supabase.storage
             .from("abi-job-public-images")
-            .getPublicUrl(path).data.publicUrl;
+            .getPublicUrl(imagePath).data.publicUrl;
           if (active) setImageUrl(url);
           return;
         }
 
         const { data, error } = await supabase.storage
           .from("abi-job-profile-files")
-          .createSignedUrl(path, 60 * 60);
+          .createSignedUrl(imagePath, 60 * 60);
 
         if (error) throw error;
         if (active) setImageUrl(data.signedUrl);
