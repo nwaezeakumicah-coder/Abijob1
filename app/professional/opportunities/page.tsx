@@ -895,7 +895,7 @@ export default function ProfessionalOpportunitiesPage() {
                       <article className="po-job-card" key={job.id}>
                         <div className="po-job-top">
                           <div className="po-company-logo">
-                            <ProfileImage name={job.company} path={job.companyLogoPath} />
+                            <ProfileImage name={job.company} path={job.companyLogoPath} fit="contain" />
                           </div>
 
                           <div className="po-job-heading">
