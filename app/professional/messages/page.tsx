@@ -220,9 +220,18 @@ export default function ProfessionalMessagesPage() {
         return;
       }
 
+      const { data: professionalPhotoRecord } = await supabase
+        .from("professional_profiles")
+        .select("profile_data")
+        .eq("user_id", user.id)
+        .maybeSingle();
+      const professionalPhotoPath = (
+        (professionalPhotoRecord?.profile_data || {}) as { photo_path?: string }
+      ).photo_path || null;
+
       setUserId(user.id);
       setUserName(profile.full_name || "Professional");
-      setUserAvatarPath(profile.avatar_url || null);
+      setUserAvatarPath(professionalPhotoPath || profile.avatar_url || null);
 
       const { data: summaryRows, error: summaryError } = await supabase.rpc(
         "get_message_conversation_summaries"
