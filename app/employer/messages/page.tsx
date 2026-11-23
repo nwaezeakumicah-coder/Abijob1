@@ -762,7 +762,7 @@ export default function EmployerMessagesPage() {
                         <span
                           className={`employer-messages-avatar ${conversation.color}`}
                         >
-                          {conversation.initials}
+                          <ProfileImage name={conversation.name} path={conversation.avatarUrl} />
                         </span>
 
                         <span className="employer-messages-conversation-info">
@@ -827,7 +827,7 @@ export default function EmployerMessagesPage() {
                       <span
                         className={`employer-messages-avatar large ${activeConversation.color}`}
                       >
-                        {activeConversation.initials}
+                        <ProfileImage name={activeConversation.name} path={activeConversation.avatarUrl} />
                       </span>
 
                       <div>
@@ -901,7 +901,7 @@ export default function EmployerMessagesPage() {
                             <span
                               className={`employer-messages-avatar small ${activeConversation.color}`}
                             >
-                              {activeConversation.initials}
+                              <ProfileImage name={activeConversation.name} path={activeConversation.avatarUrl} />
                             </span>
                           )}
 
