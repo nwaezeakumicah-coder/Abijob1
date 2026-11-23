@@ -7,6 +7,7 @@ type ProfileImageProps = {
   name: string;
   path?: string | null;
   className?: string;
+  fit?: "cover" | "contain";
 };
 
 function initials(name: string) {
@@ -23,6 +24,7 @@ export default function ProfileImage({
   name,
   path,
   className = "",
+  fit = "cover",
 }: ProfileImageProps) {
   const supabase = useMemo(() => createClient(), []);
   const [imageUrl, setImageUrl] = useState("");
@@ -69,7 +71,7 @@ export default function ProfileImage({
   }, [path, supabase]);
 
   if (imageUrl && !imageFailed) {
-    return <img className={className} src={imageUrl} alt="" onError={() => setImageFailed(true)} style={{ width: "100%", height: "100%", display: "block", objectFit: "cover" }} />;
+    return <img className={className} src={imageUrl} alt="" onError={() => setImageFailed(true)} style={{ width: "100%", height: "100%", display: "block", objectFit: fit }} />;
   }
 
   return <span className={className} aria-hidden="true" style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center", overflow: "hidden" }}>{initials(name)}</span>;
