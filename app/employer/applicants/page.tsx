@@ -29,6 +29,7 @@ import {
 } from "lucide-react";
 
 import Logo from "../../../components/Logo";
+import ProfileImage from "@/components/ProfileImage";
 import { createClient } from "@/lib/supabase/client";
 import "./applicants.css";
 
@@ -173,6 +174,7 @@ export default function EmployerApplicantsPage() {
 
   const [applicants, setApplicants] = useState<Applicant[]>([]);
   const [companyName, setCompanyName] = useState("Your Company");
+  const [companyLogoPath, setCompanyLogoPath] = useState<string | null>(null);
   const [activeStatus, setActiveStatus] = useState("All applicants");
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedJob, setSelectedJob] = useState("All jobs");
@@ -234,7 +236,7 @@ export default function EmployerApplicantsPage() {
         const { data: employerProfile, error: employerProfileError } =
           await supabase
             .from("employer_profiles")
-            .select("business_name")
+            .select("business_name, logo_url")
             .eq("user_id", user.id)
             .maybeSingle();
 
@@ -248,6 +250,7 @@ export default function EmployerApplicantsPage() {
         setCompanyName(
           employerProfile?.business_name?.trim() || "Your Company"
         );
+        setCompanyLogoPath(employerProfile?.logo_url || null);
 
         // RLS ensures that this query returns only this employer's jobs.
         const { data: jobData, error: jobsError } = await supabase
@@ -604,7 +607,7 @@ export default function EmployerApplicantsPage() {
 
         <div className="applicants-company">
           <div className="applicants-company-icon">
-            <Building2 size={21} />
+            <ProfileImage name={companyName} path={companyLogoPath} />
           </div>
           <div>
             <strong>{companyName}</strong>
@@ -697,7 +700,7 @@ export default function EmployerApplicantsPage() {
 
           <div className="applicants-topbar-account">
             <div className="applicants-account-icon">
-              <Building2 size={18} />
+              <ProfileImage name={companyName} path={companyLogoPath} />
             </div>
             <div>
               <strong>{companyName}</strong>
