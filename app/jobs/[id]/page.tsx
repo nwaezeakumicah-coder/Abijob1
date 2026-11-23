@@ -237,7 +237,7 @@ async function JobDetailsContent({
             <div className="job-heading-card">
               <div className="job-heading-main">
                 <div className="job-company-logo">
-                  <ProfileImage name={job.company} path={job.companyLogoPath} />
+                  <ProfileImage name={job.company} path={job.companyLogoPath} fit="contain" />
                 </div>
 
                 <div className="job-heading-copy">
@@ -358,7 +358,7 @@ async function JobDetailsContent({
 
                 <div className="job-about-company">
                   <div className="job-company-logo small">
-                    <ProfileImage name={job.company} path={job.companyLogoPath} />
+                    <ProfileImage name={job.company} path={job.companyLogoPath} fit="contain" />
                   </div>
 
                   <div>
