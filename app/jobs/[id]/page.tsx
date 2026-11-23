@@ -151,10 +151,10 @@ async function JobDetailsContent({
     notFound();
   }
 
-  const [employerResult, profileResult] = await Promise.all([
+  const [employerResult, profileResult, logoResult] = await Promise.all([
     supabase
       .from("employer_profiles")
-      .select("business_name, description, verification_status, logo_url")
+      .select("business_name, description, verification_status")
       .eq("user_id", jobData.employer_id)
       .maybeSingle(),
 
@@ -163,6 +163,9 @@ async function JobDetailsContent({
       .select("full_name")
       .eq("id", jobData.employer_id)
       .maybeSingle(),
+    (supabase as any).rpc("get_public_employer_logos", {
+      p_employer_ids: [jobData.employer_id],
+    }),
   ]);
 
   const company =
@@ -183,7 +186,7 @@ async function JobDetailsContent({
     title: jobData.title,
     company,
     initials: initials || "AB",
-    companyLogoPath: employerResult.data?.logo_url || null,
+    companyLogoPath: logoResult.data?.[0]?.logo_path || null,
     category: jobData.category || "General",
     location: jobData.location || "Location not specified",
     type: formatEmploymentType(jobData.employment_type),
