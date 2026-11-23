@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import Header from "../../../components/Header";
 import Footer from "../../../components/Footer";
+import ProfileImage from "@/components/ProfileImage";
 import { createClient } from "@/lib/supabase/client";
 import "./profile.css";
 
@@ -264,12 +265,7 @@ function ProfessionalProfileContent() {
               <section className="public-profile-hero">
                 <div className="public-profile-identity">
                   <div className="public-profile-avatar">
-                    {professional.avatar_path ? (
-                      <img
-                        src={supabase.storage.from("abi-job-public-images").getPublicUrl(professional.avatar_path).data.publicUrl}
-                        alt=""
-                      />
-                    ) : getInitials(name)}
+                    <ProfileImage name={name} path={professional.avatar_path} />
                   </div>
 
                   <div className="public-profile-name-block">
