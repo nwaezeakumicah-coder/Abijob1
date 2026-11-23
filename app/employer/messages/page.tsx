@@ -5,6 +5,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import Logo from "../../../components/Logo";
+import ProfileImage from "@/components/ProfileImage";
 
 import {
   Menu,
@@ -47,6 +48,7 @@ type Conversation = {
   role: string;
   job: string;
   initials: string;
+  avatarUrl: string | null;
   color: string;
   unread: number;
   time: string;
@@ -264,6 +266,7 @@ export default function EmployerMessagesPage() {
         role: "Job applicant",
         job: item.job_title || "Job application",
         initials: getInitials(item.contact_name || "Applicant"),
+        avatarUrl: item.avatar_url || null,
         color: COLORS[index % COLORS.length],
         unread: Number(item.unread_count || 0),
         time: item.last_message_at ? formatTime(item.last_message_at) : "",
