@@ -500,8 +500,6 @@ export default function ProfessionalDashboardPage() {
 
   const recentApplications = data.applications.slice(0, 5);
   const recommendedOpportunities = data.opportunities.slice(0, 4);
-  const initials = getInitials(data.fullName);
-
   const closeMobileMenu = () => setMobileMenuOpen(false);
 
   return (
