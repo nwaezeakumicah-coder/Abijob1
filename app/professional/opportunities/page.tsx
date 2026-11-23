@@ -9,7 +9,6 @@ import {
   Activity,
   Bell,
   BriefcaseBusiness,
-  Building2,
   CalendarDays,
   CheckCircle2,
   ChevronDown,
