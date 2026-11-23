@@ -610,7 +610,7 @@ export default function EmployerApplicantsPage() {
 
         <div className="applicants-company">
           <div className="applicants-company-icon">
-            <ProfileImage name={companyName} path={companyLogoPath} />
+            <ProfileImage name={companyName} path={companyLogoPath} fit="contain" />
           </div>
           <div>
             <strong>{companyName}</strong>
@@ -703,7 +703,7 @@ export default function EmployerApplicantsPage() {
 
           <div className="applicants-topbar-account">
             <div className="applicants-account-icon">
-              <ProfileImage name={companyName} path={companyLogoPath} />
+              <ProfileImage name={companyName} path={companyLogoPath} fit="contain" />
             </div>
             <div>
               <strong>{companyName}</strong>
