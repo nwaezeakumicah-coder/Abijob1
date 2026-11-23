@@ -175,6 +175,7 @@ function EmployerApplicantDetailsContent() {
   const [applicant, setApplicant] =
     useState<ApplicantDetails | null>(null);
   const [companyName, setCompanyName] = useState("Your company");
+  const [companyLogoPath, setCompanyLogoPath] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [updating, setUpdating] = useState(false);
@@ -241,7 +242,7 @@ function EmployerApplicantDetailsContent() {
         const { data: employerProfile, error: employerProfileError } =
           await supabase
             .from("employer_profiles")
-            .select("business_name")
+            .select("business_name, logo_url")
             .eq("user_id", user.id)
             .maybeSingle();
 
@@ -255,6 +256,7 @@ function EmployerApplicantDetailsContent() {
         setCompanyName(
           employerProfile?.business_name?.trim() || "Your company"
         );
+        setCompanyLogoPath(employerProfile?.logo_url || null);
 
         // Load the application. RLS also restricts access to applications
         // for jobs belonging to this employer.
@@ -555,7 +557,7 @@ function EmployerApplicantDetailsContent() {
 
         <div className="applicant-detail-company">
           <div className="applicant-detail-company-icon">
-            <Building2 size={21} />
+            <ProfileImage name={companyName} path={companyLogoPath} fit="contain" />
           </div>
           <div>
             <strong>{companyName}</strong>
@@ -616,7 +618,7 @@ function EmployerApplicantDetailsContent() {
           </div>
 
           <div className="applicant-detail-topbar-company">
-            <Building2 size={18} />
+            <ProfileImage name={companyName} path={companyLogoPath} fit="contain" />
             <span>{companyName}</span>
           </div>
         </header>
