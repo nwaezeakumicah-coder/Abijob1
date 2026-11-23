@@ -115,7 +115,7 @@
   }
 }
 
-@media (max-width: 850px) {
+@media (max-width: 1050px) {
   .header-container {
     width: min(100% - 40px, var(--container-width));
     min-height: 72px;
@@ -268,7 +268,7 @@
   font-weight: 600;
 }
 
-@media (max-width: 850px) {
+@media (max-width: 1050px) {
   .header-auth-loading {
     grid-column: 1 / -1;
     justify-content: center;
