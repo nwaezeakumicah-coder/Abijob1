@@ -371,7 +371,7 @@ export default function ProfessionalDashboardPage() {
           console.warn("Employer logos could not be loaded:", logoError.message);
         } else {
           employerLogos = new Map(
-            (logoRows || []).map((row: { employer_id: string; logo_path: string | null }) => [row.employer_id, row.logo_path || ""])
+            (logoRows || []).map((row: { employer_id: string; logo_path: string | null }) => [row.employer_id, row.logo_path || ""] as [string, string])
           );
         }
       }
