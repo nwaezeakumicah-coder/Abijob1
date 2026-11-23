@@ -122,6 +122,32 @@ function HeaderContent() {
           nextAvatarUrl = signedAvatar?.signedUrl || "";
         }
 
+        if (accountRole === "professional") {
+          // Professional photos are stored in profile_data.photo_path;
+          // profiles.avatar_url is also maintained as the shared fallback.
+          const { data: professional } = await supabase
+            .from("professional_profiles")
+            .select("profile_data")
+            .eq("user_id", userId)
+            .maybeSingle();
+          const profileData = (professional?.profile_data || {}) as {
+            photo_path?: string;
+          };
+          const professionalPhoto = profileData.photo_path || avatarPath;
+          if (professionalPhoto.startsWith("http://") || professionalPhoto.startsWith("https://")) {
+            nextAvatarUrl = professionalPhoto;
+          } else if (professionalPhoto.startsWith("avatars/")) {
+            nextAvatarUrl = supabase.storage
+              .from("abi-job-public-images")
+              .getPublicUrl(professionalPhoto).data.publicUrl;
+          } else if (professionalPhoto) {
+            const { data: signedPhoto } = await supabase.storage
+              .from("abi-job-profile-files")
+              .createSignedUrl(professionalPhoto, 60 * 60);
+            nextAvatarUrl = signedPhoto?.signedUrl || nextAvatarUrl;
+          }
+        }
+
         if (accountRole === "employer") {
           const { data: employer } = await supabase
             .from("employer_profiles")
@@ -131,10 +157,15 @@ function HeaderContent() {
           const logo = employer?.logo_url || "";
           if (logo.startsWith("http://") || logo.startsWith("https://")) {
             nextAvatarUrl = logo;
-          } else if (logo) {
+          } else if (logo.startsWith("employer-logos/") || logo.startsWith("avatars/")) {
             nextAvatarUrl = supabase.storage
               .from("abi-job-public-images")
               .getPublicUrl(logo).data.publicUrl;
+          } else if (logo) {
+            const { data: signedLogo } = await supabase.storage
+              .from("abi-job-profile-files")
+              .createSignedUrl(logo, 60 * 60);
+            nextAvatarUrl = signedLogo?.signedUrl || nextAvatarUrl;
           }
         }
         if (!mounted || currentRequest !== requestVersion) return;
@@ -310,7 +341,7 @@ function HeaderContent() {
                     aria-label={`${accountName} dashboard`}
                     title={accountName}
                   >
-                    {avatarUrl ? <img src={avatarUrl} alt="" /> : <span>{accountName.trim().split(/\s+/).slice(0, 2).map((part) => part[0]?.toUpperCase()).join("") || "A"}</span>}
+                    {avatarUrl && !avatarFailed ? <img src={avatarUrl} alt="" onError={() => setAvatarFailed(true)} /> : <span>{accountName.trim().split(/\s+/).slice(0, 2).map((part) => part[0]?.toUpperCase()).join("") || "A"}</span>}
                   </Link>
                   <Link
                     href={dashboardHref}
