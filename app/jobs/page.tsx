@@ -868,7 +868,7 @@ export default function JobsPage() {
                       <div className="jobs-post-main">
                         <div className="jobs-post-topline">
                           <div className="jobs-company-avatar">
-                            <ProfileImage name={job.company} path={job.companyLogoPath} />
+                            <ProfileImage name={job.company} path={job.companyLogoPath} fit="contain" />
                           </div>
 
                           <div className="jobs-post-company">
@@ -1074,7 +1074,7 @@ export default function JobsPage() {
 
             <div className="jobs-details-company">
               <div className="jobs-company-avatar">
-                <ProfileImage name={selectedJob.company} path={selectedJob.companyLogoPath} />
+                <ProfileImage name={selectedJob.company} path={selectedJob.companyLogoPath} fit="contain" />
               </div>
 
               <div>
