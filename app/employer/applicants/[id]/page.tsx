@@ -306,38 +306,21 @@ function EmployerApplicantDetailsContent() {
           );
         }
 
-        // Use the secure RPC for older applications whose snapshot fields
-        // are empty. Do not query another user's profile directly.
-        const hasMissingSnapshot =
-          !application.applicant_name ||
-          !application.applicant_title ||
-          !application.applicant_location ||
-          !application.applicant_experience ||
-          !application.applicant_skills;
+        // Always use the secure RPC for the applicant's current avatar path.
+        // Application snapshots intentionally do not store private profile images.
+        const { data: profileData, error: rpcError } =
+          await supabase.rpc("get_employer_applicant_profiles", {
+            p_applicant_ids: [application.applicant_id],
+          });
 
         let applicantProfile: ApplicantProfile | null = null;
-
-        if (hasMissingSnapshot) {
-          const { data: profileData, error: rpcError } =
-            await supabase.rpc(
-              "get_employer_applicant_profiles",
-              {
-                p_applicant_ids: [application.applicant_id],
-              }
-            );
-
-          if (rpcError) {
-            console.error(
-              "Secure applicant profile lookup:",
-              rpcError.message
-            );
-          } else {
-            applicantProfile =
-              ((profileData || []) as ApplicantProfile[]).find(
-                (profile) =>
-                  profile.id === application.applicant_id
-              ) || null;
-          }
+        if (rpcError) {
+          console.error("Secure applicant profile lookup:", rpcError.message);
+        } else {
+          applicantProfile =
+            ((profileData || []) as ApplicantProfile[]).find(
+              (profile) => profile.id === application.applicant_id
+            ) || null;
         }
 
         const statusValue = String(
