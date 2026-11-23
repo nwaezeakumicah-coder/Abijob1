@@ -189,6 +189,7 @@ export default function MessagesPage() {
   const [accessChecked, setAccessChecked] = useState(false);
   const [userId, setUserId] = useState("");
   const [userName, setUserName] = useState("Job Seeker");
+  const [userAvatarPath, setUserAvatarPath] = useState<string | null>(null);
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [activeId, setActiveId] = useState("");
   const [search, setSearch] = useState("");
@@ -373,7 +374,7 @@ export default function MessagesPage() {
 
       const { data: profile, error: profileError } = await supabase
         .from("profiles")
-        .select("role, full_name")
+        .select("role, full_name, avatar_url")
         .eq("id", user.id)
         .maybeSingle();
 
@@ -743,7 +744,7 @@ export default function MessagesPage() {
           </Link>
 
           <div className="messages-user-mini">
-            <div className="messages-user-avatar">{avatarInitials}</div>
+            <div className="messages-user-avatar"><ProfileImage name={userName} path={userAvatarPath} /></div>
             <div className="messages-user-info">
               <strong>{userName}</strong>
               <span>Job Seeker</span>
@@ -775,7 +776,7 @@ export default function MessagesPage() {
               aria-label="Open your profile"
               onClick={() => router.push("/profile")}
             >
-              {avatarInitials}
+              <ProfileImage name={userName} path={userAvatarPath} />
             </button>
           </div>
         </header>
