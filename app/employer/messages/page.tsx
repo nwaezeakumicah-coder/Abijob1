@@ -903,7 +903,7 @@ export default function EmployerMessagesPage() {
                             <span
                               className={`employer-messages-avatar small ${activeConversation.color}`}
                             >
-                              <ProfileImage name={activeConversation.name} path={activeConversation.avatarUrl} />
+                              <ProfileImage name={activeConversation.name} path={activeConversation.avatarUrl} fit={activeConversation.role.toLowerCase().includes("employer") ? "contain" : "cover"} />
                             </span>
                           )}
 
