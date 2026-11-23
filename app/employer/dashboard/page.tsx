@@ -56,12 +56,14 @@ type ApplicantProfile = {
   full_name: string | null;
   headline: string | null;
   location: string | null;
+  avatar_url?: string | null;
 };
 
 type DashboardApplicant = {
   id: string;
   name: string;
   initials: string;
+  avatarPath: string | null;
   role: string;
   date: string;
   status: string;
@@ -326,10 +328,9 @@ export default function EmployerDashboardPage() {
 
           if (applicantIds.length > 0) {
             const { data: profiles, error: applicantProfilesError } =
-              await supabase
-                .from("profiles")
-                .select("id, full_name, headline, location")
-                .in("id", applicantIds);
+              await supabase.rpc("get_employer_applicant_profiles", {
+                p_applicant_ids: applicantIds,
+              });
 
             if (applicantProfilesError) throw applicantProfilesError;
             applicantProfiles = (profiles || []) as ApplicantProfile[];
@@ -360,6 +361,7 @@ export default function EmployerDashboardPage() {
               id: application.id,
               name: applicantName,
               initials: getInitials(applicantName),
+              avatarPath: applicantProfile?.avatar_url || null,
               role: relatedJob?.title || "Job application",
               date: formatRelativeDate(application.created_at),
               status: applicationStatus.label,
@@ -891,7 +893,7 @@ export default function EmployerDashboardPage() {
                     key={applicant.id}
                   >
                     <span className="employer-applicant-avatar">
-                      {applicant.initials}
+                      <ProfileImage name={applicant.name} path={applicant.avatarPath} />
                     </span>
                     <div className="employer-applicant-info">
                       <strong>{applicant.name}</strong>
