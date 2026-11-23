@@ -621,7 +621,7 @@ export default function ProfessionalOpportunitiesPage() {
 
             <div className="po-user">
               <div className="po-user-avatar">
-                {initials || <UserRound size={18} />}
+                <ProfileImage name={fullName || "Professional"} path={accountAvatarPath} />
               </div>
 
               <div className="po-user-info">
