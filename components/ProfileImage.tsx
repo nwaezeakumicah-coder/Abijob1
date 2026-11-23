@@ -26,12 +26,14 @@ export default function ProfileImage({
 }: ProfileImageProps) {
   const supabase = useMemo(() => createClient(), []);
   const [imageUrl, setImageUrl] = useState("");
+  const [imageFailed, setImageFailed] = useState(false);
 
   useEffect(() => {
     let active = true;
 
     async function loadImage() {
       setImageUrl("");
+      setImageFailed(false);
       if (!path) return;
 
       try {
@@ -66,8 +68,8 @@ export default function ProfileImage({
     };
   }, [path, supabase]);
 
-  if (imageUrl) {
-    return <img className={className} src={imageUrl} alt="" />;
+  if (imageUrl && !imageFailed) {
+    return <img className={className} src={imageUrl} alt="" onError={() => setImageFailed(true)} />;
   }
 
   return <span className={className} aria-hidden="true">{initials(name)}</span>;
