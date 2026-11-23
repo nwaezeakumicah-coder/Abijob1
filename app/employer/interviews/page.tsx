@@ -30,6 +30,7 @@ import {
   XCircle,
 } from "lucide-react";
 import Logo from "../../../components/Logo";
+import ProfileImage from "@/components/ProfileImage";
 import { createClient } from "@/lib/supabase/client";
 import "./interviews.css";
 
@@ -55,6 +56,7 @@ type Interview = {
   status: InterviewStatus;
   created_at: string;
   applicant_name: string;
+  applicant_avatar_path: string | null;
   job_title: string;
 };
 
@@ -64,6 +66,7 @@ type ShortlistedApplication = {
   job_id: string;
   job_title: string;
   applicant_name: string;
+  applicant_avatar_path: string | null;
 };
 
 type InterviewForm = {
@@ -169,6 +172,7 @@ export default function EmployerInterviewsPage() {
   const router = useRouter();
 
   const [companyName, setCompanyName] = useState("Your Company");
+  const [companyLogoPath, setCompanyLogoPath] = useState<string | null>(null);
   const [interviews, setInterviews] = useState<Interview[]>([]);
   const [shortlistedApplications, setShortlistedApplications] = useState<
     ShortlistedApplication[]
@@ -225,11 +229,12 @@ export default function EmployerInterviewsPage() {
 
       const { data: employerProfile } = await supabase
         .from("employer_profiles")
-        .select("business_name")
-        .eq("id", user.id)
+        .select("business_name, logo_url")
+        .eq("user_id", user.id)
         .maybeSingle();
 
       setCompanyName(employerProfile?.business_name || "Your Company");
+      setCompanyLogoPath(employerProfile?.logo_url || null);
 
       const { data: jobs, error: jobsError } = await supabase
         .from("jobs")
@@ -260,30 +265,31 @@ export default function EmployerInterviewsPage() {
           ...new Set((applicationRows || []).map((item) => item.applicant_id)),
         ];
 
-        let applicantNames = new Map<string, string>();
+        let applicantProfilesById = new Map<string, { full_name: string | null; avatar_url: string | null }>();
 
         if (applicantIds.length > 0) {
-          const { data: applicantProfiles } = await supabase
-            .from("profiles")
-            .select("id, full_name")
-            .in("id", applicantIds);
-
-          applicantNames = new Map(
-            (applicantProfiles || []).map((item) => [
-              item.id,
-              item.full_name || "Applicant",
-            ])
+          const { data: applicantProfiles, error: applicantProfilesError } =
+            await supabase.rpc("get_employer_applicant_profiles", {
+              p_applicant_ids: applicantIds,
+            });
+          if (applicantProfilesError) throw applicantProfilesError;
+          applicantProfilesById = new Map(
+            ((applicantProfiles || []) as { id: string; full_name: string | null; avatar_url: string | null }[])
+              .map((item) => [item.id, { full_name: item.full_name, avatar_url: item.avatar_url }])
           );
         }
 
-        applications = (applicationRows || []).map((application) => ({
-          id: application.id,
-          applicant_id: application.applicant_id,
-          job_id: application.job_id,
-          job_title: jobTitles.get(application.job_id) || "Job vacancy",
-          applicant_name:
-            applicantNames.get(application.applicant_id) || "Abijob Applicant",
-        }));
+        applications = (applicationRows || []).map((application) => {
+          const applicantProfile = applicantProfilesById.get(application.applicant_id);
+          return {
+            id: application.id,
+            applicant_id: application.applicant_id,
+            job_id: application.job_id,
+            job_title: jobTitles.get(application.job_id) || "Job vacancy",
+            applicant_name: applicantProfile?.full_name || "Abijob Applicant",
+            applicant_avatar_path: applicantProfile?.avatar_url || null,
+          };
+        });
       }
 
       setShortlistedApplications(applications);
@@ -302,19 +308,17 @@ export default function EmployerInterviewsPage() {
         ...new Set((interviewRows || []).map((item) => item.applicant_id)),
       ];
 
-      let interviewApplicantNames = new Map<string, string>();
+      let interviewApplicantProfiles = new Map<string, { full_name: string | null; avatar_url: string | null }>();
 
       if (interviewApplicantIds.length > 0) {
-        const { data: applicantProfiles } = await supabase
-          .from("profiles")
-          .select("id, full_name")
-          .in("id", interviewApplicantIds);
-
-        interviewApplicantNames = new Map(
-          (applicantProfiles || []).map((item) => [
-            item.id,
-            item.full_name || "Applicant",
-          ])
+        const { data: applicantProfiles, error: applicantProfilesError } =
+          await supabase.rpc("get_employer_applicant_profiles", {
+            p_applicant_ids: interviewApplicantIds,
+          });
+        if (applicantProfilesError) throw applicantProfilesError;
+        interviewApplicantProfiles = new Map(
+          ((applicantProfiles || []) as { id: string; full_name: string | null; avatar_url: string | null }[])
+            .map((item) => [item.id, { full_name: item.full_name, avatar_url: item.avatar_url }])
         );
       }
 
@@ -331,8 +335,10 @@ export default function EmployerInterviewsPage() {
           interview_type: interview.interview_type as InterviewType,
           status: interview.status as InterviewStatus,
           applicant_name:
-            interviewApplicantNames.get(interview.applicant_id) ||
+            interviewApplicantProfiles.get(interview.applicant_id)?.full_name ||
             "Abijob Applicant",
+          applicant_avatar_path:
+            interviewApplicantProfiles.get(interview.applicant_id)?.avatar_url || null,
           job_title:
             applicationTitles.get(interview.application_id) ||
             "Job application",
@@ -737,7 +743,7 @@ export default function EmployerInterviewsPage() {
 
         <div className="interviews-company">
           <div className="interviews-company-icon">
-            <Building2 size={21} />
+            <ProfileImage name={companyName} path={companyLogoPath} fit="contain" />
           </div>
           <div>
             <strong>{companyName}</strong>
@@ -805,7 +811,7 @@ export default function EmployerInterviewsPage() {
 
           <div className="interviews-topbar-account">
             <div className="interviews-account-icon">
-              <Building2 size={18} />
+              <ProfileImage name={companyName} path={companyLogoPath} fit="contain" />
             </div>
             <div>
               <strong>{companyName}</strong>
@@ -950,12 +956,7 @@ export default function EmployerInterviewsPage() {
 
                       <div className="interview-person">
                         <div className="interview-avatar">
-                          {interview.applicant_name
-                            .split(/\s+/)
-                            .slice(0, 2)
-                            .map((part) => part[0])
-                            .join("")
-                            .toUpperCase()}
+                          <ProfileImage name={interview.applicant_name} path={interview.applicant_avatar_path} />
                         </div>
                         <div>
                           <h3>{interview.applicant_name}</h3>
