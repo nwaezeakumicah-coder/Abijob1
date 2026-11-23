@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Logo from "../../../components/Logo";
+import ProfileImage from "../../../components/ProfileImage";
 import {
   Menu,
   X,
@@ -69,7 +70,9 @@ type DashboardApplicant = {
 
 type DashboardData = {
   businessName: string;
+  companyLogoPath: string | null;
   fullName: string;
+  avatarPath: string | null;
   activeJobs: number;
   totalApplications: number;
   pendingJobs: number;
@@ -220,7 +223,7 @@ export default function EmployerDashboardPage() {
 
         const { data: profile, error: profileError } = await supabase
           .from("profiles")
-          .select("role, full_name")
+          .select("role, full_name, avatar_url")
           .eq("id", user.id)
           .single();
 
@@ -247,7 +250,7 @@ export default function EmployerDashboardPage() {
         ] = await Promise.all([
           supabase
             .from("employer_profiles")
-            .select("business_name, business_type, address, phone")
+            .select("business_name, business_type, address, phone, logo_url")
             .eq("user_id", user.id)
             .maybeSingle(),
 
@@ -382,7 +385,9 @@ export default function EmployerDashboardPage() {
 
         setDashboard({
           businessName,
+          companyLogoPath: employerProfile?.logo_url || null,
           fullName: profile.full_name || "Business Admin",
+          avatarPath: profile.avatar_url || null,
           activeJobs: jobs.filter((job) => job.status === "approved").length,
           totalApplications: totalApplicationsCount,
           pendingJobs: jobs.filter((job) => job.status === "pending").length,
@@ -543,7 +548,7 @@ export default function EmployerDashboardPage() {
 
         <div className="employer-company-card">
           <div className="employer-company-icon">
-            <Building2 size={22} />
+            <ProfileImage name={dashboard.businessName} path={dashboard.companyLogoPath} />
           </div>
           <div>
             <strong>{dashboard.businessName}</strong>
@@ -613,7 +618,7 @@ export default function EmployerDashboardPage() {
 
           <Link href="/employer/profile" className="employer-user">
             <span className="employer-user-avatar">
-              {getInitials(dashboard.fullName)}
+              <ProfileImage name={dashboard.fullName} path={dashboard.avatarPath} />
             </span>
             <span>
               <strong>{dashboard.fullName}</strong>
@@ -666,7 +671,7 @@ export default function EmployerDashboardPage() {
 
             <Link href="/employer/profile" className="employer-topbar-profile">
               <span className="employer-user-avatar">
-                {getInitials(dashboard.businessName)}
+                <ProfileImage name={dashboard.businessName} path={dashboard.companyLogoPath} />
               </span>
               <span>
                 <strong>{dashboard.businessName}</strong>
