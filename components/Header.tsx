@@ -348,7 +348,7 @@ function HeaderContent() {
                     aria-label={`${accountName} dashboard`}
                     title={accountName}
                   >
-                    {avatarUrl && !avatarFailed ? <img src={avatarUrl} alt="" onError={() => setAvatarFailed(true)} /> : <span>{accountName.trim().split(/\s+/).slice(0, 2).map((part) => part[0]?.toUpperCase()).join("") || "A"}</span>}
+                    <ProfileImage name={accountName} path={avatarUrl} />
                   </Link>
                   <Link
                     href={dashboardHref}
@@ -436,7 +436,7 @@ function HeaderContent() {
                       aria-label={`${accountName} dashboard`}
                       onClick={closeMenu}
                     >
-                      {avatarUrl && !avatarFailed ? <img src={avatarUrl} alt="" onError={() => setAvatarFailed(true)} /> : <span>{accountName.trim().split(/\s+/).slice(0, 2).map((part) => part[0]?.toUpperCase()).join("") || "A"}</span>}
+                    <ProfileImage name={accountName} path={avatarUrl} />
                     </Link>
                     <Link
                       href={dashboardHref}
