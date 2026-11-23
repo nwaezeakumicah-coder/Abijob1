@@ -1042,7 +1042,7 @@ export default function MessagesPage() {
                               <div
                                 className={`messages-message-avatar avatar-${activeConversation.color}`}
                               >
-                                {activeConversation.initials}
+                                <ProfileImage name={activeConversation.name} path={activeConversation.avatarUrl} />
                               </div>
                             )}
 
