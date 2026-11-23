@@ -550,7 +550,7 @@ export default function EmployerDashboardPage() {
 
         <div className="employer-company-card">
           <div className="employer-company-icon">
-            <ProfileImage name={dashboard.businessName} path={dashboard.companyLogoPath} />
+            <ProfileImage name={dashboard.businessName} path={dashboard.companyLogoPath} fit="contain" />
           </div>
           <div>
             <strong>{dashboard.businessName}</strong>
@@ -673,7 +673,7 @@ export default function EmployerDashboardPage() {
 
             <Link href="/employer/profile" className="employer-topbar-profile">
               <span className="employer-user-avatar">
-                <ProfileImage name={dashboard.businessName} path={dashboard.companyLogoPath} />
+                <ProfileImage name={dashboard.businessName} path={dashboard.companyLogoPath} fit="contain" />
               </span>
               <span>
                 <strong>{dashboard.businessName}</strong>
