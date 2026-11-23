@@ -171,16 +171,6 @@ const readableStatus = (status: string) => {
   );
 };
 
-const getInitials = (name: string) => {
-  const parts = name.trim().split(/\s+/).filter(Boolean);
-
-  if (!parts.length) return "PR";
-
-  return parts
-    .slice(0, 2)
-    .map((part) => part[0].toUpperCase())
-    .join("");
-};
 
 export default function ProfessionalSubscriptionPage() {
   const router = useRouter();
