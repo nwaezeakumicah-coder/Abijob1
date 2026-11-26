@@ -963,6 +963,13 @@ export default function EmployerDashboardPage() {
                   Post a new vacancy
                   <ArrowUpRight size={16} />
                 </Link>
+                <Link href="/employer/candidate-matches">
+                  <span>
+                    <Users size={18} />
+                  </span>
+                  Rank applicants by match
+                  <ArrowUpRight size={16} />
+                </Link>
                 <Link href="/professionals">
                   <span>
                     <Search size={18} />
