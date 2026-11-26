@@ -52,8 +52,7 @@ function splitSkills(...values: Array<string | string[] | null | undefined>): st
 
 function getExperienceYears(value: string | null | undefined): number {
   if (!value) return 0;
-  const match = value.match(/(\d{1,2})(?:\s*\+)?\s*(?:years?|yrs?)/i)
-    ?? value.match(/(?:^|\D)(\d{1,2})(?:\D|$)/);
+  const match = value.match(/(\d{1,2})(?:\s*\+)?\s*(?:years?|yrs?)/i);
   if (!match) return 0;
   return Math.max(0, Math.min(60, Number(match[1]) || 0));
 }
