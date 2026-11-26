@@ -30,6 +30,7 @@ import {
 } from "lucide-react";
 import { createClient } from "../../lib/supabase/client";
 import ProfileImage from "../../components/ProfileImage";
+import JobRecommendations from "../../components/JobRecommendations";
 import "./dashboard.css";
 
 type JobSeekerProfile = {
@@ -562,6 +563,8 @@ export default function DashboardPage() {
               <p>Based on your saved profile information.</p>
             </article>
           </section>
+
+          <JobRecommendations />
 
           <div className="dashboard-main-grid">
             <section className="dashboard-jobs-section">
