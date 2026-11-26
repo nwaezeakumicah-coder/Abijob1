@@ -1,0 +1,55 @@
+name: Abijob Application CI
+
+on:
+  pull_request:
+    paths:
+      - "app/**"
+      - "components/**"
+      - "lib/**"
+      - "supabase/migrations/**"
+      - "package.json"
+      - "package-lock.json"
+      - "next.config.ts"
+      - "tsconfig.json"
+      - ".github/workflows/app-ci.yml"
+  push:
+    branches: [SIRMIC]
+    paths:
+      - "app/**"
+      - "components/**"
+      - "lib/**"
+      - "supabase/migrations/**"
+      - "package.json"
+      - "package-lock.json"
+      - "next.config.ts"
+      - "tsconfig.json"
+      - ".github/workflows/app-ci.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  verify-application:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+
+      - name: Set up Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Type-check application
+        run: npx tsc --noEmit
+
+      - name: Build application
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: https://ci-placeholder.supabase.co
+          NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: sb_publishable_ci_placeholder
+          SUPABASE_SERVICE_ROLE_KEY: ci_service_role_placeholder
+        run: npm run build
