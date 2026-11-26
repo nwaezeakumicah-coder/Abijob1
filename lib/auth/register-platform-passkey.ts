@@ -91,7 +91,12 @@ export async function registerPlatformPasskey(supabase: SupabaseClient) {
   const { data: passkey, error: verifyError } =
     await supabase.auth.passkey.verifyRegistration({
       challengeId: data.challenge_id,
-      credential,
+      // Supabase's ServerCredentialResponse union is incorrectly narrowed by
+      // TypeScript to an assertion response for this attestation payload.
+      // The runtime object above is built from AuthenticatorAttestationResponse.
+      credential: credential as unknown as Parameters<
+        typeof supabase.auth.passkey.verifyRegistration
+      >[0]["credential"],
     });
 
   if (verifyError) throw verifyError;
