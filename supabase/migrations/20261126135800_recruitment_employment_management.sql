@@ -192,7 +192,7 @@ begin
   if v_offer.status <> 'sent' then raise exception 'This offer is no longer awaiting a response' using errcode='55000'; end if;
   if v_offer.expires_at <= now() then
     update public.employment_offers set status='expired',updated_at=now() where id=p_offer_id;
-    raise exception 'This employment offer has expired' using errcode='55000';
+    return false;
   end if;
   update public.employment_offers set status=p_response,responded_at=now(),updated_at=now() where id=p_offer_id;
   insert into public.notifications(user_id,title,description,category,href)
