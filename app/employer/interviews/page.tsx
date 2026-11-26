@@ -47,6 +47,7 @@ type Interview = {
   application_id: string;
   employer_id: string;
   applicant_id: string;
+  applicant_response: "accepted" | "declined" | null;
   scheduled_at: string;
   duration_minutes: number;
   interview_type: InterviewType;
@@ -298,7 +299,7 @@ export default function EmployerInterviewsPage() {
       const { data: interviewRows, error: interviewsError } = await supabase
         .from("interviews")
         .select(
-          "id, application_id, employer_id, applicant_id, scheduled_at, duration_minutes, interview_type, meeting_link, location, notes, status, created_at"
+          "id, application_id, employer_id, applicant_id, applicant_response, scheduled_at, duration_minutes, interview_type, meeting_link, location, notes, status, created_at"
         )
         .eq("employer_id", user.id)
         .order("scheduled_at", { ascending: true });
@@ -584,6 +585,7 @@ export default function EmployerInterviewsPage() {
             location: interviewData.location,
             notes: interviewData.notes,
             status: "rescheduled",
+            applicant_response: null,
           })
           .eq("id", editingInterviewId)
           .eq("employer_id", user.id)
@@ -976,6 +978,11 @@ export default function EmployerInterviewsPage() {
                         >
                           {getStatusLabel(interview.status)}
                         </span>
+                        {interview.applicant_response && (
+                          <span className={`interview-response response-${interview.applicant_response}`}>
+                            Candidate {interview.applicant_response}
+                          </span>
+                        )}
                       </div>
 
                       <div className="interview-person">
