@@ -19,6 +19,8 @@ type Recommendation = {
 
 type RecommendationResponse = {
   recommendations?: Recommendation[];
+  openApprovedJobsCount?: number;
+  appliedOpenJobsCount?: number;
   error?: string;
 };
 
@@ -33,6 +35,8 @@ export default function JobRecommendations() {
   const [items, setItems] = useState<Recommendation[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [appliedOpenJobsCount, setAppliedOpenJobsCount] = useState(0);
+  const [openApprovedJobsCount, setOpenApprovedJobsCount] = useState(0);
 
   async function loadRecommendations() {
     setLoading(true);
@@ -46,6 +50,8 @@ export default function JobRecommendations() {
       const payload = (await response.json()) as RecommendationResponse;
       if (!response.ok) throw new Error(payload.error || "Recommendations could not be loaded.");
       setItems(Array.isArray(payload.recommendations) ? payload.recommendations : []);
+      setAppliedOpenJobsCount(Number(payload.appliedOpenJobsCount) || 0);
+      setOpenApprovedJobsCount(Number(payload.openApprovedJobsCount) || 0);
     } catch (requestError) {
       setError(requestError instanceof Error ? requestError.message : "Recommendations could not be loaded.");
     } finally {
@@ -113,8 +119,10 @@ export default function JobRecommendations() {
       ) : (
         <div className="jr-empty">
           <span><BriefcaseBusiness size={24} /></span>
-          <strong>No new recommendations yet</strong>
-          <p>Complete your profile with relevant skills and experience, or check back when new approved vacancies are published.</p>
+          <strong>{openApprovedJobsCount > 0 && appliedOpenJobsCount === openApprovedJobsCount ? "You've applied to all current approved vacancies" : "No new recommendations yet"}</strong>
+          <p>{openApprovedJobsCount > 0 && appliedOpenJobsCount === openApprovedJobsCount
+            ? "You've already applied to every currently open, approved vacancy. We'll show new recommendations as soon as more opportunities are approved. Keep your profile updated to improve future matches."
+            : "Complete your profile with relevant skills and experience, or check back when new approved vacancies are published."}</p>
           <Link href="/jobs">Browse all approved jobs <ArrowRight size={15} /></Link>
         </div>
       )}
