@@ -7,7 +7,7 @@ import { createClient } from "@/lib/supabase/client";
 import { ArrowLeft, BriefcaseBusiness, CalendarClock, CheckCircle2, Clock3, FileText, LoaderCircle, RefreshCw, Send, Star, Users } from "lucide-react";
 import "./employment.css";
 
-type Application = { id:string; applicant_id:string; applicant_name:string|null; job_id:string; job_title:string };
+type Application = { id:string; applicant_id:string; applicant_name:string|null; job_id:string; job_title:string; status:string };
 type Offer = { id:string; application_id:string; applicant_id:string; applicant_name?:string; job_title:string; salary_amount:number; salary_currency:string; employment_type:string; work_location:string; start_date:string; expires_at:string; terms:string; status:string; issued_at:string };
 type RecordRow = { id:string; employee_id:string; job_title:string; employment_type:string; salary_amount:number; salary_currency:string; work_location:string; start_date:string; status:string };
 type Interview = { id:string; applicant_id:string; scheduled_at:string; status:string; applicant_name?:string; job_title?:string };
@@ -30,8 +30,9 @@ export default function EmployerEmploymentPage(){
    if(profileError)throw profileError;if(profile?.role!=="employer"){router.replace(profile?.role==="professional"?"/professional/dashboard":"/dashboard");return;}
    const {data:jobs,error:jobsError}=await supabase.from("jobs").select("id,title").eq("employer_id",user.id);if(jobsError)throw jobsError;
    const jobMap=new Map((jobs||[]).map(j=>[j.id,j.title]));const ids=[...(jobs||[])].map(j=>j.id);
-   let appRows:Application[]=[];
-   if(ids.length){const {data,error:appError}=await supabase.from("job_applications").select("id,applicant_id,applicant_name,job_id").in("job_id",ids).eq("status","shortlisted").order("created_at",{ascending:false});if(appError)throw appError;appRows=(data||[]).map(a=>({...a,job_title:jobMap.get(a.job_id)||"Job vacancy"}));}
+   let allApplications:Application[]=[];
+   if(ids.length){const {data,error:appError}=await supabase.from("job_applications").select("id,applicant_id,applicant_name,job_id,status").in("job_id",ids).order("created_at",{ascending:false});if(appError)throw appError;allApplications=(data||[]).map(a=>({...a,job_title:jobMap.get(a.job_id)||"Job vacancy"}));}
+   const appRows=allApplications.filter(a=>a.status==="shortlisted");
    const [offerResult,recordResult,interviewResult,feedbackResult]=await Promise.all([
     supabase.from("employment_offers").select("*").eq("employer_id",user.id).order("created_at",{ascending:false}),
     supabase.from("employment_records").select("*").eq("employer_id",user.id).order("start_date",{ascending:false}),
@@ -39,10 +40,10 @@ export default function EmployerEmploymentPage(){
     supabase.from("interview_feedback").select("interview_id,rating,recommendation,strengths,concerns,private_notes").eq("employer_id",user.id)
    ]);
    if(offerResult.error)throw offerResult.error;if(recordResult.error)throw recordResult.error;if(interviewResult.error)throw interviewResult.error;if(feedbackResult.error)throw feedbackResult.error;
-   const appNames=new Map(appRows.map(a=>[a.id,a.applicant_name||"Applicant"]));
+   const appNames=new Map(allApplications.map(a=>[a.id,a.applicant_name||"Applicant"]));
    setApplications(appRows);setOffers((offerResult.data||[]).map(o=>({...o,applicant_name:appNames.get(o.application_id)||"Applicant"})));
    setRecords((recordResult.data||[]) as RecordRow[]);
-   setInterviews((interviewResult.data||[]).map(i=>({ ...i,applicant_name:appNames.get(i.application_id)||"Applicant",job_title:jobMap.get((appRows.find(a=>a.id===i.application_id)||{} as Application).job_id)||"Interview" })));
+   setInterviews((interviewResult.data||[]).map(i=>({ ...i,applicant_name:appNames.get(i.application_id)||"Applicant",job_title:allApplications.find(a=>a.id===i.application_id)?.job_title||"Interview" })));
    setFeedback(Object.fromEntries((feedbackResult.data||[]).map(f=>[f.interview_id,f as Feedback])));
   }catch(e){setError(e instanceof Error?e.message:"Recruitment records could not be loaded.");}
   finally{setLoading(false);}
