@@ -1,12 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 
-type RegistrationOptionsJSON = {
-  challenge: string;
-  user: { id: string; name: string; displayName: string };
-  excludeCredentials?: Array<{ id: string; type: "public-key"; transports?: AuthenticatorTransport[] }>;
-  authenticatorSelection?: AuthenticatorSelectionCriteria;
-  [key: string]: unknown;
-};
 
 function decodeBase64Url(value: string): Uint8Array {
   const base64 = value.replace(/-/g, "+").replace(/_/g, "/");
@@ -52,7 +45,7 @@ export async function registerPlatformPasskey(supabase: SupabaseClient) {
   if (error) throw error;
   if (!data) throw new Error("Abijob could not start passkey setup. Please try again.");
 
-  const serverOptions = data.options as RegistrationOptionsJSON;
+  const serverOptions = data.options;
   const publicKey: PublicKeyCredentialCreationOptions = {
     ...serverOptions,
     challenge: decodeBase64Url(serverOptions.challenge),
@@ -71,7 +64,7 @@ export async function registerPlatformPasskey(supabase: SupabaseClient) {
       requireResidentKey: true,
       userVerification: "required",
     },
-  } as PublicKeyCredentialCreationOptions;
+  } as unknown as PublicKeyCredentialCreationOptions;
 
   const created = await navigator.credentials.create({ publicKey });
   if (!(created instanceof PublicKeyCredential)) {
@@ -82,7 +75,7 @@ export async function registerPlatformPasskey(supabase: SupabaseClient) {
   const credential = {
     id: created.id,
     rawId: encodeBase64Url(created.rawId),
-    type: created.type,
+    type: "public-key" as const,
     authenticatorAttachment: created.authenticatorAttachment,
     response: {
       clientDataJSON: encodeBase64Url(response.clientDataJSON),
