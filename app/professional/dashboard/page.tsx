@@ -33,6 +33,7 @@ import {
   X,
 } from "lucide-react";
 import ProfileImage from "@/components/ProfileImage";
+import JobRecommendations from "@/components/JobRecommendations";
 import "./professional-dashboard.css";
 
 type ProfileRow = {
@@ -794,6 +795,8 @@ export default function ProfessionalDashboardPage() {
               </div>
             </article>
           </section>
+
+          <JobRecommendations />
 
           <div className="pd-dashboard-grid">
             <div className="pd-primary-column">
