@@ -1,4 +1,5 @@
 name: Abijob Application CI
+# Keeps application checks active on feature branches while lockfile consistency is repaired.
 
 on:
   pull_request:
