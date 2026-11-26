@@ -35,7 +35,7 @@ export default function EmployerEmploymentPage(){
    const [offerResult,recordResult,interviewResult,feedbackResult]=await Promise.all([
     supabase.from("employment_offers").select("*").eq("employer_id",user.id).order("created_at",{ascending:false}),
     supabase.from("employment_records").select("*").eq("employer_id",user.id).order("start_date",{ascending:false}),
-    supabase.from("interviews").select("id,application_id,applicant_id,scheduled_at,status").eq("employer_id",user.id).order("scheduled_at",{ascending:false}).limit(100),
+    supabase.from("interviews").select("id,application_id,applicant_id,scheduled_at,status").eq("employer_id",user.id).eq("status","completed").order("scheduled_at",{ascending:false}).limit(100),
     supabase.from("interview_feedback").select("interview_id,rating,recommendation,strengths,concerns,private_notes").eq("employer_id",user.id)
    ]);
    if(offerResult.error)throw offerResult.error;if(recordResult.error)throw recordResult.error;if(interviewResult.error)throw interviewResult.error;if(feedbackResult.error)throw feedbackResult.error;
