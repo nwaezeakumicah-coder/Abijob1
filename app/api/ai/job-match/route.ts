@@ -2,17 +2,6 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { calculateBaselineMatch, enhanceMatchWithGemini, type MatchInput } from "@/lib/ai/job-matching";
 
-
-type Profile = {
-  role: string;
-  skills: string[] | null;
-  education: string | null;
-  experience: string | null;
-  location: string | null;
-  headline: string | null;
-  about: string | null;
-};
-
 function errorResponse(message: string, status: number) {
   return NextResponse.json({ error: message }, { status });
 }
@@ -23,9 +12,14 @@ export async function POST(request: NextRequest) {
 
   if (authError || !user) return errorResponse("Please sign in to get your job match.", 401);
 
-  let body: { jobId?: unknown };
+  const contentLength = Number(request.headers.get("content-length") ?? "0");
+  if (contentLength > 4096) return errorResponse("The request is too large.", 413);
+
+  let body: { jobId?: unknown; aiConsent?: unknown };
   try {
-    body = await request.json();
+    const rawBody = await request.text();
+    if (rawBody.length > 4096) return errorResponse("The request is too large.", 413);
+    body = JSON.parse(rawBody) as typeof body;
   } catch {
     return errorResponse("A valid request body is required.", 400);
   }
@@ -40,13 +34,12 @@ export async function POST(request: NextRequest) {
   ]);
 
   if (profileError || !profile) return errorResponse("Your profile could not be loaded. Complete your profile and try again.", 404);
+  if (!["job_seeker", "professional"].includes(profile.role)) {
+    return errorResponse("Job matching is available to job seekers and skilled professionals.", 403);
+  }
   if (jobError || !job || job.status !== "approved") return errorResponse("This job is not currently available for matching.", 404);
   if (job.application_deadline && job.application_deadline < new Date().toISOString().slice(0, 10)) {
     return errorResponse("The application deadline for this job has passed.", 410);
-  }
-
-  if (!["job_seeker", "professional"].includes(profile.role)) {
-    return errorResponse("Job matching is available to job seekers and skilled professionals.", 403);
   }
 
   let skills = Array.isArray(profile.skills) ? profile.skills : [];
@@ -93,7 +86,19 @@ export async function POST(request: NextRequest) {
   };
 
   const baseline = calculateBaselineMatch(input);
-  const result = await enhanceMatchWithGemini(input, baseline);
+  let result = baseline;
+
+  // Gemini processing requires explicit opt-in on each request.
+  if (body.aiConsent === true) {
+    const { data: withinLimit, error: limitError } = await supabase.rpc("consume_ai_match_quota");
+    if (limitError || withinLimit !== true) {
+      return errorResponse(
+        limitError ? "AI matching is temporarily unavailable. Please try again later." : "You have reached the AI matching limit. Try again in one hour.",
+        limitError ? 503 : 429
+      );
+    }
+    result = await enhanceMatchWithGemini(input, baseline);
+  }
 
   return NextResponse.json({
     jobId: job.id,
@@ -104,6 +109,9 @@ export async function POST(request: NextRequest) {
     strengths: result.strengths,
     improvementAreas: result.improvementAreas,
     poweredBy: result.source,
+    aiDataNotice: body.aiConsent === true
+      ? "With your consent, Abijob sent your skills, experience years, professional category, and the job title/category/required skills to Google Gemini to improve this match. Names, contact details, free-text biography, education, and precise locations are not sent."
+      : "This match used Abijob's rules-based calculation. No profile data was sent to Google Gemini.",
     disclaimer: "This is an informational compatibility estimate, not a hiring decision or guarantee.",
   }, {
     headers: {
