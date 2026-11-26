@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useState } from "react";
 import { AlertCircle, CheckCircle2, LoaderCircle, Sparkles, Target, TrendingUp } from "lucide-react";
 import "./JobMatchCard.css";
@@ -57,6 +58,8 @@ export default function JobMatchCard({ jobId }: { jobId: string }) {
     }
   }
 
+  const signInRequired = error.toLowerCase().includes("please sign in");
+
   return (
     <section className="job-match-card" aria-labelledby="job-match-title">
       <div className="job-match-heading">
@@ -80,8 +83,8 @@ export default function JobMatchCard({ jobId }: { jobId: string }) {
             <strong>Use Google Gemini for a deeper match analysis (optional)</strong>
             <small>
               If selected, Abijob sends your skills, years of experience and professional category,
-              plus the job title, category and required skills, to Google Gemini. Your name,
-              contact details, biography, education and precise location are not sent.
+              plus the job title, category, experience level and required skills, to Google Gemini.
+              Your name, contact details, biography, education and precise location are not sent.
             </small>
           </span>
         </label>
@@ -100,7 +103,10 @@ export default function JobMatchCard({ jobId }: { jobId: string }) {
       {error && (
         <div className="job-match-error" role="alert">
           <AlertCircle size={18} />
-          <span>{error}</span>
+          <span>
+            {error}
+            {signInRequired && <> <Link href="/login?redirectTo=%2Fjobs">Sign in to continue.</Link></>}
+          </span>
         </div>
       )}
 
