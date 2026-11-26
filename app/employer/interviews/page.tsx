@@ -94,6 +94,7 @@ const employerLinks = [
   { href: "/employer/jobs", label: "My job posts", icon: FileText },
   { href: "/employer/applicants", label: "Applicants", icon: Users },
   { href: "/employer/interviews", label: "Interviews", icon: CalendarDays },
+  { href: "/employer/employment", label: "Employment & offers", icon: BriefcaseBusiness },
   { href: "/employer/messages", label: "Messages", icon: MessageCircle },
   { href: "/employer/notifications", label: "Notifications", icon: Bell },
   { href: "/employer/profile", label: "Company profile", icon: Building2 },
