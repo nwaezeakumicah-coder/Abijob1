@@ -599,16 +599,30 @@ export default function EmployerInterviewsPage() {
           );
         }
 
+        const { error: notificationError } = await supabase.rpc("notify_interview_participant", {
+          p_interview_id: updatedInterview.id,
+          p_event: "rescheduled",
+        });
+        if (notificationError) console.error("Interview reschedule notification failed:", notificationError);
         setSuccess("Interview rescheduled successfully.");
       } else {
-        const { error: insertError } = await supabase
+        const { data: createdInterview, error: insertError } = await supabase
           .from("interviews")
           .insert({
             ...interviewData,
             status: "scheduled",
-          });
+          })
+          .select("id")
+          .single();
 
         if (insertError) throw insertError;
+        if (createdInterview) {
+          const { error: notificationError } = await supabase.rpc("notify_interview_participant", {
+            p_interview_id: createdInterview.id,
+            p_event: "invited",
+          });
+          if (notificationError) console.error("Interview invitation notification failed:", notificationError);
+        }
 
         setSuccess(
           form.interviewType === "live_chat"
@@ -709,6 +723,15 @@ export default function EmployerInterviewsPage() {
         throw new Error(
           "The interview status was not changed. Refresh and check its current status."
         );
+      }
+
+      const notificationEvent = status === "cancelled" ? "cancelled" : status === "completed" ? "completed" : null;
+      if (notificationEvent) {
+        const { error: notificationError } = await supabase.rpc("notify_interview_participant", {
+          p_interview_id: interview.id,
+          p_event: notificationEvent,
+        });
+        if (notificationError) console.error("Interview status notification failed:", notificationError);
       }
 
       setInterviews((current) =>
