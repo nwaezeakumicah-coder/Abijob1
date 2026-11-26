@@ -21,7 +21,7 @@ export default function EmployerEmploymentPage(){
  const supabase=useMemo(()=>createClient(),[]),router=useRouter();
  const [applications,setApplications]=useState<Application[]>([]),[offers,setOffers]=useState<Offer[]>([]),[records,setRecords]=useState<RecordRow[]>([]),[interviews,setInterviews]=useState<Interview[]>([]),[feedback,setFeedback]=useState<Record<string,Feedback>>({});
  const [loading,setLoading]=useState(true),[saving,setSaving]=useState(false),[busy,setBusy]=useState(""),[error,setError]=useState(""),[success,setSuccess]=useState("");
- const [applicationId,setApplicationId]=useState(""),[salary,setSalary]=useState(""),[currency,setCurrency]=useState("NGN"),[type,setType]=useState("full_time"),[location,setLocation]=useState(""),[startDate,setStartDate]=useState(""),[expiry,setExpiry]=useState(()=>{const d=new Date(Date.now()+7*86400000);return new Date(d.getTime()-d.getTimezoneOffset()*60000).toISOString().slice(0,16)}),[terms,setTerms]=useState("");
+ const [applicationId,setApplicationId]=useState(""),[salary,setSalary]=useState(""),[currency,setCurrency]=useState("NGN"),[type,setType]=useState("full_time"),[location,setLocation]=useState(""),[startDate,setStartDate]=useState(""),[expiry,setExpiry]=useState(""),[terms,setTerms]=useState("");
  const load=useCallback(async()=>{
   setLoading(true);setError("");
   try{
@@ -48,6 +48,7 @@ export default function EmployerEmploymentPage(){
   }catch(e){setError(e instanceof Error?e.message:"Recruitment records could not be loaded.");}
   finally{setLoading(false);}
  },[router,supabase]);
+ useEffect(()=>{const d=new Date(Date.now()+7*86400000);setExpiry(new Date(d.getTime()-d.getTimezoneOffset()*60000).toISOString().slice(0,16));},[]);
  useEffect(()=>{void load()},[load]);
  async function issue(event:FormEvent){event.preventDefault();setError("");setSuccess("");if(saving)return;
   if(!applicationId||!salary||!location.trim()||!startDate||!expiry){setError("Complete all required offer details.");return;}
