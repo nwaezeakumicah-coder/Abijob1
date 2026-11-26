@@ -1,0 +1,35 @@
+.job-recommendations{margin:0 0 28px;padding:24px;background:#fff;border:1px solid #e5ebe6;border-radius:18px;color:#17251d}
+.jr-heading{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;margin-bottom:20px}
+.jr-eyebrow{display:inline-flex;align-items:center;gap:7px;color:#176b45;font-size:10px;font-weight:800;letter-spacing:1.15px}
+.jr-heading h2{margin:7px 0 5px;font-size:21px;line-height:1.25;font-weight:800}
+.jr-heading p{margin:0;color:#68766d;font-size:13px;line-height:1.6}
+.jr-heading>button{display:inline-flex;align-items:center;gap:7px;flex-shrink:0;padding:9px 12px;border:1px solid #dce6de;border-radius:9px;background:#fff;color:#176b45;font-size:12px;font-weight:700;cursor:pointer}
+.jr-heading>button:disabled{opacity:.6;cursor:wait}
+.jr-list{display:grid;gap:11px}
+.jr-card{display:grid;grid-template-columns:62px minmax(0,1fr) 36px;align-items:center;gap:14px;padding:15px;border:1px solid #e8eee9;border-radius:13px;background:#fcfdfb}
+.jr-score{width:58px;height:58px;display:flex;flex-direction:column;align-items:center;justify-content:center;border-radius:12px;background:#edf5ee;color:#176b45}
+.jr-score strong{font-size:17px;line-height:1.1;font-weight:850}
+.jr-score span{margin-top:3px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.4px}
+.jr-category{color:#688071;font-size:10px;font-weight:800;letter-spacing:.7px;text-transform:uppercase}
+.jr-copy h3{margin:4px 0 7px;font-size:15px;line-height:1.35;font-weight:800}
+.jr-copy h3 a{color:#17251d;text-decoration:none}
+.jr-copy h3 a:hover{color:#176b45}
+.jr-meta{display:flex;flex-wrap:wrap;gap:12px;color:#68766d;font-size:11px}
+.jr-meta span{display:inline-flex;align-items:center;gap:5px}
+.jr-copy>p{margin:8px 0 0;color:#66746b;font-size:12px;line-height:1.5}
+.jr-skills{display:flex;flex-wrap:wrap;gap:6px;margin-top:9px}
+.jr-skills span{padding:4px 8px;border-radius:20px;background:#f0f5ee;color:#315b40;font-size:10px;font-weight:700}
+.jr-open{width:34px;height:34px;display:grid;place-items:center;border-radius:9px;background:#176b45;color:#fff}
+.jr-state,.jr-empty{min-height:115px;display:flex;align-items:center;justify-content:center;gap:12px;padding:22px;border:1px dashed #dce6de;border-radius:12px;color:#68766d;font-size:13px;text-align:center}
+.jr-error{flex-wrap:wrap;color:#9b352d}
+.jr-error button,.jr-empty a{color:#176b45;font-weight:750;text-decoration:none}
+.jr-empty{flex-direction:column;gap:7px;padding:28px}
+.jr-empty>span{width:46px;height:46px;display:grid;place-items:center;border-radius:12px;background:#edf5ee;color:#176b45}
+.jr-empty strong{color:#17251d;font-size:14px}
+.jr-empty p{max-width:430px;margin:0;color:#68766d;font-size:12px;line-height:1.6}
+.jr-empty a{display:inline-flex;align-items:center;gap:6px;margin-top:5px;font-size:12px}
+.jr-footnote{margin-top:13px;color:#8a958d;font-size:10px;line-height:1.5}
+.jr-loader{width:17px;height:17px;border:2px solid #dce8de;border-top-color:#176b45;border-radius:50%;animation:jr-rotate .8s linear infinite}
+.jr-spin{animation:jr-rotate .8s linear infinite}
+@keyframes jr-rotate{to{transform:rotate(360deg)}}
+@media(max-width:600px){.job-recommendations{padding:17px;border-radius:14px}.jr-heading h2{font-size:18px}.jr-heading>button{padding:8px}.jr-heading>button span{display:none}.jr-card{grid-template-columns:49px minmax(0,1fr) 30px;gap:10px;padding:11px}.jr-score{width:46px;height:46px}.jr-score strong{font-size:14px}.jr-copy h3{font-size:13px}.jr-meta{gap:7px;font-size:10px}.jr-open{width:29px;height:29px}}
