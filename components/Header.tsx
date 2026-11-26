@@ -399,7 +399,7 @@ function HeaderContent() {
                       aria-label={`${accountName} dashboard`}
                       onClick={closeMenu}
                     >
-                    <ProfileImage name={accountName} path={avatarUrl} fit={role === "employer" ? "contain" : "cover"} />
+                    <ProfileImage name={accountName} path={avatarPath} fit={role === "employer" ? "contain" : "cover"} />
                     </Link>
                     <Link
                       href={dashboardHref}
