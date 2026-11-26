@@ -62,6 +62,12 @@ const navigation = [
         icon: BriefcaseBusiness,
       },
       {
+        label: "Recruitment & Employment",
+        href: "/recruitment",
+        permissions: ["recruitment.view"],
+        icon: CalendarDays,
+      },
+      {
         label: "Employers",
         href: "/employers",
         permissions: ["employers.view", "employers.manage"],
