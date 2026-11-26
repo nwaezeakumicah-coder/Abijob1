@@ -2,8 +2,6 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { calculateBaselineMatch, enhanceMatchWithGemini, type MatchInput } from "@/lib/ai/job-matching";
 
-export const runtime = "nodejs";
-export const dynamic = "force-dynamic";
 
 type Profile = {
   role: string;
