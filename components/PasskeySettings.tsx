@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { Fingerprint, KeyRound, Pencil, Plus, ShieldCheck, Trash2, LockKeyhole } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
+import { registerPlatformPasskey } from "@/lib/auth/register-platform-passkey";
 import "./PasskeySettings.css";
 
 type Passkey = {
@@ -195,9 +196,8 @@ export default function PasskeySettings() {
         return;
       }
 
-      const { error: registerError } = await supabase.auth.registerPasskey();
-      if (registerError) throw registerError;
-      setMessage("Passkey added. You can now use your device's biometric or screen lock to sign in.");
+      await registerPlatformPasskey(supabase);
+      setMessage("This device is ready. Use its fingerprint, face recognition or screen-lock PIN to sign in.");
       await loadPasskeys();
     } catch (cause) {
       setError(true);
