@@ -567,6 +567,10 @@ export default function ProfessionalDashboardPage() {
             <CalendarClock size={19} />
             <span>Interview invitations</span>
           </Link>
+          <Link href="/dashboard/employment" onClick={closeMobileMenu}>
+            <BriefcaseBusiness size={19} />
+            <span>Employment & offers</span>
+          </Link>
 
           <Link href="/professional/verification" onClick={closeMobileMenu}>
             <ShieldCheck size={19} />
