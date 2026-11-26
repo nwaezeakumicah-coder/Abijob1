@@ -23,6 +23,7 @@ import { createClient } from "@/lib/supabase/server";
 import SaveJobButton from "@/components/SaveJobButton";
 import ReportJobButton from "@/components/ReportJobButton";
 import ProfileImage from "@/components/ProfileImage";
+import JobMatchCard from "@/components/JobMatchCard";
 import "./job-details.css";
 
 type Job = {
@@ -294,6 +295,8 @@ async function JobDetailsContent({
         <section className="job-details-content">
           <div className="job-details-container job-details-layout">
             <div className="job-details-main">
+              <JobMatchCard jobId={job.id} />
+
               <section className="job-content-card">
                 <div className="job-content-heading">
                   <span className="job-heading-icon">
