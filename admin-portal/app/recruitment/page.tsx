@@ -2,7 +2,7 @@ import Link from "next/link";
 import { getActiveAdmin } from "../../lib/admin-auth";
 import { createAdminClient } from "../../lib/supabase/admin";
 import AdminShell from "../../components/AdminShell";
-import { BriefcaseBusiness, CalendarClock, CheckCircle2, FileText, Users } from "lucide-react";
+import { BriefcaseBusiness, CalendarClock, CheckCircle2, Clock3, FileText, Users } from "lucide-react";
 import "./recruitment.css";
 
 export const dynamic = "force-dynamic";
@@ -32,7 +32,7 @@ export default async function RecruitmentPage(){
   {label:"Interviews scheduled",value:interviews.count??0,icon:CalendarClock},
   {label:"Upcoming interviews",value:upcoming.count??0,icon:Users},
   {label:"Employment offers",value:offers.count??0,icon:FileText},
-  {label:"Awaiting candidate response",value:awaiting.count??0,icon:ClockIcon},
+  {label:"Awaiting candidate response",value:awaiting.count??0,icon:Clock3},
   {label:"Offers accepted",value:accepted.count??0,icon:CheckCircle2},
   {label:"Confirmed hires",value:confirmed.count??0,icon:BriefcaseBusiness},
   {label:"Employment records",value:records.count??0,icon:BriefcaseBusiness}
@@ -51,4 +51,3 @@ export default async function RecruitmentPage(){
  </section></AdminShell>;
 }
 
-function ClockIcon({size=20}:{size?:number}){return <CalendarClock size={size}/>;}
