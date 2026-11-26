@@ -100,9 +100,13 @@ export async function GET() {
   const appliedIds = new Set((applicationsError ? [] : applications ?? []).map((row) => row.job_id));
   const today = new Date().toISOString().slice(0, 10);
 
-  const recommendations = ((jobs ?? []) as JobRecord[])
+  const approvedJobs = (jobs ?? []) as JobRecord[];
+  const openApprovedJobs = approvedJobs.filter(
+    (job) => !job.application_deadline || job.application_deadline >= today
+  );
+  const appliedOpenJobsCount = openApprovedJobs.filter((job) => appliedIds.has(job.id)).length;
+  const recommendations = openApprovedJobs
     .filter((job) => !appliedIds.has(job.id))
-    .filter((job) => !job.application_deadline || job.application_deadline >= today)
     .map((job) => {
       const input: MatchInput = {
         skills,
@@ -142,7 +146,12 @@ export async function GET() {
     .sort((a, b) => b.matchScore - a.matchScore || b.createdAt.localeCompare(a.createdAt))
     .slice(0, 6);
 
-  return NextResponse.json({ recommendations, source: "abijob_rules" }, {
+  return NextResponse.json({
+    recommendations,
+    source: "abijob_rules",
+    openApprovedJobsCount: openApprovedJobs.length,
+    appliedOpenJobsCount,
+  }, {
     headers: {
       "Cache-Control": "private, no-store, max-age=0",
       "Vary": "Cookie",
