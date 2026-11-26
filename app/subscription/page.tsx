@@ -24,6 +24,7 @@ import {
   XCircle,
 } from "lucide-react";
 import Logo from "../../components/Logo";
+import ProfileImage from "@/components/ProfileImage";
 import { createClient } from "@/lib/supabase/client";
 import "./subscription.css";
 
@@ -60,6 +61,7 @@ type PlanRecord = {
 
 type BillingData = {
   fullName: string;
+  avatarPath: string | null;
   subscription: SubscriptionRecord | null;
   transactions: TransactionRecord[];
   plans: PlanRecord[];
@@ -202,7 +204,7 @@ export default function JobSeekerSubscriptionPage() {
 
         const { data: profile, error: profileError } = await supabase
           .from("profiles")
-          .select("role, full_name")
+          .select("role, full_name, avatar_url")
           .eq("id", user.id)
           .single();
 
@@ -293,6 +295,7 @@ export default function JobSeekerSubscriptionPage() {
 
         setData({
           fullName: profile.full_name || "Job Seeker",
+          avatarPath: profile.avatar_url || null,
           subscription:
             subscriptionResult.data as SubscriptionRecord | null,
           transactions:
@@ -483,13 +486,7 @@ export default function JobSeekerSubscriptionPage() {
         </div>
 
         <div className="js-billing-account">
-          <span className="js-billing-account-avatar">
-            {data.fullName
-              .split(" ")
-              .slice(0, 2)
-              .map((part) => part[0]?.toUpperCase() || "")
-              .join("")}
-          </span>
+          <span className="js-billing-account-avatar"><ProfileImage name={data.fullName} path={data.avatarPath} /></span>
 
           <div>
             <strong>{data.fullName}</strong>

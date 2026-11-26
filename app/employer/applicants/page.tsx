@@ -29,6 +29,7 @@ import {
 } from "lucide-react";
 
 import Logo from "../../../components/Logo";
+import ProfileImage from "@/components/ProfileImage";
 import { createClient } from "@/lib/supabase/client";
 import "./applicants.css";
 
@@ -48,6 +49,7 @@ type Applicant = {
   email: string;
   phone: string;
   initials: string;
+  avatarPath: string | null;
   role: string;
   skills: string;
   experience: string;
@@ -62,6 +64,7 @@ type Applicant = {
 type ApplicantProfile = {
   id: string;
   full_name: string | null;
+  avatar_url?: string | null;
   headline: string | null;
   skills: string[] | null;
   experience: string | null;
@@ -173,6 +176,7 @@ export default function EmployerApplicantsPage() {
 
   const [applicants, setApplicants] = useState<Applicant[]>([]);
   const [companyName, setCompanyName] = useState("Your Company");
+  const [companyLogoPath, setCompanyLogoPath] = useState<string | null>(null);
   const [activeStatus, setActiveStatus] = useState("All applicants");
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedJob, setSelectedJob] = useState("All jobs");
@@ -234,7 +238,7 @@ export default function EmployerApplicantsPage() {
         const { data: employerProfile, error: employerProfileError } =
           await supabase
             .from("employer_profiles")
-            .select("business_name")
+            .select("business_name, logo_url")
             .eq("user_id", user.id)
             .maybeSingle();
 
@@ -248,6 +252,7 @@ export default function EmployerApplicantsPage() {
         setCompanyName(
           employerProfile?.business_name?.trim() || "Your Company"
         );
+        setCompanyLogoPath(employerProfile?.logo_url || null);
 
         // RLS ensures that this query returns only this employer's jobs.
         const { data: jobData, error: jobsError } = await supabase
@@ -367,6 +372,7 @@ export default function EmployerApplicantsPage() {
               email: application.applicant_email || "",
               phone: application.applicant_phone || "",
               initials: getInitials(name),
+              avatarPath: applicantProfile?.avatar_url || null,
               role: jobMap.get(application.job_id) || "Job vacancy",
               skills: normaliseSkills(
                 snapshotSkills,
@@ -604,7 +610,7 @@ export default function EmployerApplicantsPage() {
 
         <div className="applicants-company">
           <div className="applicants-company-icon">
-            <Building2 size={21} />
+            <ProfileImage name={companyName} path={companyLogoPath} fit="contain" />
           </div>
           <div>
             <strong>{companyName}</strong>
@@ -697,7 +703,7 @@ export default function EmployerApplicantsPage() {
 
           <div className="applicants-topbar-account">
             <div className="applicants-account-icon">
-              <Building2 size={18} />
+              <ProfileImage name={companyName} path={companyLogoPath} fit="contain" />
             </div>
             <div>
               <strong>{companyName}</strong>
@@ -877,7 +883,7 @@ export default function EmployerApplicantsPage() {
                   key={applicant.id}
                 >
                   <div className="applicant-avatar green">
-                    {applicant.initials}
+                    <ProfileImage name={applicant.name} path={applicant.avatarPath} />
                   </div>
 
                   <div className="applicant-details">

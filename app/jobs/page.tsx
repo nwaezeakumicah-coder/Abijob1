@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Header from "../../components/Header";
 import Footer from "../../components/Footer";
+import ProfileImage from "@/components/ProfileImage";
 import { createClient } from "@/lib/supabase/client";
 import {
   Search,
@@ -49,6 +50,7 @@ type Job = {
   id: string;
   title: string;
   company: string;
+  companyLogoPath: string | null;
   employerVerified: boolean;
   location: string;
   category: string;
@@ -304,15 +306,19 @@ export default function JobsPage() {
       ];
 
       let companyNames: Record<string, string> = {};
+      let companyLogos: Record<string, string | null> = {};
       let verifiedEmployers = new Set<string>();
 
       if (employerIds.length > 0) {
-        const [profilesResult, verificationResult] = await Promise.all([
+        const [profilesResult, verificationResult, logosResult] = await Promise.all([
           supabase
             .from("profiles")
             .select("id, full_name")
             .in("id", employerIds),
           (supabase as any).rpc("get_public_employer_verification_status", {
+            p_employer_ids: employerIds,
+          }),
+          (supabase as any).rpc("get_public_employer_logos", {
             p_employer_ids: employerIds,
           }),
         ]);
@@ -328,6 +334,14 @@ export default function JobsPage() {
               profile.id,
               profile.full_name || "Abijob Employer",
             ])
+          );
+        }
+
+        if (logosResult.error) {
+          console.warn("Employer logos could not be loaded:", logosResult.error.message);
+        } else {
+          companyLogos = Object.fromEntries(
+            (logosResult.data ?? []).map((row: { employer_id: string; logo_path: string | null }) => [row.employer_id, row.logo_path])
           );
         }
 
@@ -349,6 +363,7 @@ export default function JobsPage() {
         id: job.id,
         title: job.title,
         company: companyNames[job.employer_id] || "Abijob Employer",
+        companyLogoPath: companyLogos[job.employer_id] || null,
         employerVerified: verifiedEmployers.has(job.employer_id),
         location: job.location || "Location not specified",
         category: job.category || "General",
@@ -853,7 +868,7 @@ export default function JobsPage() {
                       <div className="jobs-post-main">
                         <div className="jobs-post-topline">
                           <div className="jobs-company-avatar">
-                            <Building2 size={25} />
+                            <ProfileImage name={job.company} path={job.companyLogoPath} fit="contain" />
                           </div>
 
                           <div className="jobs-post-company">
@@ -1059,7 +1074,7 @@ export default function JobsPage() {
 
             <div className="jobs-details-company">
               <div className="jobs-company-avatar">
-                <Building2 size={26} />
+                <ProfileImage name={selectedJob.company} path={selectedJob.companyLogoPath} fit="contain" />
               </div>
 
               <div>

@@ -22,6 +22,7 @@ import {
   XCircle,
 } from "lucide-react";
 import Logo from "../../../components/Logo";
+import ProfileImage from "@/components/ProfileImage";
 import { createClient } from "@/lib/supabase/client";
 import "../dashboard/dashboard.css";
 import "./subscription.css";
@@ -135,16 +136,6 @@ const normalizeInterval = (interval: string | null | undefined) => {
   return normalized;
 };
 
-const getInitials = (name: string) => {
-  const parts = name.trim().split(/\s+/).filter(Boolean);
-
-  if (!parts.length) return "EM";
-
-  return parts
-    .slice(0, 2)
-    .map((part) => part[0].toUpperCase())
-    .join("");
-};
 
 const getTransactionDate = (transaction: {
   paid_at: string | null;
@@ -160,6 +151,8 @@ export default function EmployerSubscriptionPage() {
   const [error, setError] = useState("");
   const [fullName, setFullName] = useState("Employer");
   const [businessName, setBusinessName] = useState("Your business");
+  const [businessLogoPath, setBusinessLogoPath] = useState<string | null>(null);
+  const [accountAvatarPath, setAccountAvatarPath] = useState<string | null>(null);
   const [subscription, setSubscription] =
     useState<SubscriptionRecord | null>(null);
   const [transactions, setTransactions] = useState<TransactionRecord[]>([]);
@@ -191,7 +184,7 @@ export default function EmployerSubscriptionPage() {
 
         const { data: profile, error: profileError } = await supabase
           .from("profiles")
-          .select("role, full_name")
+          .select("role, full_name, avatar_url")
           .eq("id", user.id)
           .maybeSingle();
 
@@ -212,6 +205,7 @@ export default function EmployerSubscriptionPage() {
         }
 
         setFullName(profile.full_name || "Employer");
+        setAccountAvatarPath(profile.avatar_url || null);
 
         const [
           { data: employerProfile, error: employerError },
@@ -222,7 +216,7 @@ export default function EmployerSubscriptionPage() {
         ] = await Promise.all([
           supabase
             .from("employer_profiles")
-            .select("business_name")
+            .select("business_name, logo_url")
             .eq("user_id", user.id)
             .maybeSingle(),
 
@@ -270,6 +264,7 @@ export default function EmployerSubscriptionPage() {
         if (planError) throw planError;
 
         setBusinessName(employerProfile?.business_name || "Your business");
+        setBusinessLogoPath(employerProfile?.logo_url || null);
 
         setSubscription(
           (subscriptionRows?.[0] as SubscriptionRecord) || null
@@ -383,7 +378,7 @@ export default function EmployerSubscriptionPage() {
 
         <div className="employer-company-card">
           <div className="employer-company-avatar">
-            {getInitials(businessName)}
+            <ProfileImage name={businessName} path={businessLogoPath} fit="contain" />
           </div>
           <div>
             <strong>{businessName}</strong>
@@ -444,7 +439,7 @@ export default function EmployerSubscriptionPage() {
         <div className="employer-sidebar-bottom">
           <div className="employer-user">
             <div className="employer-user-avatar">
-              {getInitials(fullName)}
+              <ProfileImage name={fullName} path={accountAvatarPath} />
             </div>
             <div>
               <strong>{fullName}</strong>
@@ -491,7 +486,7 @@ export default function EmployerSubscriptionPage() {
               href="/employer/profile"
               className="employer-subscription-profile"
             >
-              {getInitials(fullName)}
+              <ProfileImage name={fullName} path={accountAvatarPath} />
             </Link>
           </div>
         </header>

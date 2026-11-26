@@ -229,8 +229,23 @@ export default function SettingsPage() {
 
         if (!active) return;
 
+        let professionalPhotoPath: string | null = null;
+        if (profile.role === "professional") {
+          const { data: professionalPhotoRecord } = await supabase
+            .from("professional_profiles")
+            .select("profile_data")
+            .eq("user_id", user.id)
+            .maybeSingle();
+          professionalPhotoPath = (
+            (professionalPhotoRecord?.profile_data || {}) as { photo_path?: string }
+          ).photo_path || null;
+        }
         setAccountName(displayName);
-        setAccountAvatarPath(profile.avatar_url || null);
+        setAccountAvatarPath(
+          profile.role === "professional"
+            ? professionalPhotoPath || profile.avatar_url || null
+            : profile.avatar_url || null
+        );
         setAccountRole(profile.role as "job_seeker" | "professional");
         setSettings(loadedSettings);
         setStorageReady(true);
@@ -586,7 +601,7 @@ export default function SettingsPage() {
             <span className="settings-account-status">
               <span /> {accountRole === "job_seeker" ? "Job seeker workspace" : "Professional workspace"}
             </span>
-            <div className="settings-topbar-avatar">{accountRole === "job_seeker" ? "JS" : "SP"}</div>
+            <div className="settings-topbar-avatar"><ProfileImage name={accountName} path={accountAvatarPath} /></div>
           </div>
         </header>
 

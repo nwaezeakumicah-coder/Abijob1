@@ -104,6 +104,13 @@
   color: #d7f078;
 }
 
+.employer-company-icon img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: inherit;
+}
+
 .employer-company-card > div:nth-child(2) {
   flex: 1;
   display: flex;
@@ -265,6 +272,13 @@
   color: #176b45;
   font-size: 11px;
   font-weight: 800;
+}
+
+.employer-user-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: inherit;
 }
 
 /* MAIN AREA */

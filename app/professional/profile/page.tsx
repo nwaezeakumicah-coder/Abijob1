@@ -10,6 +10,7 @@ import {
 } from "react";
 import Link from "next/link";
 import Logo from "../../../components/Logo";
+import ProfileImage from "@/components/ProfileImage";
 import { createClient } from "../../../lib/supabase/client";
 import {
   Activity,
@@ -678,15 +679,6 @@ export default function ProfessionalProfilePage() {
     (completedItems / completenessItems.length) * 100
   );
 
-  const initials =
-    profile.fullName
-      .split(" ")
-      .filter(Boolean)
-      .map((part) => part[0])
-      .join("")
-      .slice(0, 2)
-      .toUpperCase() || "P";
-
   if (!hydrated) {
     return (
       <div className="pp-page">
@@ -784,20 +776,7 @@ export default function ProfessionalProfilePage() {
 
             <div className="pp-user">
               <div className="pp-user-avatar">
-                {profile.photo ? (
-                  <img
-                    src={profile.photo}
-                    alt="Profile"
-                    style={{
-                      width: "100%",
-                      height: "100%",
-                      objectFit: "cover",
-                      borderRadius: "50%",
-                    }}
-                  />
-                ) : (
-                  initials
-                )}
+                <ProfileImage name={profile.fullName || "Professional"} path={profile.photo} />
               </div>
 
               <div className="pp-user-info">
@@ -861,20 +840,7 @@ export default function ProfessionalProfilePage() {
                 <div className="pp-profile-intro">
                   <div className="pp-avatar-wrap">
                     <div className="pp-avatar">
-                      {profile.photo ? (
-                        <img
-                          src={profile.photo}
-                          alt="Your profile"
-                          style={{
-                            width: "100%",
-                            height: "100%",
-                            objectFit: "cover",
-                            borderRadius: "50%",
-                          }}
-                        />
-                      ) : (
-                        initials
-                      )}
+                      <ProfileImage name={profile.fullName || "Professional"} path={profile.photo} />
                     </div>
 
                     <label

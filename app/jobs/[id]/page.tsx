@@ -22,6 +22,7 @@ import {
 import { createClient } from "@/lib/supabase/server";
 import SaveJobButton from "@/components/SaveJobButton";
 import ReportJobButton from "@/components/ReportJobButton";
+import ProfileImage from "@/components/ProfileImage";
 import "./job-details.css";
 
 type Job = {
@@ -29,6 +30,7 @@ type Job = {
   title: string;
   company: string;
   initials: string;
+  companyLogoPath: string | null;
   category: string;
   location: string;
   type: string;
@@ -149,7 +151,7 @@ async function JobDetailsContent({
     notFound();
   }
 
-  const [employerResult, profileResult] = await Promise.all([
+  const [employerResult, profileResult, logoResult] = await Promise.all([
     supabase
       .from("employer_profiles")
       .select("business_name, description, verification_status")
@@ -161,6 +163,9 @@ async function JobDetailsContent({
       .select("full_name")
       .eq("id", jobData.employer_id)
       .maybeSingle(),
+    (supabase as any).rpc("get_public_employer_logos", {
+      p_employer_ids: [jobData.employer_id],
+    }),
   ]);
 
   const company =
@@ -181,6 +186,7 @@ async function JobDetailsContent({
     title: jobData.title,
     company,
     initials: initials || "AB",
+    companyLogoPath: logoResult.data?.[0]?.logo_path || null,
     category: jobData.category || "General",
     location: jobData.location || "Location not specified",
     type: formatEmploymentType(jobData.employment_type),
@@ -231,7 +237,7 @@ async function JobDetailsContent({
             <div className="job-heading-card">
               <div className="job-heading-main">
                 <div className="job-company-logo">
-                  <span>{job.initials}</span>
+                  <ProfileImage name={job.company} path={job.companyLogoPath} fit="contain" />
                 </div>
 
                 <div className="job-heading-copy">
@@ -352,7 +358,7 @@ async function JobDetailsContent({
 
                 <div className="job-about-company">
                   <div className="job-company-logo small">
-                    {job.initials}
+                    <ProfileImage name={job.company} path={job.companyLogoPath} fit="contain" />
                   </div>
 
                   <div>

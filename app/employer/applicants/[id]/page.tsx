@@ -31,6 +31,7 @@ import {
 } from "lucide-react";
 
 import Logo from "../../../../components/Logo";
+import ProfileImage from "@/components/ProfileImage";
 import { createClient } from "@/lib/supabase/client";
 import "./applicant-detail.css";
 
@@ -47,6 +48,7 @@ type ApplicantDetails = {
   applicantId: string;
   jobId: string;
   name: string;
+  avatarPath: string | null;
   email: string;
   phone: string;
   headline: string;
@@ -63,6 +65,7 @@ type ApplicantDetails = {
 type ApplicantProfile = {
   id: string;
   full_name: string | null;
+  avatar_url?: string | null;
   headline: string | null;
   skills: string[] | null;
   experience: string | null;
@@ -130,17 +133,6 @@ function formatExperience(value: unknown) {
   return String(value);
 }
 
-function getInitials(name: string) {
-  return (
-    name
-      .trim()
-      .split(/\s+/)
-      .filter(Boolean)
-      .slice(0, 2)
-      .map((part) => part[0].toUpperCase())
-      .join("") || "A"
-  );
-}
 
 function normaliseSkills(
   snapshotSkills: string | null | undefined,
@@ -172,6 +164,7 @@ function EmployerApplicantDetailsContent() {
   const [applicant, setApplicant] =
     useState<ApplicantDetails | null>(null);
   const [companyName, setCompanyName] = useState("Your company");
+  const [companyLogoPath, setCompanyLogoPath] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [updating, setUpdating] = useState(false);
@@ -238,7 +231,7 @@ function EmployerApplicantDetailsContent() {
         const { data: employerProfile, error: employerProfileError } =
           await supabase
             .from("employer_profiles")
-            .select("business_name")
+            .select("business_name, logo_url")
             .eq("user_id", user.id)
             .maybeSingle();
 
@@ -252,6 +245,7 @@ function EmployerApplicantDetailsContent() {
         setCompanyName(
           employerProfile?.business_name?.trim() || "Your company"
         );
+        setCompanyLogoPath(employerProfile?.logo_url || null);
 
         // Load the application. RLS also restricts access to applications
         // for jobs belonging to this employer.
@@ -303,38 +297,21 @@ function EmployerApplicantDetailsContent() {
           );
         }
 
-        // Use the secure RPC for older applications whose snapshot fields
-        // are empty. Do not query another user's profile directly.
-        const hasMissingSnapshot =
-          !application.applicant_name ||
-          !application.applicant_title ||
-          !application.applicant_location ||
-          !application.applicant_experience ||
-          !application.applicant_skills;
+        // Always use the secure RPC for the applicant's current avatar path.
+        // Application snapshots intentionally do not store private profile images.
+        const { data: profileData, error: rpcError } =
+          await supabase.rpc("get_employer_applicant_profiles", {
+            p_applicant_ids: [application.applicant_id],
+          });
 
         let applicantProfile: ApplicantProfile | null = null;
-
-        if (hasMissingSnapshot) {
-          const { data: profileData, error: rpcError } =
-            await supabase.rpc(
-              "get_employer_applicant_profiles",
-              {
-                p_applicant_ids: [application.applicant_id],
-              }
-            );
-
-          if (rpcError) {
-            console.error(
-              "Secure applicant profile lookup:",
-              rpcError.message
-            );
-          } else {
-            applicantProfile =
-              ((profileData || []) as ApplicantProfile[]).find(
-                (profile) =>
-                  profile.id === application.applicant_id
-              ) || null;
-          }
+        if (rpcError) {
+          console.error("Secure applicant profile lookup:", rpcError.message);
+        } else {
+          applicantProfile =
+            ((profileData || []) as ApplicantProfile[]).find(
+              (profile) => profile.id === application.applicant_id
+            ) || null;
         }
 
         const statusValue = String(
@@ -357,6 +334,7 @@ function EmployerApplicantDetailsContent() {
           applicantId: application.applicant_id,
           jobId: application.job_id,
           name,
+          avatarPath: applicantProfile?.avatar_url || null,
           email: application.applicant_email || "",
           phone: application.applicant_phone || "",
           headline:
@@ -568,7 +546,7 @@ function EmployerApplicantDetailsContent() {
 
         <div className="applicant-detail-company">
           <div className="applicant-detail-company-icon">
-            <Building2 size={21} />
+            <ProfileImage name={companyName} path={companyLogoPath} fit="contain" />
           </div>
           <div>
             <strong>{companyName}</strong>
@@ -629,7 +607,7 @@ function EmployerApplicantDetailsContent() {
           </div>
 
           <div className="applicant-detail-topbar-company">
-            <Building2 size={18} />
+            <span className="applicant-detail-topbar-company-avatar"><ProfileImage name={companyName} path={companyLogoPath} fit="contain" /></span>
             <span>{companyName}</span>
           </div>
         </header>
@@ -686,7 +664,7 @@ function EmployerApplicantDetailsContent() {
 
           <section className="applicant-detail-profile-card">
             <div className="applicant-detail-avatar">
-              {getInitials(applicant.name)}
+              <ProfileImage name={applicant.name} path={applicant.avatarPath} />
             </div>
 
             <div className="applicant-detail-identity">

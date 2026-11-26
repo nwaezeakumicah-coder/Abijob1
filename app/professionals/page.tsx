@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import Header from "../../components/Header";
 import Footer from "../../components/Footer";
+import ProfileImage from "@/components/ProfileImage";
 import { createClient } from "@/lib/supabase/client";
 import {
   Search,
@@ -427,12 +428,7 @@ export default function ProfessionalsPage() {
                       >
                         <div className="professional-card-top">
                           <div className="professional-avatar">
-                            {person.avatar_path ? (
-                              <img
-                                src={supabase.storage.from("abi-job-public-images").getPublicUrl(person.avatar_path).data.publicUrl}
-                                alt=""
-                              />
-                            ) : getInitials(name)}
+                            <ProfileImage name={name} path={person.avatar_path} />
                           </div>
                           {person.is_verified && (
                             <span className="professional-verified-badge" style={{ display: "inline-flex", alignItems: "center", gap: 5, padding: "6px 9px", borderRadius: 20, background: "#edf7ef", color: "#176b45", fontSize: 11, fontWeight: 800 }}>
@@ -638,12 +634,7 @@ export default function ProfessionalsPage() {
             </button>
 
             <div className="professional-details-avatar">
-              {selectedProfessional.avatar_path ? (
-                <img
-                  src={supabase.storage.from("abi-job-public-images").getPublicUrl(selectedProfessional.avatar_path).data.publicUrl}
-                  alt=""
-                />
-              ) : getInitials(selectedProfessional.full_name || "Professional")}
+              <ProfileImage name={selectedProfessional.full_name || "Professional"} path={selectedProfessional.avatar_path} />
             </div>
 
             <span className="professional-details-eyebrow">

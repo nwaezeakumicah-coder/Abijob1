@@ -7,6 +7,7 @@ type ProfileImageProps = {
   name: string;
   path?: string | null;
   className?: string;
+  fit?: "cover" | "contain";
 };
 
 function initials(name: string) {
@@ -23,34 +24,38 @@ export default function ProfileImage({
   name,
   path,
   className = "",
+  fit = "cover",
 }: ProfileImageProps) {
   const supabase = useMemo(() => createClient(), []);
   const [imageUrl, setImageUrl] = useState("");
+  const [imageFailed, setImageFailed] = useState(false);
 
   useEffect(() => {
     let active = true;
 
     async function loadImage() {
       setImageUrl("");
-      if (!path) return;
+      setImageFailed(false);
+      const imagePath = path?.trim();
+      if (!imagePath) return;
 
       try {
-        if (path.startsWith("http://") || path.startsWith("https://")) {
-          if (active) setImageUrl(path);
+        if (imagePath.startsWith("http://") || imagePath.startsWith("https://")) {
+          if (active) setImageUrl(imagePath);
           return;
         }
 
-        if (path.startsWith("avatars/") || path.startsWith("employer-logos/")) {
+        if (imagePath.startsWith("avatars/") || imagePath.startsWith("employer-logos/")) {
           const url = supabase.storage
             .from("abi-job-public-images")
-            .getPublicUrl(path).data.publicUrl;
+            .getPublicUrl(imagePath).data.publicUrl;
           if (active) setImageUrl(url);
           return;
         }
 
         const { data, error } = await supabase.storage
           .from("abi-job-profile-files")
-          .createSignedUrl(path, 60 * 60);
+          .createSignedUrl(imagePath, 60 * 60 * 24 * 7);
 
         if (error) throw error;
         if (active) setImageUrl(data.signedUrl);
@@ -66,9 +71,9 @@ export default function ProfileImage({
     };
   }, [path, supabase]);
 
-  if (imageUrl) {
-    return <img className={className} src={imageUrl} alt="" />;
+  if (imageUrl && !imageFailed) {
+    return <img className={className} src={imageUrl} alt="" onError={() => setImageFailed(true)} style={{ width: "100%", height: "100%", display: "block", objectFit: fit }} />;
   }
 
-  return <span className={className} aria-hidden="true">{initials(name)}</span>;
+  return <span className={className} aria-hidden="true" style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center", overflow: "hidden" }}>{initials(name)}</span>;
 }

@@ -13,6 +13,7 @@ import {
 import { useRouter } from "next/navigation";
 import Logo from "../../components/Logo";
 import { createClient } from "@/lib/supabase/client";
+import ProfileImage from "@/components/ProfileImage";
 import {
   ArrowLeft,
   Bell,
@@ -106,6 +107,7 @@ type Conversation = {
   name: string;
   role: string;
   initials: string;
+  avatarUrl: string | null;
   color: string;
   unread: number;
   lastMessage: string;
@@ -187,6 +189,7 @@ export default function MessagesPage() {
   const [accessChecked, setAccessChecked] = useState(false);
   const [userId, setUserId] = useState("");
   const [userName, setUserName] = useState("Job Seeker");
+  const [userAvatarPath, setUserAvatarPath] = useState<string | null>(null);
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [activeId, setActiveId] = useState("");
   const [search, setSearch] = useState("");
@@ -232,6 +235,7 @@ export default function MessagesPage() {
           name,
           role: isDirect ? "Skilled Professional" : row.job_title?.trim() || "Job application",
           initials: getInitials(name),
+          avatarUrl: row.avatar_url || null,
           color: AVATAR_COLORS[index % AVATAR_COLORS.length],
           unread: Number(row.unread_count || 0),
           lastMessage: row.last_message || (isDirect
@@ -370,7 +374,7 @@ export default function MessagesPage() {
 
       const { data: profile, error: profileError } = await supabase
         .from("profiles")
-        .select("role, full_name")
+        .select("role, full_name, avatar_url")
         .eq("id", user.id)
         .maybeSingle();
 
@@ -681,8 +685,6 @@ export default function MessagesPage() {
     );
   }
 
-  const avatarInitials = getInitials(userName);
-
   return (
     <main className="messages-page">
       <aside className="messages-sidebar">
@@ -740,7 +742,7 @@ export default function MessagesPage() {
           </Link>
 
           <div className="messages-user-mini">
-            <div className="messages-user-avatar">{avatarInitials}</div>
+            <div className="messages-user-avatar"><ProfileImage name={userName} path={userAvatarPath} /></div>
             <div className="messages-user-info">
               <strong>{userName}</strong>
               <span>Job Seeker</span>
@@ -772,7 +774,7 @@ export default function MessagesPage() {
               aria-label="Open your profile"
               onClick={() => router.push("/profile")}
             >
-              {avatarInitials}
+              <ProfileImage name={userName} path={userAvatarPath} />
             </button>
           </div>
         </header>
@@ -887,7 +889,7 @@ export default function MessagesPage() {
                       <div
                         className={`messages-avatar avatar-${conversation.color}`}
                       >
-                        {conversation.initials}
+                        <ProfileImage name={conversation.name} path={conversation.avatarUrl} />
                       </div>
 
                       <div className="messages-conversation-details">
@@ -949,7 +951,7 @@ export default function MessagesPage() {
                       <div
                         className={`messages-avatar avatar-${activeConversation.color}`}
                       >
-                        {activeConversation.initials}
+                        <ProfileImage name={activeConversation.name} path={activeConversation.avatarUrl} />
                       </div>
 
                       <div>
@@ -1038,7 +1040,7 @@ export default function MessagesPage() {
                               <div
                                 className={`messages-message-avatar avatar-${activeConversation.color}`}
                               >
-                                {activeConversation.initials}
+                                <ProfileImage name={activeConversation.name} path={activeConversation.avatarUrl} />
                               </div>
                             )}
 

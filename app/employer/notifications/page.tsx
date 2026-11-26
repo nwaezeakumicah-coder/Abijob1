@@ -24,6 +24,7 @@ import {
   Trash2,
 } from "lucide-react";
 import Logo from "../../../components/Logo";
+import ProfileImage from "@/components/ProfileImage";
 import { createClient } from "../../../lib/supabase/client";
 import "./notifications.css";
 
@@ -149,6 +150,7 @@ export default function EmployerNotificationsPage() {
   const [accessChecked, setAccessChecked] = useState(false);
   const [loading, setLoading] = useState(true);
   const [userId, setUserId] = useState<string | null>(null);
+  const [companyLogoPath, setCompanyLogoPath] = useState<string | null>(null);
   const [error, setError] = useState("");
   const [actionLoading, setActionLoading] = useState(false);
 
@@ -268,8 +270,15 @@ export default function EmployerNotificationsPage() {
           }
         }
 
+        const { data: employerIdentity } = await supabase
+          .from("employer_profiles")
+          .select("logo_url")
+          .eq("user_id", user.id)
+          .maybeSingle();
+
         if (!active) return;
 
+        setCompanyLogoPath(employerIdentity?.logo_url || null);
         setUserId(user.id);
         setAccessChecked(true);
 
@@ -608,7 +617,7 @@ export default function EmployerNotificationsPage() {
               className="employer-notifications-avatar"
               aria-label="Company profile"
             >
-              E
+              <ProfileImage name="Employer" path={companyLogoPath} fit="contain" />
             </Link>
           </div>
         </header>

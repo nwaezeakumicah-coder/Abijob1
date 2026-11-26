@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Logo from "../../../components/Logo";
+import ProfileImage from "../../../components/ProfileImage";
 import {
   Menu,
   X,
@@ -55,12 +56,14 @@ type ApplicantProfile = {
   full_name: string | null;
   headline: string | null;
   location: string | null;
+  avatar_url?: string | null;
 };
 
 type DashboardApplicant = {
   id: string;
   name: string;
   initials: string;
+  avatarPath: string | null;
   role: string;
   date: string;
   status: string;
@@ -69,7 +72,9 @@ type DashboardApplicant = {
 
 type DashboardData = {
   businessName: string;
+  companyLogoPath: string | null;
   fullName: string;
+  avatarPath: string | null;
   activeJobs: number;
   totalApplications: number;
   pendingJobs: number;
@@ -220,7 +225,7 @@ export default function EmployerDashboardPage() {
 
         const { data: profile, error: profileError } = await supabase
           .from("profiles")
-          .select("role, full_name")
+          .select("role, full_name, avatar_url")
           .eq("id", user.id)
           .single();
 
@@ -247,7 +252,7 @@ export default function EmployerDashboardPage() {
         ] = await Promise.all([
           supabase
             .from("employer_profiles")
-            .select("business_name, business_type, address, phone")
+            .select("business_name, business_type, address, phone, logo_url")
             .eq("user_id", user.id)
             .maybeSingle(),
 
@@ -323,10 +328,9 @@ export default function EmployerDashboardPage() {
 
           if (applicantIds.length > 0) {
             const { data: profiles, error: applicantProfilesError } =
-              await supabase
-                .from("profiles")
-                .select("id, full_name, headline, location")
-                .in("id", applicantIds);
+              await supabase.rpc("get_employer_applicant_profiles", {
+                p_applicant_ids: applicantIds,
+              });
 
             if (applicantProfilesError) throw applicantProfilesError;
             applicantProfiles = (profiles || []) as ApplicantProfile[];
@@ -357,6 +361,7 @@ export default function EmployerDashboardPage() {
               id: application.id,
               name: applicantName,
               initials: getInitials(applicantName),
+              avatarPath: applicantProfile?.avatar_url || null,
               role: relatedJob?.title || "Job application",
               date: formatRelativeDate(application.created_at),
               status: applicationStatus.label,
@@ -382,7 +387,9 @@ export default function EmployerDashboardPage() {
 
         setDashboard({
           businessName,
+          companyLogoPath: employerProfile?.logo_url || null,
           fullName: profile.full_name || "Business Admin",
+          avatarPath: profile.avatar_url || null,
           activeJobs: jobs.filter((job) => job.status === "approved").length,
           totalApplications: totalApplicationsCount,
           pendingJobs: jobs.filter((job) => job.status === "pending").length,
@@ -543,7 +550,7 @@ export default function EmployerDashboardPage() {
 
         <div className="employer-company-card">
           <div className="employer-company-icon">
-            <Building2 size={22} />
+            <ProfileImage name={dashboard.businessName} path={dashboard.companyLogoPath} fit="contain" />
           </div>
           <div>
             <strong>{dashboard.businessName}</strong>
@@ -613,7 +620,7 @@ export default function EmployerDashboardPage() {
 
           <Link href="/employer/profile" className="employer-user">
             <span className="employer-user-avatar">
-              {getInitials(dashboard.fullName)}
+              <ProfileImage name={dashboard.fullName} path={dashboard.avatarPath} />
             </span>
             <span>
               <strong>{dashboard.fullName}</strong>
@@ -666,7 +673,7 @@ export default function EmployerDashboardPage() {
 
             <Link href="/employer/profile" className="employer-topbar-profile">
               <span className="employer-user-avatar">
-                {getInitials(dashboard.businessName)}
+                <ProfileImage name={dashboard.businessName} path={dashboard.companyLogoPath} fit="contain" />
               </span>
               <span>
                 <strong>{dashboard.businessName}</strong>
@@ -886,7 +893,7 @@ export default function EmployerDashboardPage() {
                     key={applicant.id}
                   >
                     <span className="employer-applicant-avatar">
-                      {applicant.initials}
+                      <ProfileImage name={applicant.name} path={applicant.avatarPath} />
                     </span>
                     <div className="employer-applicant-info">
                       <strong>{applicant.name}</strong>

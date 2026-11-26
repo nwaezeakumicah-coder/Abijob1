@@ -9,7 +9,6 @@ import {
   Activity,
   Bell,
   BriefcaseBusiness,
-  Building2,
   CalendarDays,
   CheckCircle2,
   ChevronDown,
@@ -56,6 +55,7 @@ type DatabaseJob = {
 
 type Opportunity = DatabaseJob & {
   company: string;
+  companyLogoPath: string | null;
 };
 
 type Profile = {
@@ -286,7 +286,15 @@ export default function ProfessionalOpportunitiesPage() {
       setFullName(
         typedProfile.full_name || user.email || "Professional"
       );
-      setAccountAvatarPath(typedProfile.avatar_url || null);
+      const { data: professionalPhotoRecord } = await supabase
+        .from("professional_profiles")
+        .select("profile_data")
+        .eq("user_id", user.id)
+        .maybeSingle();
+      const professionalPhotoPath = (
+        (professionalPhotoRecord?.profile_data || {}) as { photo_path?: string }
+      ).photo_path || null;
+      setAccountAvatarPath(professionalPhotoPath || typedProfile.avatar_url || null);
 
       const storedIds = readSavedJobIds();
       setSavedJobIds(storedIds);
@@ -348,13 +356,22 @@ export default function ProfessionalOpportunitiesPage() {
       );
 
       let employerNames: Record<string, string> = {};
+      let employerLogos: Record<string, string | null> = {};
 
       if (employerIds.length > 0) {
-        const { data: employerProfiles, error: employerError } =
-          await supabase
-            .from("profiles")
-            .select("id, full_name")
-            .in("id", employerIds);
+        const [{ data: employerProfiles, error: employerError }, { data: logoRows, error: logosError }] =
+          await Promise.all([
+            supabase.from("profiles").select("id, full_name").in("id", employerIds),
+            (supabase as any).rpc("get_public_employer_logos", { p_employer_ids: employerIds }),
+          ]);
+
+        if (logosError) {
+          console.error("Unable to load employer logos:", logosError);
+        } else {
+          employerLogos = Object.fromEntries(
+            (logoRows || []).map((row: { employer_id: string; logo_path: string | null }) => [row.employer_id, row.logo_path])
+          );
+        }
 
         if (employerError) {
           console.error(
@@ -374,6 +391,7 @@ export default function ProfessionalOpportunitiesPage() {
       const mappedJobs: Opportunity[] = activeJobs.map((job) => ({
         ...job,
         company: employerNames[job.employer_id] || "Abijob Employer",
+        companyLogoPath: employerLogos[job.employer_id] || null,
       }));
 
       setOpportunities(mappedJobs);
@@ -525,13 +543,6 @@ export default function ProfessionalOpportunitiesPage() {
     setJobType("All types");
   }
 
-  const initials = fullName
-    .split(/\s+/)
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((part) => part[0]?.toUpperCase())
-    .join("");
-
   return (
     <div className="po-page">
       <aside className="po-sidebar">
@@ -621,7 +632,7 @@ export default function ProfessionalOpportunitiesPage() {
 
             <div className="po-user">
               <div className="po-user-avatar">
-                {initials || <UserRound size={18} />}
+                <ProfileImage name={fullName || "Professional"} path={accountAvatarPath} />
               </div>
 
               <div className="po-user-info">
@@ -892,7 +903,7 @@ export default function ProfessionalOpportunitiesPage() {
                       <article className="po-job-card" key={job.id}>
                         <div className="po-job-top">
                           <div className="po-company-logo">
-                            <Building2 size={23} />
+                            <ProfileImage name={job.company} path={job.companyLogoPath} fit="contain" />
                           </div>
 
                           <div className="po-job-heading">

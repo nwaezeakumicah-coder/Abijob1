@@ -633,7 +633,7 @@ export default function NotificationsPage() {
             <span className="notifications-topbar-status">
               <span /> Job Seeker workspace
             </span>
-            <div className="notifications-topbar-avatar">JS</div>
+            <div className="notifications-topbar-avatar"><ProfileImage name={accountName} path={accountAvatarPath} /></div>
           </div>
         </header>
 

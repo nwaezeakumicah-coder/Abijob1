@@ -149,14 +149,6 @@ function getRelativeTime(value: string) {
   return "Just now";
 }
 
-function getInitials(name: string) {
-  const parts = name.trim().split(/\s+/).filter(Boolean);
-
-  if (parts.length === 0) return "P";
-  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
-
-  return `${parts[0][0]}${parts[parts.length - 1][0]}`.toUpperCase();
-}
 
 export default function ProfessionalNotificationsPage() {
   const router = useRouter();
@@ -256,9 +248,18 @@ export default function ProfessionalNotificationsPage() {
         return;
       }
 
+      const { data: professionalPhotoRecord } = await supabase
+        .from("professional_profiles")
+        .select("profile_data")
+        .eq("user_id", user.id)
+        .maybeSingle();
+      const professionalPhotoPath = (
+        (professionalPhotoRecord?.profile_data || {}) as { photo_path?: string }
+      ).photo_path || null;
+
       setUserId(user.id);
       setFullName(profile.full_name?.trim() || "Professional");
-      setAccountAvatarPath(profile.avatar_url || null);
+      setAccountAvatarPath(professionalPhotoPath || profile.avatar_url || null);
 
       await loadNotifications(user.id);
     } catch (loadError) {
@@ -317,8 +318,6 @@ export default function ProfessionalNotificationsPage() {
 
     return notification.category === activeFilter;
   });
-
-  const initials = getInitials(fullName);
 
   function getIcon(category: NotificationCategory) {
     switch (category) {

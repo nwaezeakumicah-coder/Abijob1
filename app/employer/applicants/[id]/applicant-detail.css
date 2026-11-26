@@ -168,6 +168,16 @@
   font-weight: 700;
 }
 
+.applicant-detail-topbar-company-avatar {
+  width: 32px;
+  height: 32px;
+  flex: 0 0 32px;
+  display: block;
+  overflow: hidden;
+  border-radius: 50%;
+  background: #edf4ef;
+}
+
 .applicant-detail-content {
   width: 100%;
   max-width: 1450px;

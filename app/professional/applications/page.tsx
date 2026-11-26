@@ -122,14 +122,6 @@ function StatusIcon({ status }: { status: ApplicationStatus }) {
   return <Clock3 size={15} />;
 }
 
-function getInitials(name: string) {
-  const parts = name.trim().split(/\s+/).filter(Boolean);
-
-  if (parts.length === 0) return "P";
-  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
-
-  return `${parts[0][0]}${parts[parts.length - 1][0]}`.toUpperCase();
-}
 
 function formatDate(value: string) {
   const date = new Date(value);
@@ -247,8 +239,16 @@ export default function ProfessionalApplicationsPage() {
         return;
       }
 
+      const { data: professionalPhotoRecord } = await supabase
+        .from("professional_profiles")
+        .select("profile_data")
+        .eq("user_id", user.id)
+        .maybeSingle();
+      const professionalPhotoPath = (
+        (professionalPhotoRecord?.profile_data || {}) as { photo_path?: string }
+      ).photo_path || null;
       setFullName(profile.full_name?.trim() || "Professional");
-      setAccountAvatarPath(profile.avatar_url || null);
+      setAccountAvatarPath(professionalPhotoPath || profile.avatar_url || null);
       setApplicantId(user.id);
 
       const { data: applicationRows, error: applicationsError } =
@@ -382,8 +382,6 @@ export default function ProfessionalApplicationsPage() {
 
   const countStatus = (status: ApplicationStatus) =>
     applications.filter((item) => item.status === status).length;
-
-  const initials = getInitials(fullName);
 
   async function withdrawApplication(application: Application) {
     if (!["Submitted", "Under review", "Shortlisted"].includes(application.status)) {
@@ -536,7 +534,7 @@ export default function ProfessionalApplicationsPage() {
               className="professional-applications-top-avatar"
               aria-label="My profile"
             >
-              {initials}
+              <ProfileImage name={fullName} path={accountAvatarPath} />
             </Link>
           </div>
         </header>

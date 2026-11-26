@@ -53,6 +53,7 @@ type ProfessionalProfileRow = {
   service_area: string | null;
   profile_data: {
     website?: string;
+    photo_path?: string;
     experiences?: unknown[];
   } | null;
   is_public: boolean | null;
@@ -65,6 +66,8 @@ type JobRow = {
   location: string | null;
   application_deadline: string | null;
   created_at: string;
+  employer_id: string;
+  companyLogoPath?: string | null;
 };
 
 type ApplicationRow = {
@@ -222,14 +225,6 @@ function getStatusClass(status: string | null) {
   }
 }
 
-function getInitials(name: string) {
-  const parts = name.trim().split(/\s+/).filter(Boolean);
-
-  if (parts.length === 0) return "P";
-  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
-
-  return `${parts[0][0]}${parts[parts.length - 1][0]}`.toUpperCase();
-}
 
 function getRoleDestination(role: string) {
   switch (role) {
@@ -313,7 +308,7 @@ export default function ProfessionalDashboardPage() {
 
         supabase
           .from("jobs")
-          .select("id, title, category, location, application_deadline, created_at")
+          .select("id, title, category, location, application_deadline, created_at, employer_id")
           .eq("status", "approved")
           .order("created_at", { ascending: false }),
 
@@ -365,6 +360,24 @@ export default function ProfessionalDashboardPage() {
       const availableJobs = ((jobRows || []) as JobRow[]).filter(
         (job) => !isDeadlinePassed(job.application_deadline)
       );
+      const employerIds = [...new Set(availableJobs.map((job) => job.employer_id))];
+      let employerLogos = new Map<string, string>();
+      if (employerIds.length > 0) {
+        const { data: logoRows, error: logoError } = await (supabase as any).rpc(
+          "get_public_employer_logos",
+          { p_employer_ids: employerIds }
+        );
+        if (logoError) {
+          console.warn("Employer logos could not be loaded:", logoError.message);
+        } else {
+          employerLogos = new Map(
+            (logoRows || []).map((row: { employer_id: string; logo_path: string | null }) => [row.employer_id, row.logo_path || ""] as [string, string])
+          );
+        }
+      }
+      for (const job of availableJobs) {
+        job.companyLogoPath = employerLogos.get(job.employer_id) || null;
+      }
 
       const jobMap = new Map(availableJobs.map((job) => [job.id, job]));
       const applicationData = (applicationRows || []) as ApplicationRow[];
@@ -396,7 +409,7 @@ export default function ProfessionalDashboardPage() {
 
       setData({
         fullName: typedProfile.full_name?.trim() || "Professional",
-        avatarPath: typedProfile.avatar_url,
+        avatarPath: extra.photo_path || typedProfile.avatar_url,
         headline:
           professional?.category?.trim() ||
           typedProfile.headline?.trim() ||
@@ -499,8 +512,6 @@ export default function ProfessionalDashboardPage() {
 
   const recentApplications = data.applications.slice(0, 5);
   const recommendedOpportunities = data.opportunities.slice(0, 4);
-  const initials = getInitials(data.fullName);
-
   const closeMobileMenu = () => setMobileMenuOpen(false);
 
   return (
@@ -862,7 +873,7 @@ export default function ProfessionalDashboardPage() {
                     {recommendedOpportunities.map((job) => (
                       <article className="pd-opportunity-row" key={job.id}>
                         <div className="pd-opportunity-icon">
-                          <BriefcaseBusiness size={20} />
+                          <ProfileImage name="Employer" path={job.companyLogoPath} fit="contain" />
                         </div>
                         <div className="pd-opportunity-copy">
                           <strong>{job.title}</strong>

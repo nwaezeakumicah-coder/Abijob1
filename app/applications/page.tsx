@@ -25,6 +25,7 @@ import {
 } from "lucide-react";
 
 import { createClient } from "@/lib/supabase/client";
+import ProfileImage from "@/components/ProfileImage";
 import "./applications.css";
 
 type DatabaseStatus =
@@ -72,6 +73,7 @@ type Application = {
   jobId: string;
   title: string;
   company: string;
+  companyLogoPath: string | null;
   initials: string;
   color: string;
   location: string;
@@ -264,6 +266,8 @@ export default function ApplicationsPage() {
 
   const [applications, setApplications] = useState<Application[]>([]);
   const [applicantId, setApplicantId] = useState("");
+  const [accountAvatarPath, setAccountAvatarPath] = useState<string | null>(null);
+  const [accountName, setAccountName] = useState("Job seeker");
 
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("All");
@@ -304,7 +308,7 @@ export default function ApplicationsPage() {
 
         const { data: profile, error: profileError } = await supabase
           .from("profiles")
-          .select("role")
+          .select("role, full_name, avatar_url")
           .eq("id", user.id)
           .single();
 
@@ -313,6 +317,9 @@ export default function ApplicationsPage() {
             "Your account profile could not be loaded. Please try again."
           );
         }
+
+        setAccountAvatarPath(profile.avatar_url || null);
+        setAccountName(profile.full_name || user.email || "Job seeker");
 
         if (profile.role !== "job_seeker") {
           if (profile.role === "professional") {
@@ -357,6 +364,13 @@ export default function ApplicationsPage() {
         }
 
         const records = (data || []) as unknown as ApplicationRecord[];
+        const employerIds = [...new Set(records.map((record) => getJobRecord(record.jobs)?.employer_id).filter((id): id is string => Boolean(id)))];
+        let employerLogos: Record<string, string | null> = {};
+        if (employerIds.length > 0) {
+          const { data: logoRows, error: logoError } = await (supabase as any).rpc("get_public_employer_logos", { p_employer_ids: employerIds });
+          if (logoError) console.warn("Employer logos could not be loaded:", logoError.message);
+          else employerLogos = Object.fromEntries((logoRows || []).map((row: { employer_id: string; logo_path: string | null }) => [row.employer_id, row.logo_path]));
+        }
 
         const mappedApplications: Application[] = records
           .map((record) => {
@@ -377,6 +391,7 @@ export default function ApplicationsPage() {
               jobId: record.job_id,
               title: job.title || "Untitled vacancy",
               company,
+              companyLogoPath: employerLogos[job.employer_id] || null,
               initials: getCompanyInitials(company),
               color: getCompanyColor(company),
               location: job.location || "Location not specified",
@@ -754,7 +769,7 @@ export default function ApplicationsPage() {
               <Bell size={20} />
             </Link>
 
-            <div className="applications-user-avatar">AJ</div>
+            <div className="applications-user-avatar"><ProfileImage name={accountName} path={accountAvatarPath} /></div>
 
             <div className="applications-user-details">
               <strong>My Account</strong>
@@ -1062,7 +1077,7 @@ export default function ApplicationsPage() {
                       <div
                         className={`application-company-logo ${application.color}`}
                       >
-                        {application.initials}
+                        <ProfileImage name={application.company} path={application.companyLogoPath} fit="contain" />
                       </div>
 
                       <div className="application-information">
@@ -1228,7 +1243,7 @@ export default function ApplicationsPage() {
               <div
                 className={`application-company-logo ${selectedApplication.color}`}
               >
-                {selectedApplication.initials}
+                <ProfileImage name={selectedApplication.company} path={selectedApplication.companyLogoPath} fit="contain" />
               </div>
 
               <div>

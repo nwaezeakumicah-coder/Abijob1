@@ -20,6 +20,7 @@ import {
   XCircle,
 } from "lucide-react";
 import Logo from "../../../components/Logo";
+import ProfileImage from "@/components/ProfileImage";
 import { createClient } from "@/lib/supabase/client";
 import "../../employer/dashboard/dashboard.css";
 import "../../employer/subscription/subscription.css";
@@ -170,16 +171,6 @@ const readableStatus = (status: string) => {
   );
 };
 
-const getInitials = (name: string) => {
-  const parts = name.trim().split(/\s+/).filter(Boolean);
-
-  if (!parts.length) return "PR";
-
-  return parts
-    .slice(0, 2)
-    .map((part) => part[0].toUpperCase())
-    .join("");
-};
 
 export default function ProfessionalSubscriptionPage() {
   const router = useRouter();
@@ -189,6 +180,7 @@ export default function ProfessionalSubscriptionPage() {
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState("");
   const [fullName, setFullName] = useState("Professional");
+  const [accountAvatarPath, setAccountAvatarPath] = useState<string | null>(null);
   const [subscription, setSubscription] =
     useState<SubscriptionRecord | null>(null);
   const [transactions, setTransactions] = useState<TransactionRecord[]>([]);
@@ -219,7 +211,7 @@ export default function ProfessionalSubscriptionPage() {
 
         const { data: profile, error: profileError } = await supabase
           .from("profiles")
-          .select("role, full_name")
+          .select("role, full_name, avatar_url")
           .eq("id", user.id)
           .maybeSingle();
 
@@ -239,7 +231,16 @@ export default function ProfessionalSubscriptionPage() {
           return;
         }
 
+        const { data: professionalPhotoRecord } = await supabase
+          .from("professional_profiles")
+          .select("profile_data")
+          .eq("user_id", user.id)
+          .maybeSingle();
+        const professionalPhotoPath = (
+          (professionalPhotoRecord?.profile_data || {}) as { photo_path?: string }
+        ).photo_path || null;
         setFullName(profile.full_name || "Professional");
+        setAccountAvatarPath(professionalPhotoPath || profile.avatar_url || null);
 
         const [
           { data: subscriptionRows, error: subscriptionError },
@@ -456,7 +457,7 @@ export default function ProfessionalSubscriptionPage() {
 
         <div className="employer-company-card">
           <div className="employer-company-avatar">
-            {getInitials(fullName)}
+            <ProfileImage name={fullName} path={accountAvatarPath} />
           </div>
           <div>
             <strong>{fullName}</strong>
@@ -517,7 +518,7 @@ export default function ProfessionalSubscriptionPage() {
         <div className="employer-sidebar-bottom">
           <div className="employer-user">
             <div className="employer-user-avatar">
-              {getInitials(fullName)}
+              <ProfileImage name={fullName} path={accountAvatarPath} />
             </div>
             <div>
               <strong>{fullName}</strong>
@@ -567,7 +568,7 @@ export default function ProfessionalSubscriptionPage() {
               href="/professional/profile"
               className="employer-subscription-profile"
             >
-              {getInitials(fullName)}
+              <ProfileImage name={fullName} path={accountAvatarPath} />
             </Link>
           </div>
         </header>

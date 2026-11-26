@@ -220,9 +220,18 @@ export default function ProfessionalMessagesPage() {
         return;
       }
 
+      const { data: professionalPhotoRecord } = await supabase
+        .from("professional_profiles")
+        .select("profile_data")
+        .eq("user_id", user.id)
+        .maybeSingle();
+      const professionalPhotoPath = (
+        (professionalPhotoRecord?.profile_data || {}) as { photo_path?: string }
+      ).photo_path || null;
+
       setUserId(user.id);
       setUserName(profile.full_name || "Professional");
-      setUserAvatarPath(profile.avatar_url || null);
+      setUserAvatarPath(professionalPhotoPath || profile.avatar_url || null);
 
       const { data: summaryRows, error: summaryError } = await supabase.rpc(
         "get_message_conversation_summaries"
@@ -754,15 +763,7 @@ export default function ProfessionalMessagesPage() {
                       onClick={() => void openConversation(conversation)}
                     >
                       <div className="professional-contact-avatar">
-                        {conversation.avatarUrl ? (
-                          // eslint-disable-next-line @next/next/no-img-element
-                          <img
-                            src={conversation.avatarUrl}
-                            alt=""
-                          />
-                        ) : (
-                          getInitials(conversation.contactName)
-                        )}
+                        <ProfileImage name={conversation.contactName} path={conversation.avatarUrl} />
                       </div>
 
                       <div className="professional-contact-details">
@@ -843,15 +844,7 @@ export default function ProfessionalMessagesPage() {
                   </button>
 
                   <div className="professional-contact-avatar header-avatar">
-                    {selectedConversation.avatarUrl ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img
-                        src={selectedConversation.avatarUrl}
-                        alt=""
-                      />
-                    ) : (
-                      getInitials(selectedConversation.contactName)
-                    )}
+                    <ProfileImage name={selectedConversation.contactName} path={selectedConversation.avatarUrl} />
                   </div>
 
                   <div className="professional-chat-contact-info">

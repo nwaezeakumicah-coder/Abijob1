@@ -7,6 +7,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { Menu, X } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import Logo from "./Logo";
+import ProfileImage from "./ProfileImage";
 import "./Header.css";
 
 type AccountRole =
@@ -59,7 +60,7 @@ function HeaderContent() {
   const menuButtonRef = useRef<HTMLButtonElement>(null);
   const [role, setRole] = useState<AccountRole>(null);
   const [accountName, setAccountName] = useState("");
-  const [avatarUrl, setAvatarUrl] = useState("");
+  const [avatarPath, setAvatarPath] = useState("");
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [authLoading, setAuthLoading] = useState(true);
   const [loggingOut, setLoggingOut] = useState(false);
@@ -69,8 +70,10 @@ function HeaderContent() {
 
     let mounted = true;
     let requestVersion = 0;
+    let currentUserId: string | null = null;
 
     const loadAccount = async (userId: string | null) => {
+      currentUserId = userId;
       const currentRequest = ++requestVersion;
 
       if (!userId) {
@@ -78,7 +81,7 @@ function HeaderContent() {
           setIsAuthenticated(false);
           setRole(null);
           setAccountName("");
-          setAvatarUrl("");
+          setAvatarPath("");
           setAuthLoading(false);
         }
 
@@ -103,22 +106,23 @@ function HeaderContent() {
         console.error("Could not load account role:", error);
         setRole(null);
         setAccountName("");
-        setAvatarUrl("");
+        setAvatarPath("");
       } else {
         const accountRole = data?.role;
         setAccountName(data?.full_name || "Account");
 
-        let nextAvatarUrl = "";
-        const avatarPath = data?.avatar_url || "";
-        if (avatarPath.startsWith("avatars/")) {
-          nextAvatarUrl = supabase.storage
-            .from("abi-job-public-images")
-            .getPublicUrl(avatarPath).data.publicUrl;
-        } else if (avatarPath) {
-          const { data: signedAvatar } = await supabase.storage
-            .from("abi-job-profile-files")
-            .createSignedUrl(avatarPath, 60 * 60);
-          nextAvatarUrl = signedAvatar?.signedUrl || "";
+        let nextAvatarPath = data?.avatar_url?.trim() || "";
+
+        if (accountRole === "professional") {
+          const { data: professional } = await supabase
+            .from("professional_profiles")
+            .select("profile_data")
+            .eq("user_id", userId)
+            .maybeSingle();
+          const profileData = (professional?.profile_data || {}) as {
+            photo_path?: string;
+          };
+          nextAvatarPath = profileData.photo_path?.trim() || nextAvatarPath;
         }
 
         if (accountRole === "employer") {
@@ -127,17 +131,10 @@ function HeaderContent() {
             .select("logo_url")
             .eq("user_id", userId)
             .maybeSingle();
-          const logo = employer?.logo_url || "";
-          if (logo.startsWith("http://") || logo.startsWith("https://")) {
-            nextAvatarUrl = logo;
-          } else if (logo) {
-            nextAvatarUrl = supabase.storage
-              .from("abi-job-public-images")
-              .getPublicUrl(logo).data.publicUrl;
-          }
+          nextAvatarPath = employer?.logo_url?.trim() || nextAvatarPath;
         }
         if (!mounted || currentRequest !== requestVersion) return;
-        setAvatarUrl(nextAvatarUrl);
+        setAvatarPath(nextAvatarPath);
 
         if (
           accountRole === "job_seeker" ||
@@ -194,9 +191,15 @@ function HeaderContent() {
       }
     };
 
+    const handleProfileUpdated = () => {
+      if (currentUserId) void loadAccount(currentUserId);
+    };
+    window.addEventListener("abijob:profile-updated", handleProfileUpdated);
+
     void checkInitialSession();
 
     return () => {
+      window.removeEventListener("abijob:profile-updated", handleProfileUpdated);
       mounted = false;
       requestVersion++;
       subscription.unsubscribe();
@@ -259,7 +262,7 @@ function HeaderContent() {
       setIsAuthenticated(false);
       setRole(null);
       setAccountName("");
-      setAvatarUrl("");
+      setAvatarPath("");
       closeMenu();
 
       router.replace("/");
@@ -308,7 +311,7 @@ function HeaderContent() {
                     aria-label={`${accountName} dashboard`}
                     title={accountName}
                   >
-                    {avatarUrl ? <img src={avatarUrl} alt="" /> : <span>{accountName.trim().split(/\s+/).slice(0, 2).map((part) => part[0]?.toUpperCase()).join("") || "A"}</span>}
+                    <ProfileImage name={accountName} path={avatarPath} fit={role === "employer" ? "contain" : "cover"} />
                   </Link>
                   <Link
                     href={dashboardHref}
@@ -396,7 +399,7 @@ function HeaderContent() {
                       aria-label={`${accountName} dashboard`}
                       onClick={closeMenu}
                     >
-                      {avatarUrl ? <img src={avatarUrl} alt="" /> : <span>{accountName.trim().split(/\s+/).slice(0, 2).map((part) => part[0]?.toUpperCase()).join("") || "A"}</span>}
+                    <ProfileImage name={accountName} path={avatarPath} fit={role === "employer" ? "contain" : "cover"} />
                     </Link>
                     <Link
                       href={dashboardHref}
