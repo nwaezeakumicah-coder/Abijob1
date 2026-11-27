@@ -47,6 +47,7 @@ type Interview = {
   application_id: string;
   employer_id: string;
   applicant_id: string;
+  applicant_response: "accepted" | "declined" | null;
   scheduled_at: string;
   duration_minutes: number;
   interview_type: InterviewType;
@@ -94,6 +95,7 @@ const employerLinks = [
   { href: "/employer/jobs", label: "My job posts", icon: FileText },
   { href: "/employer/applicants", label: "Applicants", icon: Users },
   { href: "/employer/interviews", label: "Interviews", icon: CalendarDays },
+  { href: "/employer/employment", label: "Employment & offers", icon: BriefcaseBusiness },
   { href: "/employer/messages", label: "Messages", icon: MessageCircle },
   { href: "/employer/notifications", label: "Notifications", icon: Bell },
   { href: "/employer/profile", label: "Company profile", icon: Building2 },
@@ -297,7 +299,7 @@ export default function EmployerInterviewsPage() {
       const { data: interviewRows, error: interviewsError } = await supabase
         .from("interviews")
         .select(
-          "id, application_id, employer_id, applicant_id, scheduled_at, duration_minutes, interview_type, meeting_link, location, notes, status, created_at"
+          "id, application_id, employer_id, applicant_id, applicant_response, scheduled_at, duration_minutes, interview_type, meeting_link, location, notes, status, created_at"
         )
         .eq("employer_id", user.id)
         .order("scheduled_at", { ascending: true });
@@ -583,6 +585,7 @@ export default function EmployerInterviewsPage() {
             location: interviewData.location,
             notes: interviewData.notes,
             status: "rescheduled",
+            applicant_response: null,
           })
           .eq("id", editingInterviewId)
           .eq("employer_id", user.id)
@@ -598,16 +601,30 @@ export default function EmployerInterviewsPage() {
           );
         }
 
+        const { error: notificationError } = await supabase.rpc("notify_interview_participant", {
+          p_interview_id: updatedInterview.id,
+          p_event: "rescheduled",
+        });
+        if (notificationError) console.error("Interview reschedule notification failed:", notificationError);
         setSuccess("Interview rescheduled successfully.");
       } else {
-        const { error: insertError } = await supabase
+        const { data: createdInterview, error: insertError } = await supabase
           .from("interviews")
           .insert({
             ...interviewData,
             status: "scheduled",
-          });
+          })
+          .select("id")
+          .single();
 
         if (insertError) throw insertError;
+        if (createdInterview) {
+          const { error: notificationError } = await supabase.rpc("notify_interview_participant", {
+            p_interview_id: createdInterview.id,
+            p_event: "invited",
+          });
+          if (notificationError) console.error("Interview invitation notification failed:", notificationError);
+        }
 
         setSuccess(
           form.interviewType === "live_chat"
@@ -708,6 +725,15 @@ export default function EmployerInterviewsPage() {
         throw new Error(
           "The interview status was not changed. Refresh and check its current status."
         );
+      }
+
+      const notificationEvent = status === "cancelled" ? "cancelled" : status === "completed" ? "completed" : null;
+      if (notificationEvent) {
+        const { error: notificationError } = await supabase.rpc("notify_interview_participant", {
+          p_interview_id: interview.id,
+          p_event: notificationEvent,
+        });
+        if (notificationError) console.error("Interview status notification failed:", notificationError);
       }
 
       setInterviews((current) =>
@@ -952,6 +978,11 @@ export default function EmployerInterviewsPage() {
                         >
                           {getStatusLabel(interview.status)}
                         </span>
+                        {interview.applicant_response && (
+                          <span className={`interview-response response-${interview.applicant_response}`}>
+                            Candidate {interview.applicant_response}
+                          </span>
+                        )}
                       </div>
 
                       <div className="interview-person">

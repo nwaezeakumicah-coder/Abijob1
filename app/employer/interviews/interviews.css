@@ -884,3 +884,5 @@
     padding: 17px 14px;
   }
 }
+.interview-response{padding:6px 9px;border-radius:30px;font-size:10px;font-weight:800;text-transform:capitalize;background:#e9f5ec;color:#176b45}
+.response-declined{background:#fff0ed;color:#a6443d}

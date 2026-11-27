@@ -273,6 +273,15 @@ export default function DashboardPage() {
           </Link>
 
           <Link
+            href="/dashboard/employment"
+            className="dashboard-nav-link"
+            onClick={() => setSidebarOpen(false)}
+          >
+            <BriefcaseBusiness size={19} />
+            <span>Employment & offers</span>
+          </Link>
+
+          <Link
             href="/notifications"
             className="dashboard-nav-link"
             onClick={() => setSidebarOpen(false)}

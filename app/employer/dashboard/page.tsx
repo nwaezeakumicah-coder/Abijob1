@@ -92,6 +92,7 @@ const employerMobileLinks = [
   { href: "/employer/applicants", label: "Applicants", icon: Users },
   { href: "/employer/candidate-matches", label: "Candidate matches", icon: UserRoundCheck },
   { href: "/employer/interviews", label: "Interviews", icon: CalendarClock },
+  { href: "/employer/employment", label: "Employment & offers", icon: BriefcaseBusiness },
   { href: "/employer/messages", label: "Messages", icon: MessageCircle },
   { href: "/professionals", label: "Find professionals", icon: Search },
   { href: "/employer/notifications", label: "Notifications", icon: Bell },
