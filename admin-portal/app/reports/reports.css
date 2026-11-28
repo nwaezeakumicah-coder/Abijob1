@@ -252,7 +252,7 @@
   padding: 14px 13px;
   border-bottom: 1px solid #e9eee9;
   background: #f8faf7;
-  color: #849087;
+  color: #526358;
   font-size: 11px;
   font-weight: 750;
   text-transform: uppercase;
@@ -310,7 +310,7 @@
 
 .report-status.pending {
   background: #fff5df;
-  color: #9a6b12;
+  color: #7b4a0c;
 }
 
 .report-status.danger {
@@ -320,7 +320,7 @@
 
 .report-status.neutral {
   background: #edf0ee;
-  color: #66736a;
+  color: #526358;
 }
 
 .reports-footer {
