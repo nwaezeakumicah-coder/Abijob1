@@ -315,7 +315,7 @@
 }
 
 .professional-applications-stat-icon.review {
-  color: #b87927;
+  color: #854410;
   background: #fff3df;
 }
 
@@ -399,7 +399,7 @@
   padding: 0 13px;
   border: 1px solid var(--pa-line);
   border-radius: 9px;
-  color: #8a978e;
+  color: #526358;
   background: #fff;
 }
 
@@ -521,7 +521,7 @@
 }
 
 .professional-application-status.under-review {
-  color: #a46a1d;
+  color: #7b4a0c;
   background: #fff3df;
 }
 
