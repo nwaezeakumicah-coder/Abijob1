@@ -1,0 +1,41 @@
+.abijob-back-navigation{
+  position:fixed;
+  z-index:850;
+  top:calc(env(safe-area-inset-top, 0px) + 94px);
+  left:max(14px, env(safe-area-inset-left, 0px));
+  display:inline-flex;
+  min-height:42px;
+  align-items:center;
+  justify-content:center;
+  gap:8px;
+  padding:0 14px;
+  border:1px solid #d4e2d6;
+  border-radius:999px;
+  background:rgba(255,255,255,.97);
+  color:#103c2b;
+  box-shadow:0 5px 18px rgba(16,60,43,.12);
+  font-size:12px;
+  font-weight:800;
+  cursor:pointer;
+  transition:background .18s ease,border-color .18s ease,transform .18s ease,box-shadow .18s ease;
+  backdrop-filter:blur(10px);
+}
+.abijob-back-navigation:hover{
+  transform:translateX(-2px);
+  border-color:#176b45;
+  background:#f1f7f0;
+  box-shadow:0 8px 22px rgba(16,60,43,.16);
+}
+.abijob-back-navigation:focus-visible{
+  outline:3px solid #8bbd61;
+  outline-offset:3px;
+}
+@media(max-width:1050px){
+  .abijob-back-navigation{top:calc(env(safe-area-inset-top, 0px) + 82px)}
+}
+@media(max-width:480px){
+  .abijob-back-navigation{top:calc(env(safe-area-inset-top, 0px) + 76px);left:10px;min-height:40px;padding:0 12px}
+}
+@media(prefers-reduced-motion:reduce){
+  .abijob-back-navigation{transition:none}
+}

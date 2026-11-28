@@ -11,7 +11,7 @@ type LogoProps = {
 };
 
 export default function Logo({
-  href = "/",
+  href = "/home",
   size = "medium",
   showTagline = false,
   light = false,

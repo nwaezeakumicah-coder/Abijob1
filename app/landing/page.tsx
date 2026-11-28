@@ -28,7 +28,7 @@ export default function WelcomeLandingPage() {
       <main className="welcome-page">
       <div className="welcome-grain" aria-hidden="true" />
       <header className="welcome-header">
-        <Link href="/" className="welcome-logo-link" aria-label="Go to Abijob homepage">
+        <Link href="/home" className="welcome-logo-link" aria-label="Go to Abijob homepage">
           <Image
             src="/images/abijob-logo-green.png"
             alt="Abijob — Opportunity Starts Here"
@@ -38,7 +38,7 @@ export default function WelcomeLandingPage() {
             className="welcome-logo"
           />
         </Link>
-        <Link href="/" className="welcome-header-link">
+        <Link href="/home" className="welcome-header-link">
           Go to homepage <ArrowRight size={16} />
         </Link>
       </header>
@@ -61,7 +61,7 @@ export default function WelcomeLandingPage() {
             building the future of Abia.
           </p>
           <div className="welcome-actions">
-            <Link href="/" className="welcome-enter-button">
+            <Link href="/home" className="welcome-enter-button">
               Enter Abijob <ArrowRight size={19} />
             </Link>
             <span className="welcome-action-note">One platform. More possibilities.</span>
@@ -100,7 +100,7 @@ export default function WelcomeLandingPage() {
       </section>
       <footer className="welcome-footer">
         <span>Made for the people and possibilities of Abia State.</span>
-        <Link href="/">Continue to Abijob <ArrowRight size={14} /></Link>
+        <Link href="/home">Continue to Abijob <ArrowRight size={14} /></Link>
       </footer>
       </main>
     </LandingTransition>
