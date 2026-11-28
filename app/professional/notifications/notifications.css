@@ -309,12 +309,12 @@
 
 .pn-summary-icon.unread {
   background: #fff0df;
-  color: #c17a32;
+  color: #854410;
 }
 
 .pn-summary-icon.read {
   background: #eeeaff;
-  color: #7660bb;
+  color: #5b407c;
 }
 
 .pn-summary-card strong,
@@ -379,7 +379,7 @@
   border: 1px solid #e7ebe5;
   border-radius: 7px;
   background: #fff;
-  color: #68756c;
+  color: #526358;
   font-size: 10px;
   font-weight: 700;
   white-space: nowrap;
@@ -443,7 +443,7 @@
 }
 
 .pn-notification-icon.opportunity {
-  color: #b47a31;
+  color: #854410;
   background: #fff2df;
 }
 
@@ -453,12 +453,12 @@
 }
 
 .pn-notification-icon.profile {
-  color: #287d9b;
+  color: #286274;
   background: #e4f4f8;
 }
 
 .pn-notification-icon.system {
-  color: #a45b87;
+  color: #783b59;
   background: #f9eaf2;
 }
 
@@ -514,7 +514,7 @@
   padding: 4px 8px;
   border-radius: 5px;
   background: #f1f4f0;
-  color: #68756c !important;
+  color: #526358 !important;
   font-weight: 700;
 }
 
@@ -560,7 +560,7 @@
 
 .pn-delete:hover {
   background: #fff0ee;
-  color: #c24c42;
+  color: #963a3a;
 }
 
 .pn-empty {
@@ -635,7 +635,7 @@
   place-items: center;
   border-radius: 50%;
   background: #fff0ee;
-  color: #c24c42;
+  color: #963a3a;
 }
 
 .pn-confirm-modal h3 {
