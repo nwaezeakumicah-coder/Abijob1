@@ -1,7 +1,6 @@
--- The applicant-change trigger already owns applicant invitation and
--- reschedule/cancellation/restoration notifications. This trigger should only
--- notify the employer when the candidate accepts or declines, preventing
--- duplicate applicant notifications on interview creation.
+-- Applicant-facing invitation and schedule notifications are handled by
+-- notify_applicant_on_interview_change(). This trigger handles only candidate
+-- responses, which are stored in applicant_response (not interviews.status).
 create or replace function public.notify_interview_participants()
 returns trigger
 language plpgsql
@@ -10,16 +9,16 @@ set search_path = ''
 as $function$
 begin
   if tg_op = 'UPDATE'
-     and new.status is distinct from old.status
-     and new.status in ('accepted','declined') then
+     and new.applicant_response is distinct from old.applicant_response
+     and new.applicant_response in ('accepted','declined') then
     insert into public.notifications(user_id,title,description,category,href)
     values (
       new.employer_id,
-      case when new.status = 'accepted'
+      case when new.applicant_response = 'accepted'
         then 'Interview invitation accepted'
         else 'Interview invitation declined'
       end,
-      'The applicant has ' || new.status || ' your interview invitation.',
+      'The applicant has ' || new.applicant_response || ' your interview invitation.',
       'application',
       '/employer/interviews'
     );
@@ -28,6 +27,11 @@ begin
   return new;
 end;
 $function$;
+
+drop trigger if exists trg_notify_interview_participants on public.interviews;
+create trigger trg_notify_interview_participants
+after insert or update of status, applicant_response on public.interviews
+for each row execute function public.notify_interview_participants();
 
 revoke all on function public.notify_interview_participants()
   from public, anon, authenticated;
