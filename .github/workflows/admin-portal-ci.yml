@@ -4,6 +4,7 @@ on:
   pull_request:
     paths:
       - "admin-portal/**"
+      - "scripts/**"
       - ".github/workflows/admin-portal-ci.yml"
   push:
     branches: [SIRMIC, "fix/**", "perf/**"]
@@ -33,6 +34,9 @@ jobs:
 
       - name: Install dependencies
         run: npm ci
+
+      - name: Check CSS accessibility
+        run: node ../scripts/check-css-accessibility.mjs
 
       - name: Type-check admin portal
         run: npx tsc --noEmit
