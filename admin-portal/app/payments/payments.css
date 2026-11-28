@@ -1,6 +1,9 @@
 
 .payments-page {
   width: 100%;
+  min-width: 0;
+  padding-bottom: 36px;
+  width: 100%;
   max-width: 1600px;
   margin: 0 auto;
   padding: 8px 0 48px;
@@ -84,6 +87,8 @@
 }
 
 .payments-stats-grid {
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr));
+  gap: 18px;
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 15px;
@@ -91,6 +96,8 @@
 }
 
 .payments-stat-card {
+  min-height: 128px;
+  padding: 22px;
   display: flex;
   align-items: center;
   gap: 14px;
