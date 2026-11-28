@@ -57,51 +57,6 @@ const DEFAULT_PREFERENCES: Preferences = {
   jobAlertFrequency: "Daily",
 };
 
-const STORAGE_KEY = "abijob-professional-settings";
-
-function isValidPreferences(value: unknown): value is Partial<Preferences> {
-  if (!value || typeof value !== "object" || Array.isArray(value)) {
-    return false;
-  }
-
-  const data = value as Record<string, unknown>;
-
-  const booleanFields = [
-    "emailNotifications",
-    "applicationUpdates",
-    "opportunityAlerts",
-    "messageNotifications",
-    "profileVisibility",
-    "showAvailability",
-  ];
-
-  for (const field of booleanFields) {
-    if (
-      data[field] !== undefined &&
-      typeof data[field] !== "boolean"
-    ) {
-      return false;
-    }
-  }
-
-  if (
-    data.language !== undefined &&
-    data.language !== "English"
-  ) {
-    return false;
-  }
-
-  if (
-    data.jobAlertFrequency !== undefined &&
-    !["Immediately", "Daily", "Weekly", "Never"].includes(
-      String(data.jobAlertFrequency)
-    )
-  ) {
-    return false;
-  }
-
-  return true;
-}
 
 type SettingToggleProps = {
   title: string;
@@ -148,13 +103,14 @@ export default function ProfessionalSettingsPage() {
     useState<SettingsSection>("notifications");
 
   const [saved, setSaved] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState("");
   const [loaded, setLoaded] = useState(false);
   const [accessChecked, setAccessChecked] = useState(false);
   const [accessError, setAccessError] = useState("");
   const [retryCount, setRetryCount] = useState(0);
   const [accountName, setAccountName] = useState("Professional");
   const [accountAvatarPath, setAccountAvatarPath] = useState<string | null>(null);
-  const [accountStorageKey, setAccountStorageKey] = useState("");
   const [logoutLoading, setLogoutLoading] = useState(false);
   const [logoutError, setLogoutError] = useState("");
 
@@ -240,42 +196,44 @@ export default function ProfessionalSettingsPage() {
           user.email?.split("@")[0] ||
           "Professional";
 
-        const userStorageKey = `${STORAGE_KEY}:${user.id}`;
+        const [
+          { data: savedPreferences, error: preferencesError },
+          { data: professionalRecord, error: professionalError },
+        ] = await Promise.all([
+          supabase
+            .from("account_preferences")
+            .select("email_notifications, application_updates, job_alerts, message_notifications, profile_visibility, job_alert_frequency")
+            .eq("user_id", user.id)
+            .maybeSingle(),
+          supabase
+            .from("professional_profiles")
+            .select("profile_data, is_public, show_availability")
+            .eq("user_id", user.id)
+            .maybeSingle(),
+        ]);
 
-        let loadedPreferences = DEFAULT_PREFERENCES;
-
-        try {
-          const stored = localStorage.getItem(userStorageKey);
-
-          if (stored) {
-            const parsed: unknown = JSON.parse(stored);
-
-            if (isValidPreferences(parsed)) {
-              loadedPreferences = {
-                ...DEFAULT_PREFERENCES,
-                ...parsed,
-              };
-            }
-          }
-        } catch {
-          console.warn("Could not read saved professional preferences.");
-        }
-
+        if (preferencesError) throw preferencesError;
+        if (professionalError) throw professionalError;
         if (!active) return;
 
-        const { data: professionalPhotoRecord } = await supabase
-          .from("professional_profiles")
-          .select("profile_data")
-          .eq("user_id", user.id)
-          .maybeSingle();
+        const loadedPreferences: Preferences = {
+          emailNotifications: savedPreferences?.email_notifications ?? DEFAULT_PREFERENCES.emailNotifications,
+          applicationUpdates: savedPreferences?.application_updates ?? DEFAULT_PREFERENCES.applicationUpdates,
+          opportunityAlerts: savedPreferences?.job_alerts ?? DEFAULT_PREFERENCES.opportunityAlerts,
+          messageNotifications: savedPreferences?.message_notifications ?? DEFAULT_PREFERENCES.messageNotifications,
+          profileVisibility: savedPreferences?.profile_visibility ?? professionalRecord?.is_public ?? DEFAULT_PREFERENCES.profileVisibility,
+          showAvailability: professionalRecord?.show_availability ?? DEFAULT_PREFERENCES.showAvailability,
+          language: "English",
+          jobAlertFrequency: (savedPreferences?.job_alert_frequency ?? "daily").replace(/^./, (letter: string) => letter.toUpperCase()),
+        };
+
         const professionalPhotoPath = (
-          (professionalPhotoRecord?.profile_data || {}) as { photo_path?: string }
+          (professionalRecord?.profile_data || {}) as { photo_path?: string }
         ).photo_path || null;
 
         setAccountName(displayName);
         setAccountAvatarPath(professionalPhotoPath || profile.avatar_url || null);
         setPreferences(loadedPreferences);
-        setAccountStorageKey(userStorageKey);
         setAccessChecked(true);
         setLoaded(true);
       } catch (error) {
@@ -309,21 +267,49 @@ export default function ProfessionalSettingsPage() {
     setSaved(false);
   }
 
-  function saveSettings() {
-    if (!accountStorageKey || !loaded) return;
+  async function saveSettings() {
+    if (!loaded || saving) return;
+    setSaving(true);
+    setSaved(false);
+    setSaveError("");
 
     try {
-      localStorage.setItem(
-        accountStorageKey,
-        JSON.stringify(preferences)
-      );
+      const { data: { user }, error: authError } = await supabase.auth.getUser();
+      if (authError || !user) throw new Error("Your session has expired. Please sign in again.");
+
+      const { error: preferencesError } = await supabase
+        .from("account_preferences")
+        .upsert({
+          user_id: user.id,
+          email_notifications: preferences.emailNotifications,
+          application_updates: preferences.applicationUpdates,
+          job_alerts: preferences.opportunityAlerts,
+          message_notifications: preferences.messageNotifications,
+          profile_visibility: preferences.profileVisibility,
+          job_alert_frequency: preferences.jobAlertFrequency.toLowerCase(),
+          updated_at: new Date().toISOString(),
+        }, { onConflict: "user_id" });
+      if (preferencesError) throw preferencesError;
+
+      const { error: professionalError } = await supabase
+        .from("professional_profiles")
+        .upsert({
+          user_id: user.id,
+          is_public: preferences.profileVisibility,
+          show_availability: preferences.showAvailability,
+        }, { onConflict: "user_id" });
+      if (professionalError) throw professionalError;
 
       setSaved(true);
-    } catch {
+    } catch (error) {
       setSaved(false);
-      setAccessError(
-        "Your browser could not save these preferences. Check available storage and try again."
+      setSaveError(
+        error instanceof Error
+          ? error.message
+          : "Your preferences could not be saved. Please try again."
       );
+    } finally {
+      setSaving(false);
     }
   }
 
@@ -807,11 +793,13 @@ export default function ProfessionalSettingsPage() {
                     <button
                       type="button"
                       className="ps-save-button"
-                      onClick={saveSettings}
+                      onClick={() => void saveSettings()}
+                      disabled={saving}
                     >
                       <Save size={16} />
-                      Save changes
+                      {saving ? "Saving..." : saved ? "Saved" : "Save changes"}
                     </button>
+                    {saveError && <p className="ps-logout-error" role="alert">{saveError}</p>}
                   </div>
                 </>
               )}

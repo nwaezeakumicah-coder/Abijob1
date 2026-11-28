@@ -306,3 +306,80 @@ img {
     outline: 2px solid Highlight;
   }
 }
+
+
+/* =========================================
+   ABIJOB CONTRAST AND DOCUMENT ACTIONS
+   Dark-green surfaces use white text; lime
+   surfaces use deep-green text for clarity.
+========================================= */
+:where(
+  .employment-primary,
+  .employment-actions button:not(.secondary),
+  .ai-actions button:not(.decline),
+  .recruitment-document-button,
+  .interview-primary,
+  .interviews-primary,
+  .settings-primary,
+  .employer-settings-primary,
+  .btn-primary
+) {
+  background-color: #176b45;
+  color: #ffffff;
+}
+
+:where(
+  .employment-primary,
+  .employment-actions button:not(.secondary),
+  .ai-actions button:not(.decline),
+  .recruitment-document-button,
+  .interview-primary,
+  .interviews-primary,
+  .settings-primary,
+  .employer-settings-primary,
+  .btn-primary
+):hover:not(:disabled) {
+  background-color: #103c2b;
+  color: #ffffff;
+}
+
+.recruitment-document-button {
+  display: inline-flex;
+  min-height: 40px;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 9px 13px;
+  border: 1px solid #176b45;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 800;
+  line-height: 1.3;
+  cursor: pointer;
+}
+
+:where(
+  .employment-page,
+  .applicant-interviews,
+  .employer-interviews-page
+) :where(button, a, input, select, textarea, summary):focus-visible {
+  outline: 3px solid #d7f078;
+  outline-offset: 3px;
+}
+
+:where(.interviews-sidebar, .employer-settings-sidebar) :where(a, button):focus-visible {
+  outline-color: #d7f078;
+}
+
+@media (max-width: 560px) {
+  .recruitment-document-button {
+    width: 100%;
+    min-height: 44px;
+  }
+}
+
+@media print {
+  .recruitment-document-button {
+    display: none !important;
+  }
+}

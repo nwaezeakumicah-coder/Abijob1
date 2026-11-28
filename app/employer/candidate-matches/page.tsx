@@ -18,6 +18,10 @@ type Candidate = {
   appliedAt: string;
   experience: string;
   experienceYears: number;
+  accountRole: string;
+  professionalCategory: string | null;
+  availability: boolean | null;
+  education: string | null;
   location: string;
   skills: string[];
   score: number;
@@ -78,7 +82,7 @@ export default function EmployerCandidateMatchesPage() {
           <div>
             <span className="candidate-eyebrow"><Sparkles size={15} /> SMART RECRUITMENT</span>
             <h1>Candidate matches</h1>
-            <p>See which applicants best align with each vacancy's stated skills and experience requirements.</p>
+            <p>Compare applicants using skills, experience, professional category and location compatibility across Abia State.</p>
           </div>
           <button type="button" className="candidate-refresh" onClick={() => void load(true)} disabled={refreshing}>
             <RefreshCw size={16} className={refreshing ? "candidate-spinning" : ""} /> Refresh
@@ -129,6 +133,8 @@ export default function EmployerCandidateMatchesPage() {
                   <span>{candidate.jobTitle}</span>
                   {candidate.location && <span>{candidate.location}</span>}
                   <span>{candidate.experienceYears ? candidate.experienceYears + " years' experience" : "Experience not specified"}</span>
+                  <span>{candidate.accountRole === "professional" ? candidate.professionalCategory || "Skilled professional" : "Job seeker"}</span>
+                  {candidate.accountRole === "professional" && <span>{candidate.availability ? "Availability shared" : "Availability not shared"}</span>}
                   <span>{statusLabel(candidate.status)}</span>
                 </div>
                 <div className="candidate-skills">
