@@ -104,6 +104,7 @@ export default function ProfessionalSettingsPage() {
 
   const [saved, setSaved] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState("");
   const [loaded, setLoaded] = useState(false);
   const [accessChecked, setAccessChecked] = useState(false);
   const [accessError, setAccessError] = useState("");
@@ -270,7 +271,7 @@ export default function ProfessionalSettingsPage() {
     if (!loaded || saving) return;
     setSaving(true);
     setSaved(false);
-    setAccessError("");
+    setSaveError("");
 
     try {
       const { data: { user }, error: authError } = await supabase.auth.getUser();
@@ -302,7 +303,7 @@ export default function ProfessionalSettingsPage() {
       setSaved(true);
     } catch (error) {
       setSaved(false);
-      setAccessError(
+      setSaveError(
         error instanceof Error
           ? error.message
           : "Your preferences could not be saved. Please try again."
@@ -798,6 +799,7 @@ export default function ProfessionalSettingsPage() {
                       <Save size={16} />
                       {saving ? "Saving..." : saved ? "Saved" : "Save changes"}
                     </button>
+                    {saveError && <p className="ps-logout-error" role="alert">{saveError}</p>}
                   </div>
                 </>
               )}
