@@ -18,6 +18,10 @@ type Candidate = {
   appliedAt: string;
   experience: string;
   experienceYears: number;
+  accountRole: string;
+  professionalCategory: string | null;
+  availability: boolean | null;
+  education: string | null;
   location: string;
   skills: string[];
   score: number;
@@ -129,6 +133,8 @@ export default function EmployerCandidateMatchesPage() {
                   <span>{candidate.jobTitle}</span>
                   {candidate.location && <span>{candidate.location}</span>}
                   <span>{candidate.experienceYears ? candidate.experienceYears + " years' experience" : "Experience not specified"}</span>
+                  <span>{candidate.accountRole === "professional" ? candidate.professionalCategory || "Skilled professional" : "Job seeker"}</span>
+                  {candidate.accountRole === "professional" && <span>{candidate.availability ? "Availability shared" : "Availability not shared"}</span>}
                   <span>{statusLabel(candidate.status)}</span>
                 </div>
                 <div className="candidate-skills">
