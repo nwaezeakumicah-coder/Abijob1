@@ -3,8 +3,10 @@ import "./globals.css";
 import NotificationCenter from "@/components/NotificationCenter";
 import BackNavigation from "@/components/BackNavigation";
 
+const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://abijob1.vercel.app";
+
 export const metadata: Metadata = {
-  metadataBase: new URL("https://abijob.ng"),
+  metadataBase: new URL(siteUrl),
   title: {
     default: "Abijob | Opportunity Starts Here",
     template: "%s | Abijob",
@@ -24,7 +26,7 @@ export const metadata: Metadata = {
   openGraph: {
     title: "Abijob | Opportunity Starts Here",
     description: "Your talent. Your ambition. Your opportunity.",
-    url: "https://abijob.ng",
+    url: siteUrl,
     siteName: "Abijob",
     locale: "en_NG",
     type: "website",
