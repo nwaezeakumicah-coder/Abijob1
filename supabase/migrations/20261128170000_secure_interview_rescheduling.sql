@@ -83,6 +83,15 @@ begin
       updated_at = now()
   where id = p_interview_id;
 
+  insert into public.notifications(user_id, title, description, category, href)
+  values (
+    v_interview.applicant_id,
+    'Interview rescheduled',
+    'Your employer changed the interview date or details.',
+    'application',
+    '/dashboard/interviews'
+  );
+
   return true;
 end;
 $$;
