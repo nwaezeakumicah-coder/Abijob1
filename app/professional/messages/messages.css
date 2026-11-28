@@ -586,7 +586,7 @@
   padding: 24px 25px;
   overflow-y: auto;
   background-color: #f8faf8;
-  background-image: radial-gradient(#e9eee9 0.7px, transparent 0.7px);
+  background-image: none;
   background-size: 18px 18px;
 }
 
