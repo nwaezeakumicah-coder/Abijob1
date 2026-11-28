@@ -8,6 +8,7 @@ import Header from "../../../components/Header";
 import Footer from "../../../components/Footer";
 import { createClient } from "../../../lib/supabase/client";
 import { getPasswordPolicyError, PASSWORD_POLICY_HINT } from "../../../lib/auth/password-policy";
+import { getPasswordPolicyError, PASSWORD_POLICY_HINT } from "../../../lib/auth/password-policy";
 import {
   ArrowLeft,
   ArrowRight,
@@ -323,7 +324,7 @@ export default function JobSeekerRegistrationPage() {
                       type={showConfirmPassword ? "text" : "password"}
                       placeholder="Enter your password again"
                       autoComplete="new-password"
-                      minLength={8}
+                      minLength={12}
                       required
                       disabled={isSubmitting}
                     />
