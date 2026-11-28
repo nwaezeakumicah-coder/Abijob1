@@ -13,8 +13,6 @@ as $$
 declare
   v_user uuid := auth.uid();
   v_interview public.interviews%rowtype;
-  v_title text;
-  v_description text;
 begin
   if v_user is null or not public.has_platform_access()
      or not exists (
@@ -62,25 +60,18 @@ begin
       updated_at = now()
   where id = p_interview_id;
 
-  if p_status = 'cancelled' then
-    v_title := 'Interview cancelled';
-    v_description := 'Your employer cancelled the interview.';
-  elsif p_status = 'completed' then
-    v_title := 'Interview marked completed';
-    v_description := 'Your employer marked the interview as completed.';
-  else
-    v_title := 'Interview invitation restored';
-    v_description := 'Your employer restored the cancelled interview. Please review the invitation and respond again.';
+  if p_status = 'completed' then
+    -- Cancellation and restoration notifications are handled by the existing
+    -- AFTER UPDATE trigger in this same transaction.
+    insert into public.notifications(user_id, title, description, category, href)
+    values (
+      v_interview.applicant_id,
+      'Interview marked completed',
+      'Your employer marked the interview as completed.',
+      'application',
+      '/dashboard/interviews'
+    );
   end if;
-
-  insert into public.notifications(user_id, title, description, category, href)
-  values (
-    v_interview.applicant_id,
-    v_title,
-    v_description,
-    'application',
-    '/dashboard/interviews'
-  );
 
   return true;
 end;
