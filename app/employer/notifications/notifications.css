@@ -359,12 +359,12 @@
 
 .employer-notifications-stat-icon.unread {
   background: #fff1e6;
-  color: #c46b30;
+  color: #854410;
 }
 
 .employer-notifications-stat-icon.read {
   background: #eef0ff;
-  color: #6068ba;
+  color: #4c529b;
 }
 
 .employer-notifications-stat-card strong,
@@ -524,17 +524,17 @@
 
 .employer-notification-icon.job {
   background: #fff1e6;
-  color: #c46b30;
+  color: #854410;
 }
 
 .employer-notification-icon.account {
   background: #eef0ff;
-  color: #6068ba;
+  color: #4c529b;
 }
 
 .employer-notification-icon.system {
   background: #eaf4f7;
-  color: #43849a;
+  color: #286274;
 }
 
 .employer-notification-details {
@@ -635,7 +635,7 @@
 
 .employer-notification-delete:hover {
   background: #fff0ed;
-  color: #c34d43;
+  color: #963a3a;
 }
 
 .employer-notifications-empty {
