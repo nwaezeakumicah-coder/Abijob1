@@ -29,51 +29,178 @@ export type MatchResult = {
 };
 
 function normalize(value: string): string {
-  return value.toLocaleLowerCase().replace(/[^a-z0-9+#. ]/g, " ").replace(/\s+/g, " ").trim();
+  return value.toLocaleLowerCase("en-NG")
+    .normalize("NFKD")
+    .replace(/[\\u0300-\\u036f]/g, "")
+    .replace(/[^a-z0-9+#. ]/g, " ")
+    .replace(/\\s+/g, " ")
+    .trim();
 }
 
 function uniqueStrings(values: Array<string | null | undefined>): string[] {
-  return [...new Set(values.flatMap((value) => (value ?? "").split(/[,;\n|]/).map((item) => item.trim()).filter(Boolean)))];
+  return [...new Set(values.flatMap((value) => (value ?? "").split(/[,;\\n|]/).map((item) => item.trim()).filter(Boolean)))];
+}
+
+const SKILL_ALIASES: Record<string, string> = {
+  "web development": "web development",
+  "web developer": "web development",
+  "frontend development": "frontend development",
+  "front end development": "frontend development",
+  "frontend developer": "frontend development",
+  "backend development": "backend development",
+  "back end development": "backend development",
+  "backend developer": "backend development",
+  "graphic design": "graphic design",
+  "graphics design": "graphic design",
+  "graphic designer": "graphic design",
+  "graphics designer": "graphic design",
+  "ui ux design": "ui ux design",
+  "ui/ux design": "ui ux design",
+  "accounting": "accounting",
+  "accountant": "accounting",
+  "bookkeeping": "bookkeeping",
+  "book keeper": "bookkeeping",
+  "carpentry": "carpentry",
+  "carpenter": "carpentry",
+  "plumbing": "plumbing",
+  "plumber": "plumbing",
+  "electrical installation": "electrical installation",
+  "electrician": "electrical installation",
+  "fashion design": "fashion design",
+  "fashion designer": "fashion design",
+  "tailoring": "fashion design",
+  "tailor": "fashion design",
+  "hairdressing": "hairdressing",
+  "hair stylist": "hairdressing",
+  "barbering": "barbering",
+  "barber": "barbering",
+  "welding": "welding",
+  "welder": "welding",
+  "data analysis": "data analysis",
+  "data analyst": "data analysis",
+  "digital marketing": "digital marketing",
+  "social media marketing": "social media marketing",
+  "customer service": "customer service",
+  "customer support": "customer service",
+  "microsoft excel": "spreadsheet skills",
+  "excel": "spreadsheet skills",
+  "spreadsheet": "spreadsheet skills",
+  "ms word": "word processing",
+  "microsoft word": "word processing",
+  "word processing": "word processing",
+};
+
+function canonicalSkill(value: string): string {
+  const cleaned = normalize(value);
+  return SKILL_ALIASES[cleaned] ?? cleaned;
+}
+
+const ABIA_LGA_PATTERNS: Array<{ lga: string; patterns: string[] }> = [
+  { lga: "aba north", patterns: ["aba north"] },
+  { lga: "aba south", patterns: ["aba south"] },
+  { lga: "arochukwu", patterns: ["arochukwu"] },
+  { lga: "bende", patterns: ["bende", "uzuakoli"] },
+  { lga: "ikwuano", patterns: ["ikwuano", "isiala oboro"] },
+  { lga: "isiala ngwa north", patterns: ["isiala ngwa north", "ntigha"] },
+  { lga: "isiala ngwa south", patterns: ["isiala ngwa south", "omoba"] },
+  { lga: "isuikwuato", patterns: ["isuikwuato", "ezere"] },
+  { lga: "obi ngwa", patterns: ["obingwa", "obi ngwa"] },
+  { lga: "ohafia", patterns: ["ohafia", "ebem"] },
+  { lga: "osisioma ngwa", patterns: ["osisioma", "osisioma ngwa"] },
+  { lga: "ukwa east", patterns: ["ukwa east", "akwete"] },
+  { lga: "ukwa west", patterns: ["ukwa west", "obehie"] },
+  { lga: "umuahia north", patterns: ["umuahia north"] },
+  { lga: "umuahia south", patterns: ["umuahia south"] },
+  { lga: "umu nneochi", patterns: ["umunneochi", "umu nneochi", "umuchieze"] },
+  { lga: "ugwunagbo", patterns: ["ugwunagbo"] },
+];
+
+function resolveAbiaLga(value: string): string | null {
+  const normalized = normalize(value);
+  for (const entry of ABIA_LGA_PATTERNS) {
+    if (entry.patterns.some((pattern) => normalized.includes(pattern))) return entry.lga;
+  }
+  return null;
+}
+
+function locationCompatibility(applicantLocation: string | null | undefined, jobLocation: string | null | undefined): {
+  score: number;
+  explanation: string;
+} {
+  const applicant = normalize(applicantLocation ?? "");
+  const job = normalize(jobLocation ?? "");
+  if (!applicant || !job) return { score: 10, explanation: "Location details are incomplete; confirm travel or remote-work expectations." };
+  if (job.includes("remote") || applicant.includes("remote") || job.includes("anywhere") || job.includes("work from home")) {
+    return { score: 15, explanation: "The role supports remote or flexible location arrangements." };
+  }
+  if (applicant === job || applicant.includes(job) || job.includes(applicant)) {
+    return { score: 15, explanation: "The applicant's stated location matches the vacancy location." };
+  }
+
+  const applicantLga = resolveAbiaLga(applicant);
+  const jobLga = resolveAbiaLga(job);
+  const applicantInAbia = applicant.includes("abia") || applicantLga !== null;
+  const jobInAbia = job.includes("abia") || jobLga !== null;
+
+  if (applicantLga && jobLga && applicantLga === jobLga) {
+    return { score: 15, explanation: `Both locations are within ${applicantLga.replace(/\\b\\w/g, (letter) => letter.toUpperCase())} LGA, Abia State.` };
+  }
+  if (applicantInAbia && jobInAbia) {
+    return { score: 10, explanation: "Both locations are within Abia State; confirm the commute between LGAs." };
+  }
+  if (applicantInAbia || jobInAbia) {
+    return { score: 4, explanation: "The applicant and vacancy appear to be in different states; confirm relocation or remote-work options." };
+  }
+  return { score: 5, explanation: "The stated locations differ; confirm whether commuting or relocation is practical." };
 }
 
 export function calculateBaselineMatch(input: MatchInput): MatchResult {
-  const applicantSkills = uniqueStrings(input.skills).map(normalize);
-  const requiredSkills = uniqueStrings(input.job.skillsRequired).map(normalize);
-  const matchedSkills = requiredSkills.filter((required) =>
-    applicantSkills.some((skill) => skill === required || skill.includes(required) || required.includes(skill))
-  );
-  const missingSkills = requiredSkills.filter((required) => !matchedSkills.includes(required));
+  const applicantSkills = new Set(uniqueStrings(input.skills).map(canonicalSkill));
+  const requiredSkills = uniqueStrings(input.job.skillsRequired);
+  const canonicalRequired = requiredSkills.map(canonicalSkill);
+  const matchedIndexes = canonicalRequired
+    .map((required, index) => applicantSkills.has(required) ? index : -1)
+    .filter((index) => index >= 0);
+  const matchedSkills = matchedIndexes.map((index) => requiredSkills[index]);
+  const missingSkills = requiredSkills.filter((_, index) => !matchedIndexes.includes(index));
 
+  // Skill fit carries the greatest weight, while location, experience and
+  // education contribute transparently without using protected attributes.
   const skillScore = requiredSkills.length
-    ? (matchedSkills.length / requiredSkills.length) * 60
-    : 30;
-  const experienceTarget = input.job.experienceLevel?.match(/(\d+)/)?.[1];
-  const targetYears = experienceTarget ? Number(experienceTarget) : 0;
-  const experienceScore = targetYears
-    ? Math.min(input.experienceYears / targetYears, 1) * 15
-    : input.experienceYears > 0 ? 12 : 6;
-  const applicantLocation = normalize(input.location ?? "");
-  const jobLocation = normalize(input.job.location ?? "");
-  const locationScore = !applicantLocation || !jobLocation || jobLocation.includes("remote") || applicantLocation === jobLocation || applicantLocation.includes(jobLocation) || jobLocation.includes(applicantLocation) ? 10 : 3;
-  const educationScore = input.education?.trim() ? 10 : 4;
-  const categoryScore = input.professionalCategory && input.job.category && normalize(input.professionalCategory) === normalize(input.job.category) ? 5 : 2;
+    ? (matchedSkills.length / requiredSkills.length) * 55
+    : 27.5;
 
-  const score = Math.max(0, Math.min(100, Math.round(skillScore + experienceScore + locationScore + educationScore + categoryScore)));
+  const experienceTargetMatch = normalize(input.job.experienceLevel ?? "").match(/(\\d{1,2})/);
+  const targetYears = experienceTargetMatch ? Number(experienceTargetMatch[1]) : 0;
+  const experienceScore = targetYears > 0
+    ? Math.min(Math.max(input.experienceYears, 0) / targetYears, 1) * 15
+    : input.experienceYears > 0 ? 12 : 6;
+
+  const location = locationCompatibility(input.location, input.job.location);
+  const educationScore = input.education?.trim() ? 8 : 4;
+  const categoryScore = input.professionalCategory && input.job.category &&
+    normalize(input.professionalCategory) === normalize(input.job.category) ? 7 : 3;
+
+  const score = Math.max(0, Math.min(100, Math.round(
+    skillScore + experienceScore + location.score + educationScore + categoryScore
+  )));
   const strengths = [
-    ...(matchedSkills.length ? [`Relevant skills: ${matchedSkills.join(", ")}`] : []),
+    ...(matchedSkills.length ? [`Required skills matched: ${matchedSkills.join(", ")}`] : []),
     ...(input.experienceYears > 0 ? [`${input.experienceYears} year(s) of stated experience`] : []),
-    ...(locationScore === 10 ? ["Location appears compatible"] : []),
+    ...(location.score >= 10 ? [location.explanation] : []),
+    ...(categoryScore === 7 ? ["Professional category aligns with the vacancy"] : []),
   ];
   const improvementAreas = [
-    ...(missingSkills.length ? [`Consider developing: ${missingSkills.join(", ")}`] : []),
-    ...(!input.education?.trim() ? ["Add education or relevant training details to your profile"] : []),
+    ...(missingSkills.length ? [`Skills to strengthen: ${missingSkills.join(", ")}`] : []),
+    ...(!input.education?.trim() ? ["Add education, certifications or relevant training to improve profile completeness"] : []),
+    ...(location.score < 10 ? [location.explanation] : []),
   ];
 
   return {
     score,
     matchedSkills,
     missingSkills,
-    explanation: "This preliminary score is calculated from the profile information currently available. It is not a hiring decision.",
+    explanation: `Preliminary compatibility score based on stated skills, experience, education, professional category and location. ${location.explanation} This is guidance, not an automated hiring decision.`,
     strengths,
     improvementAreas,
     source: "rules",
