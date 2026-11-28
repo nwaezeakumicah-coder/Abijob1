@@ -21,9 +21,7 @@
   min-height: 100svh;
   overflow: hidden;
   padding: clamp(42px, 5vw, 76px) clamp(38px, 6vw, 96px);
-  background:
-    radial-gradient(circle at 85% 18%, rgba(215,240,120,.13), transparent 34%),
-    linear-gradient(145deg, #176b45 0%, #103c2b 56%, #0a2b1d 100%);
+  background: #103c2b;
   color: #fff;
 }
 
