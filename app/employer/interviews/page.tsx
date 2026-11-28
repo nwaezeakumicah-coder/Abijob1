@@ -609,14 +609,6 @@ export default function EmployerInterviewsPage() {
           .single();
 
         if (insertError) throw insertError;
-        if (createdInterview) {
-          const { error: notificationError } = await supabase.rpc("notify_interview_participant", {
-            p_interview_id: createdInterview.id,
-            p_event: "invited",
-          });
-          if (notificationError) console.error("Interview invitation notification failed:", notificationError);
-        }
-
         setSuccess(
           form.interviewType === "live_chat"
             ? "Abijob Live Room interview scheduled successfully."
