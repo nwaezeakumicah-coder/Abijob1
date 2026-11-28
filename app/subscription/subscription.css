@@ -7,9 +7,7 @@
 }
 
 .subscription-hero {
-  background:
-    radial-gradient(circle at 85% 15%, rgba(215, 240, 120, 0.13), transparent 27%),
-    linear-gradient(115deg, #0a2b1d 0%, #103c2b 55%, #176b45 100%);
+  background: #103c2b; color: #fff;
   color: #fff;
   padding: 90px 7%;
   display: grid;

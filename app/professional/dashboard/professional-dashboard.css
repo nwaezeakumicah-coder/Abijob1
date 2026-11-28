@@ -369,7 +369,7 @@
   overflow: hidden;
   position: relative;
   border-radius: 16px;
-  background: linear-gradient(112deg, #103c2b 0%, #176b45 70%, #24784c 100%);
+  background: #103c2b;
   color: #ffffff;
 }
 

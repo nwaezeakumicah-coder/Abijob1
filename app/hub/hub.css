@@ -323,7 +323,7 @@
   justify-content: space-between;
   padding: 43px 6%;
   border-radius: 22px;
-  background: linear-gradient(112deg, #103c2b 0%, #145a3a 68%, #1d7950 100%);
+  background: #103c2b;
   color: #fff;
 }
 
@@ -692,27 +692,27 @@
 }
 
 .green-visual {
-  background: linear-gradient(135deg, #d9ecdd, #b9d9c1);
+  background: #d9ecdd;
   color: #145a3a;
 }
 
 .blue-visual {
-  background: linear-gradient(135deg, #dcecff, #c3dcf7);
+  background: #dcecff;
   color: #28517a;
 }
 
 .orange-visual {
-  background: linear-gradient(135deg, #fff0dc, #f5d5ae);
+  background: #fff0dc;
   color: #854410;
 }
 
 .purple-visual {
-  background: linear-gradient(135deg, #eee4fa, #d9c8ee);
+  background: #eee4fa;
   color: #5b407c;
 }
 
 .pink-visual {
-  background: linear-gradient(135deg, #f9e2ed, #edc8dc);
+  background: #f9e2ed;
   color: #783b59;
 }
 

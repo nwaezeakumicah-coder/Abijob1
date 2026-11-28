@@ -289,9 +289,7 @@
   min-height: 115px;
   margin: -25px -25px 0;
   border-radius: 15px 15px 0 0;
-  background:
-    radial-gradient(circle at 85% 15%, rgba(215, 240, 120, 0.3), transparent 24%),
-    linear-gradient(115deg, #103c2b, #176b45);
+  background: #103c2b;
 }
 
 .pp-profile-intro {
@@ -556,7 +554,9 @@
   display: grid;
   place-items: center;
   border-radius: 50%;
-  background: conic-gradient(#176b45 0 78%, #e7eee7 78% 100%);
+  background: #e7eee7;
+  border: 6px solid #176b45;
+  border-left-color: #e7eee7;
   position: relative;
 }
 

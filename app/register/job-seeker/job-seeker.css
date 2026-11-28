@@ -6,13 +6,7 @@
 .js-register-page {
   min-height: 100vh;
   padding: 45px 5.5% 90px;
-  background:
-    radial-gradient(
-      circle at 5% 10%,
-      rgba(215, 240, 120, 0.17),
-      transparent 28%
-    ),
-    #f7f8f3;
+  background: #f7f8f3;
 }
 
 .js-register-container {
@@ -53,13 +47,7 @@
   padding: 55px 48px;
   overflow: hidden;
   border-radius: 24px;
-  background:
-    radial-gradient(
-      circle at 85% 10%,
-      rgba(215, 240, 120, 0.18),
-      transparent 32%
-    ),
-    #103c2b;
+  background: #103c2b; color: #fff;
   color: #fff;
 }
 

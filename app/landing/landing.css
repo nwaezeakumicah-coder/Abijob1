@@ -1,6 +1,6 @@
 .welcome-page{--welcome-green:#176b45;--welcome-deep:#103c2b;--welcome-ink:#17251d;position:relative;isolation:isolate;display:flex;min-height:100svh;flex-direction:column;overflow:hidden;background:#f7f8f3;color:var(--welcome-ink)}
 .welcome-page *{box-sizing:border-box}
-.welcome-grain{position:absolute;inset:0;z-index:-1;pointer-events:none;opacity:.24;background-image:radial-gradient(#8eaa91 0.65px,transparent .65px);background-size:17px 17px;mask-image:linear-gradient(110deg,#000,transparent 72%)}
+.welcome-grain{position:absolute;inset:0;z-index:-1;pointer-events:none;opacity:.24;background-image: none;background-size:17px 17px;mask-image: none;}
 .welcome-header{width:min(90%,1440px);height:104px;margin:0 auto;display:flex;align-items:center;justify-content:space-between;animation:welcome-fade-down .8s both}
 .welcome-logo-link{display:inline-flex;align-items:center}
 .welcome-logo{display:block;width:174px;height:auto;object-fit:contain}
@@ -26,7 +26,7 @@
 .welcome-ring-outer:before,.welcome-ring-outer:after{position:absolute;content:"";width:9px;height:9px;border-radius:50%;background:#7ea85d;box-shadow:0 0 0 7px #7ea85d20}
 .welcome-ring-outer:before{top:15%;left:15%}.welcome-ring-outer:after{right:10%;bottom:23%;width:6px;height:6px}
 .welcome-ring-inner{width:min(78%,400px);border-style:dashed;border-color:#176b4530;animation:welcome-rotate 38s linear infinite reverse}
-.welcome-glow{position:absolute;width:72%;aspect-ratio:1;border-radius:50%;background:radial-gradient(circle,#dcebd1 0%,#eaf2e4 48%,#f7f8f3 73%);filter:blur(3px);animation:welcome-glow 5s ease-in-out infinite}
+.welcome-glow{position:absolute;width:72%;aspect-ratio:1;border-radius:50%;background: #eaf2e4; filter: blur(3px);filter:blur(3px);animation:welcome-glow 5s ease-in-out infinite}
 .welcome-center-mark{position:relative;z-index:2;width:245px;height:220px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;border:1px solid #fff;border-radius:27px;background:rgba(255,255,255,.78);box-shadow:0 25px 75px #183e2820;backdrop-filter:blur(12px);animation:welcome-float 6s ease-in-out infinite}
 .welcome-center-logo{width:158px;height:auto;object-fit:contain}.welcome-center-mark>span{color:#809084;font-size:8px;font-weight:850;letter-spacing:1.5px}
 .welcome-orbit-node{position:absolute;z-index:3;display:flex;flex-direction:column;align-items:center;gap:8px;color:#66766a;font-size:10px;font-weight:800;animation:welcome-float 5s ease-in-out infinite}
@@ -56,11 +56,11 @@
 .landing-transition-root{min-height:100svh}
 .landing-transition-curtain{position:fixed;inset:0;z-index:99999;overflow:hidden;pointer-events:none;visibility:hidden}
 .landing-transition-curtain.is-active{visibility:visible}
-.landing-transition-curtain__panel{position:absolute;inset:-12% -22%;display:block;background:linear-gradient(118deg,#0b2e20 0%,#103c2b 42%,#176b45 100%);transform:translate3d(-115%,0,0) skewX(-13deg);transform-origin:center}
+.landing-transition-curtain__panel{position:absolute;inset:-12% -22%;display:block;background: #103c2b;transform:translate3d(-115%,0,0) skewX(-13deg);transform-origin:center}
 .landing-transition-curtain.is-active .landing-transition-curtain__panel{animation:landing-diagonal-sweep .78s cubic-bezier(.76,0,.18,1) forwards}
-.landing-transition-curtain__edge{position:absolute;top:-20%;bottom:-20%;left:-30%;width:13vw;min-width:54px;background:linear-gradient(180deg,#d7f078 0%,#a9cf62 55%,#eaf5c9 100%);filter:drop-shadow(0 0 18px #d7f07880);transform:translate3d(-180vw,0,0) skewX(-13deg)}
+.landing-transition-curtain__edge{position:absolute;top:-20%;bottom:-20%;left:-30%;width:13vw;min-width:54px;background: #d7f078;filter:drop-shadow(0 0 18px #d7f07880);transform:translate3d(-180vw,0,0) skewX(-13deg)}
 .landing-transition-curtain.is-active .landing-transition-curtain__edge{animation:landing-diagonal-edge .78s cubic-bezier(.76,0,.18,1) forwards}
-.landing-transition-curtain__glint{position:absolute;inset:0;background:linear-gradient(115deg,transparent 25%,#ffffff18 48%,transparent 63%);opacity:0;transform:translateX(-35%)}
+.landing-transition-curtain__glint{position:absolute;inset:0;background: rgba(255,255,255,.12);opacity:0;transform:translateX(-35%)}
 .landing-transition-curtain.is-active .landing-transition-curtain__glint{animation:landing-diagonal-glint .72s .08s ease-out forwards}
 @keyframes landing-diagonal-sweep{0%{transform:translate3d(-115%,0,0) skewX(-13deg)}100%{transform:translate3d(0,0,0) skewX(-13deg)}}
 @keyframes landing-diagonal-edge{0%{transform:translate3d(-180vw,0,0) skewX(-13deg)}100%{transform:translate3d(180vw,0,0) skewX(-13deg)}}

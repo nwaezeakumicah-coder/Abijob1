@@ -568,9 +568,7 @@
   flex-direction: column;
   gap: 19px;
   overflow-y: auto;
-  background:
-    radial-gradient(circle at 15% 20%, rgba(215, 240, 120, 0.09), transparent 25%),
-    #fbfcfa;
+  background: #fbfcfa;
 }
 
 .employer-messages-date-divider {

@@ -498,11 +498,10 @@
   place-items: center;
   margin: 0 auto 22px;
   border-radius: 50%;
-  background: conic-gradient(
-    #176b45 0 64%,
-    #e6a052 64% 88%,
-    #6388d8 88% 100%
-  );
+  background: #176b45;
+  border: 20px solid #176b45;
+  border-top-color: #e6a052;
+  border-right-color: #6388d8;
 }
 
 .admin-analytics-donut-inner {
