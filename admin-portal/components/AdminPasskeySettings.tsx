@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { createBrowserClient } from "@supabase/ssr";
 import { KeyRound, Plus, ShieldCheck, Trash2 } from "lucide-react";
+import { registerPlatformPasskey } from "@/lib/auth/register-platform-passkey";
 
 type Passkey = { id: string; friendly_name?: string | null; created_at: string };
 
@@ -31,9 +32,14 @@ export default function AdminPasskeySettings() {
 
   async function add(){
     setWorking(true);setMessage("");setFailed(false);
-    const {error}=await supabase.auth.registerPasskey();
-    if(error){setFailed(true);setMessage(error.message);}
-    else{setMessage("Passkey registered successfully.");await refresh();}
+    try {
+      await registerPlatformPasskey(supabase);
+      setMessage("This device is ready. Use its fingerprint, face recognition or screen-lock PIN to sign in.");
+      await refresh();
+    } catch (cause) {
+      setFailed(true);
+      setMessage(cause instanceof Error ? cause.message : "Could not register this passkey.");
+    }
     setWorking(false);
   }
 
