@@ -1,6 +1,7 @@
 "use client";
 
 import { usePathname, useRouter } from "next/navigation";
+import { Suspense } from "react";
 import { ArrowLeft } from "lucide-react";
 import "./BackNavigation.css";
 
@@ -24,7 +25,7 @@ function getFallbackPath(pathname: string): string {
   return "/home";
 }
 
-export default function BackNavigation() {
+function BackNavigationContent() {
   const pathname = usePathname();
   const router = useRouter();
 
@@ -52,5 +53,13 @@ export default function BackNavigation() {
       <ArrowLeft size={18} strokeWidth={2.3} aria-hidden="true" />
       <span>Back</span>
     </button>
+  );
+}
+
+export default function BackNavigation() {
+  return (
+    <Suspense fallback={null}>
+      <BackNavigationContent />
+    </Suspense>
   );
 }
