@@ -138,9 +138,7 @@ export async function GET() {
         matchScore: match.score,
         matchedSkills: match.matchedSkills.slice(0, 4),
         missingSkills: match.missingSkills.slice(0, 3),
-        explanation: match.matchedSkills.length
-          ? `Your profile matches ${match.matchedSkills.length} of the listed required skill(s).`
-          : "Build out your skills and experience to improve your match with this opportunity.",
+        explanation: match.explanation,
       };
     })
     .sort((a, b) => b.matchScore - a.matchScore || b.createdAt.localeCompare(a.createdAt))
