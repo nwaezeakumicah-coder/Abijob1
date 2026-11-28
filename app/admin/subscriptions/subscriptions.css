@@ -277,12 +277,12 @@
 
 .admin-sub-stat-icon.blue {
   background: #eaf1fa;
-  color: #3972b7;
+  color: #315b91;
 }
 
 .admin-sub-stat-icon.orange {
   background: #fff1e5;
-  color: #d47a32;
+  color: #854410;
 }
 
 .admin-sub-stat-icon.purple {
@@ -367,7 +367,7 @@
   border: 1px solid #e2e9e2;
   border-radius: 9px;
   background: #fff;
-  color: #8b978e;
+  color: #526358;
 }
 
 .admin-sub-search:focus-within {
@@ -398,7 +398,7 @@
   border: 0;
   border-radius: 50%;
   background: #f0f3f0;
-  color: #68756c;
+  color: #526358;
 }
 
 .admin-sub-filters {
@@ -552,22 +552,22 @@
 
 .admin-sub-status.active {
   background: #e8f5eb;
-  color: #24804b;
+  color: #176b45;
 }
 
 .admin-sub-status.pending {
   background: #fff4df;
-  color: #b77a20;
+  color: #7b4a0c;
 }
 
 .admin-sub-status.expired {
   background: #f0f1f0;
-  color: #737d75;
+  color: #526358;
 }
 
 .admin-sub-status.cancelled {
   background: #fceaea;
-  color: #c34e4e;
+  color: #963a3a;
 }
 
 .admin-sub-view {
