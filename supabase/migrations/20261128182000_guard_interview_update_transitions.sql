@@ -15,7 +15,7 @@ begin
     or new.meeting_link is distinct from old.meeting_link
     or new.location is distinct from old.location;
 
-  if new.notes is null or char_length(new.notes) > 5000 then
+  if char_length(coalesce(new.notes,'')) > 5000 then
     raise exception 'Interview notes are invalid' using errcode = '22023';
   end if;
 
@@ -68,6 +68,10 @@ begin
       if old.status <> 'cancelled' then
         raise exception 'Only cancelled interviews can be restored'
           using errcode = '55000';
+      end if;
+      if new.scheduled_at is null or new.scheduled_at <= now() then
+        raise exception 'A cancelled interview can only be restored to a future date'
+          using errcode = '22023';
       end if;
       new.applicant_response := null;
     else
