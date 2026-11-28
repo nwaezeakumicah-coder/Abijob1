@@ -107,7 +107,7 @@
 }
 
 .verification-stat-icon.pending {
-  color: #a16c12;
+  color: #7b4a0c;
   background: #fff4dc;
 }
 
@@ -124,7 +124,7 @@
 .verification-stat-card span:not(.verification-stat-icon) {
   display: block;
   margin-bottom: 6px;
-  color: #77847b;
+  color: #526358;
   font-size: 11px;
 }
 
@@ -187,7 +187,7 @@
   min-width: 220px;
   height: 44px;
   padding: 0 13px;
-  color: #77847b;
+  color: #526358;
   background: #fff;
   border: 1px solid #e2e9e3;
   border-radius: 8px;
@@ -480,7 +480,7 @@
 }
 
 .verification-access-denied p {
-  color: #77847b;
+  color: #526358;
 }
 
 .verification-next-step {
@@ -503,7 +503,7 @@
 .verification-next-step p {
   max-width: 600px;
   margin: 0;
-  color: #77847b;
+  color: #526358;
   font-size: 12px;
   line-height: 1.6;
 }
