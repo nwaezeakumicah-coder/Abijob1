@@ -26,6 +26,7 @@ begin
   end if;
 
   if p_interview_id is null
+     or p_status is null
      or p_status not in ('completed', 'cancelled', 'scheduled') then
     raise exception 'Invalid interview status transition'
       using errcode = '22023';
