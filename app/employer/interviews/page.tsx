@@ -599,24 +599,14 @@ export default function EmployerInterviewsPage() {
 
         setSuccess("Interview rescheduled successfully.");
       } else {
-        const { data: createdInterview, error: insertError } = await supabase
+        const { error: insertError } = await supabase
           .from("interviews")
           .insert({
             ...interviewData,
             status: "scheduled",
-          })
-          .select("id")
-          .single();
+          });
 
         if (insertError) throw insertError;
-        if (createdInterview) {
-          const { error: notificationError } = await supabase.rpc("notify_interview_participant", {
-            p_interview_id: createdInterview.id,
-            p_event: "invited",
-          });
-          if (notificationError) console.error("Interview invitation notification failed:", notificationError);
-        }
-
         setSuccess(
           form.interviewType === "live_chat"
             ? "Abijob Live Room interview scheduled successfully."
