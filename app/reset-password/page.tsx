@@ -14,6 +14,7 @@ import {
 import Logo from "@/components/Logo";
 import { createClient } from "@/lib/supabase/client";
 import "./reset-password.css";
+import { getPasswordPolicyError, PASSWORD_POLICY_HINT } from "@/lib/auth/password-policy";
 
 type RecoveryStatus = "checking" | "ready" | "invalid";
 
@@ -117,8 +118,9 @@ export default function ResetPasswordPage() {
       return;
     }
 
-    if (password.length < 8) {
-      setMessage("Your password must contain at least 8 characters.");
+    const passwordError = getPasswordPolicyError(password);
+    if (passwordError) {
+      setMessage(passwordError);
       setMessageType("error");
       return;
     }
@@ -328,7 +330,7 @@ export default function ResetPasswordPage() {
                           setMessage("");
                         }}
                         autoComplete="new-password"
-                        minLength={8}
+                        minLength={12}
                         required
                       />
 
@@ -348,7 +350,7 @@ export default function ResetPasswordPage() {
                       </button>
                     </div>
 
-                    <small>Use at least 8 characters.</small>
+                    <small>{PASSWORD_POLICY_HINT}</small>
                   </div>
 
                   <div className="reset-field">
@@ -403,7 +405,11 @@ export default function ResetPasswordPage() {
 
                     <p>
                       <CheckCircle2 size={15} />
-                      At least 8 characters
+                      At least 12 characters
+                    </p>
+                    <p>
+                      <CheckCircle2 size={15} />
+                      Uppercase, lowercase, number and symbol
                     </p>
 
                     <p>
