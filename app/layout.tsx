@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import NotificationCenter from "@/components/NotificationCenter";
+import BackNavigation from "@/components/BackNavigation";
 
 export const metadata: Metadata = {
   metadataBase: new URL("https://abijob.ng"),
@@ -39,6 +40,7 @@ export default function RootLayout({
     <html lang="en">
       <body>
         {children}
+        <BackNavigation />
         <NotificationCenter />
       </body>
     </html>
