@@ -127,17 +127,17 @@
 }
 
 .sub-stat-icon.orange {
-  color: #bd7025;
+  color: #854410;
   background: #fff3e6;
 }
 
 .sub-stat-icon.red {
-  color: #b64d4d;
+  color: #963a3a;
   background: #fcecec;
 }
 
 .sub-stat-icon.gold {
-  color: #98721b;
+  color: #76550f;
   background: #fbf5df;
 }
 
@@ -303,7 +303,7 @@
   padding: 0 13px;
   border: 1px solid #e0e7e1;
   border-radius: 9px;
-  color: #8a978e;
+  color: #526358;
   background: #fff;
 }
 
@@ -428,7 +428,7 @@
   padding: 6px 9px;
   border-radius: 20px;
   background: #eef1ef;
-  color: #657169;
+  color: #526358;
   font-size: 10px;
   font-weight: 750;
   text-transform: capitalize;
@@ -446,7 +446,7 @@
 .sub-status-trialing,
 .sub-status-pending {
   background: #fff4df;
-  color: #a16b15;
+  color: #7b4a0c;
 }
 
 .sub-status-expired,
@@ -459,13 +459,13 @@
 .sub-status-past-due,
 .sub-status-past-due-payment {
   background: #fff0e5;
-  color: #b35c1b;
+  color: #7d3e0a;
 }
 
 .sub-cancel-note {
   display: block;
   margin-top: 5px;
-  color: #b35c1b;
+  color: #7d3e0a;
   font-size: 10px;
 }
 

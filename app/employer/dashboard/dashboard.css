@@ -537,12 +537,12 @@
 
 .employer-stat-icon.blue {
   background: #e0eaf4;
-  color: #416d9c;
+  color: #31577e;
 }
 
 .employer-stat-icon.orange {
   background: #f8eadb;
-  color: #c17b36;
+  color: #895019;
 }
 
 .employer-stat-icon.purple {
@@ -713,7 +713,7 @@
 
 .employer-status.review {
   background: #fff0d9;
-  color: #a66c1f;
+  color: #80500d;
 }
 
 .employer-status.draft {
@@ -812,7 +812,7 @@
 
 .employer-applicant-status.review {
   background: #fff0d9;
-  color: #a66c1f;
+  color: #80500d;
 }
 
 .employer-panel-bottom-link {

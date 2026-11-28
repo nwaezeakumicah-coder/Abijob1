@@ -44,7 +44,7 @@
 .jobs-feed-intro p {
   max-width: 620px;
   margin: 0;
-  color: #68756c;
+  color: #526358;
   font-size: 15px;
   line-height: 1.8;
 }
@@ -96,7 +96,7 @@
   padding: 0 14px;
   border: none;
   border-radius: 8px;
-  color: #68756c;
+  color: #526358;
   background: transparent;
   font-size: 13px;
   font-weight: 700;
@@ -162,7 +162,7 @@
   place-items: center;
   border: none;
   border-radius: 6px;
-  color: #68756c;
+  color: #526358;
   background: #f0f3ef;
   cursor: pointer;
 }
@@ -272,7 +272,7 @@
 
 .jobs-feed-heading > p {
   margin: 0 0 3px;
-  color: #68756c;
+  color: #526358;
   font-size: 12px;
 }
 
@@ -370,7 +370,7 @@
 .jobs-post-content > p {
   max-width: 690px;
   margin: 0;
-  color: #68756c;
+  color: #526358;
   font-size: 13px;
   line-height: 1.85;
 }
@@ -386,7 +386,7 @@
   display: inline-flex;
   align-items: center;
   gap: 7px;
-  color: #68756c;
+  color: #526358;
   font-size: 12px;
 }
 
@@ -475,7 +475,7 @@
   gap: 6px;
   padding: 5px;
   border: none;
-  color: #68756c;
+  color: #526358;
   background: transparent;
   font-size: 10px;
   font-weight: 700;
@@ -522,7 +522,7 @@
 
 .jobs-feed-empty p {
   max-width: 400px;
-  color: #68756c;
+  color: #526358;
   font-size: 13px;
   line-height: 1.8;
 }
@@ -642,7 +642,7 @@
 }
 
 .jobs-details-company span {
-  color: #68756c;
+  color: #526358;
   font-size: 12px;
 }
 
@@ -666,7 +666,7 @@
   display: inline-flex;
   align-items: center;
   gap: 7px;
-  color: #68756c;
+  color: #526358;
   font-size: 12px;
 }
 
@@ -686,7 +686,7 @@
 
 .jobs-details-section p {
   margin: 0;
-  color: #68756c;
+  color: #526358;
   font-size: 13px;
   line-height: 1.8;
 }

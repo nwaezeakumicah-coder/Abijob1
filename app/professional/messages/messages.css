@@ -345,7 +345,7 @@
   border: 1px solid var(--pm-border);
   border-radius: 9px;
   background: #f8faf8;
-  color: #849087;
+  color: #526358;
 }
 
 .professional-conversation-search:focus-within {
@@ -601,7 +601,7 @@
   border: 1px solid #e8ede8;
   border-radius: 20px;
   background: #ffffff;
-  color: #849087;
+  color: #526358;
   font-size: 10px;
   font-weight: 650;
 }

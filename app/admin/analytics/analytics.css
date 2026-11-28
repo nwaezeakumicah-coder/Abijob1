@@ -230,7 +230,7 @@
   border: 1px solid #f0dfbd;
   border-radius: 9px;
   background: #fff9ed;
-  color: #9a6b29;
+  color: #7a4b12;
   font-size: 11px;
 }
 
@@ -271,12 +271,12 @@
 
 .admin-analytics-metric-icon.orange {
   background: #fff1e4;
-  color: #d47b2f;
+  color: #854410;
 }
 
 .admin-analytics-metric-icon.blue {
   background: #eaf1ff;
-  color: #4674c6;
+  color: #315b91;
 }
 
 .admin-analytics-metric-icon.purple {

@@ -470,12 +470,12 @@
 
 .review-icon {
   background: #fff2df;
-  color: #a86b28;
+  color: #7d4c12;
 }
 
 .shortlist-icon {
   background: #e5f2e8;
-  color: #36804b;
+  color: #176b45;
 }
 
 .interview-icon {
@@ -679,7 +679,7 @@
   border: 1px solid #e0e7df;
   border-radius: 9px;
   background: #fff;
-  color: #718076;
+  color: #526358;
 }
 
 .applications-search:focus-within {
@@ -890,7 +890,7 @@
 
 .application-company-logo.orange {
   background: #fff0df;
-  color: #a85c20;
+  color: #7d3e0a;
 }
 
 .application-company-logo.blue {

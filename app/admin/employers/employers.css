@@ -196,7 +196,7 @@
   display: flex;
   align-items: center;
   gap: 10px;
-  color: #87948a;
+  color: #526358;
   font-size: 12px;
 }
 
@@ -220,7 +220,7 @@
   border: 1px solid #e1e8e0;
   border-radius: 9px;
   background: #fff;
-  color: #849087;
+  color: #526358;
 }
 
 .admin-employers-top-search input {
@@ -404,17 +404,17 @@
 
 .admin-employers-stat-icon.verified {
   background: #e2f1e5;
-  color: #328451;
+  color: #176b45;
 }
 
 .admin-employers-stat-icon.pending {
   background: #f7f1d9;
-  color: #aa8b2f;
+  color: #6b560f;
 }
 
 .admin-employers-stat-icon.suspended {
   background: #fae9e6;
-  color: #bd5d50;
+  color: #813b31;
 }
 
 .admin-employers-stats article > span {
@@ -544,7 +544,7 @@
   padding: 0 4px;
   border-radius: 20px;
   background: #edf1eb;
-  color: #738176;
+  color: #526358;
   font-size: 9px;
 }
 
@@ -563,7 +563,7 @@
   border: 1px solid #e1e8e0;
   border-radius: 8px;
   background: #fff;
-  color: #87948a;
+  color: #526358;
 }
 
 .admin-employers-search input {
@@ -697,17 +697,17 @@
 
 .admin-employers-status.verified {
   background: #e5f3e7;
-  color: #35804d;
+  color: #176b45;
 }
 
 .admin-employers-status.pending {
   background: #f8f0d9;
-  color: #a78325;
+  color: #7b4a0c;
 }
 
 .admin-employers-status.suspended {
   background: #f9e9e6;
-  color: #b65c50;
+  color: #813b31;
 }
 
 .admin-employers-view {
@@ -947,7 +947,7 @@
 
 .admin-employers-suspend {
   background: #fae9e6;
-  color: #ad5147;
+  color: #813b31;
 }
 
 .admin-employers-suspend:hover {

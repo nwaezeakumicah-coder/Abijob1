@@ -89,7 +89,7 @@
   place-items: center;
   border-radius: 20px;
   color: #fff;
-  background: #c47b3c;
+  background: #854410;
   font-size: 11px;
 }
 
@@ -229,7 +229,7 @@
   gap: 8px;
   border: 1px solid var(--v-line);
   border-radius: 8px;
-  color: #89958c;
+  color: #526358;
   background: #fafcf9;
 }
 
@@ -414,17 +414,17 @@
 }
 
 .verification-stat-icon.pending {
-  color: #a76a23;
+  color: #7b4a0c;
   background: #fff2dd;
 }
 
 .verification-stat-icon.approved {
-  color: #26804f;
+  color: #176b45;
   background: #e6f5e9;
 }
 
 .verification-stat-icon.rejected {
-  color: #c15a4e;
+  color: #813b31;
   background: #fff0ed;
 }
 
@@ -445,7 +445,7 @@
 
 .verification-stat-card > small {
   grid-column: 1 / -1;
-  color: #89958c;
+  color: #526358;
   font-size: 10px;
 }
 
@@ -524,7 +524,7 @@
   gap: 8px;
   border: 1px solid var(--v-line);
   border-radius: 7px;
-  color: #89958c;
+  color: #526358;
 }
 
 .verification-tabs {
@@ -599,7 +599,7 @@
 
 .verification-table th {
   padding: 14px 17px;
-  color: #89958c;
+  color: #526358;
   font-size: 9px;
   font-weight: 800;
   letter-spacing: 0.8px;
@@ -675,7 +675,7 @@
 }
 
 .verification-status.pending {
-  color: #a66b23;
+  color: #7b4a0c;
   background: #fff4e3;
 }
 
@@ -685,7 +685,7 @@
 }
 
 .verification-status.rejected {
-  color: #bc5147;
+  color: #813b31;
   background: #fff0ed;
 }
 
@@ -718,7 +718,7 @@
   align-items: center;
   justify-content: center;
   gap: 9px;
-  color: #89958c;
+  color: #526358;
 }
 
 .verification-empty strong {
@@ -738,7 +738,7 @@
   justify-content: space-between;
   gap: 12px;
   border-top: 1px solid var(--v-line);
-  color: #89958c;
+  color: #526358;
   font-size: 10px;
 }
 
@@ -747,7 +747,7 @@
   display: flex;
   justify-content: space-between;
   gap: 15px;
-  color: #89958c;
+  color: #526358;
   font-size: 10px;
 }
 
@@ -845,7 +845,7 @@
 
 .verification-detail-grid span,
 .verification-modal-status > span:first-child {
-  color: #89958c;
+  color: #526358;
   font-size: 10px;
 }
 
@@ -888,7 +888,7 @@
 }
 
 .verification-document > div:nth-child(2) span {
-  color: #89958c;
+  color: #526358;
   font-size: 10px;
 }
 

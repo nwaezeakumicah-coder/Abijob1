@@ -252,7 +252,7 @@
   display: flex;
   align-items: center;
   gap: 7px;
-  color: #78847b;
+  color: #526358;
   font-size: 11px;
 }
 
@@ -301,7 +301,7 @@
 
 .notifications-heading p {
   margin: 0;
-  color: #78847b;
+  color: #526358;
   font-size: 13px;
   line-height: 1.6;
 }
@@ -368,17 +368,17 @@
 
 .notifications-summary-icon.total {
   background: #edf2fb;
-  color: #5574b5;
+  color: #315b91;
 }
 
 .notifications-summary-icon.unread {
   background: #fff3e6;
-  color: #d68b35;
+  color: #854410;
 }
 
 .notifications-summary-icon.read {
   background: #e8f3eb;
-  color: #27804c;
+  color: #176b45;
 }
 
 .notifications-summary-card span,
@@ -437,7 +437,7 @@
   border: 1px solid #f0dddd;
   border-radius: 7px;
   background: #fff;
-  color: #c34c4c;
+  color: #963a3a;
   font-size: 11px;
   font-weight: 700;
   cursor: pointer;
@@ -477,7 +477,7 @@
   border: 0;
   border-radius: 7px;
   background: transparent;
-  color: #78847b;
+  color: #526358;
   font-size: 11px;
   font-weight: 650;
   cursor: pointer;
@@ -497,7 +497,7 @@
   padding: 0 4px;
   border-radius: 20px;
   background: #f0f2ef;
-  color: #748077;
+  color: #526358;
   font-size: 9px;
 }
 
@@ -584,27 +584,27 @@
 
 .notification-type-icon.type-application {
   background: #edf2fb;
-  color: #5574b5;
+  color: #315b91;
 }
 
 .notification-type-icon.type-job {
   background: #fff3e6;
-  color: #d68b35;
+  color: #854410;
 }
 
 .notification-type-icon.type-profile {
   background: #f2edfb;
-  color: #8862bb;
+  color: #5b407c;
 }
 
 .notification-type-icon.type-message {
   background: #e9f4f4;
-  color: #348d8a;
+  color: #286b68;
 }
 
 .notification-type-icon.type-system {
   background: #e8f3eb;
-  color: #27804c;
+  color: #176b45;
 }
 
 .notification-item-content {
@@ -686,7 +686,7 @@
 }
 
 .notification-item-actions button:last-child:hover {
-  color: #c34c4c;
+  color: #963a3a;
 }
 
 .notifications-empty {
@@ -707,7 +707,7 @@
   margin-bottom: 15px;
   border-radius: 50%;
   background: #edf4ee;
-  color: #548b63;
+  color: #176b45;
 }
 
 .notifications-empty h3 {
@@ -827,7 +827,7 @@
   padding: 12px;
   border-radius: 8px;
   background: #f7f9f6;
-  color: #78847b;
+  color: #526358;
   font-size: 11px;
 }
 
@@ -856,7 +856,7 @@
   margin-bottom: 16px;
   border-radius: 11px;
   background: #fff0ef;
-  color: #c34c4c;
+  color: #963a3a;
 }
 
 .notification-confirm-actions {
@@ -879,8 +879,8 @@
 }
 
 .notification-confirm-actions .notification-confirm-delete {
-  border-color: #c34c4c;
-  background: #c34c4c;
+  border-color: #963a3a;
+  background: #963a3a;
   color: #fff;
 }
 
@@ -1346,7 +1346,7 @@
   display: flex;
   align-items: center;
   gap: 9px;
-  color: #78847b;
+  color: #526358;
   font-size: 12px;
 }
 
@@ -1490,17 +1490,17 @@
 
 .notifications-summary-icon.total {
   background: #edf2fb;
-  color: #5574b5;
+  color: #315b91;
 }
 
 .notifications-summary-icon.unread {
   background: #fff3e6;
-  color: #d68b35;
+  color: #854410;
 }
 
 .notifications-summary-icon.read {
   background: #e8f3eb;
-  color: #27804c;
+  color: #176b45;
 }
 
 .notifications-summary-card span,
@@ -1559,7 +1559,7 @@
   border: 1px solid #f0dddd;
   border-radius: 7px;
   background: #fff;
-  color: #c34c4c;
+  color: #963a3a;
   font-size: 11px;
   font-weight: 700;
   cursor: pointer;
@@ -1706,27 +1706,27 @@
 
 .notification-type-icon.type-application {
   background: #edf2fb;
-  color: #5574b5;
+  color: #315b91;
 }
 
 .notification-type-icon.type-job {
   background: #fff3e6;
-  color: #d68b35;
+  color: #854410;
 }
 
 .notification-type-icon.type-profile {
   background: #f2edfb;
-  color: #8862bb;
+  color: #5b407c;
 }
 
 .notification-type-icon.type-message {
   background: #e9f4f4;
-  color: #348d8a;
+  color: #286b68;
 }
 
 .notification-type-icon.type-system {
   background: #e8f3eb;
-  color: #27804c;
+  color: #176b45;
 }
 
 .notification-item-content {
@@ -1808,7 +1808,7 @@
 }
 
 .notification-item-actions button:last-child:hover {
-  color: #c34c4c;
+  color: #963a3a;
 }
 
 .notifications-empty {
@@ -1829,7 +1829,7 @@
   margin-bottom: 15px;
   border-radius: 50%;
   background: #edf4ee;
-  color: #548b63;
+  color: #176b45;
 }
 
 .notifications-empty h3 {
@@ -1978,7 +1978,7 @@
   margin-bottom: 16px;
   border-radius: 11px;
   background: #fff0ef;
-  color: #c34c4c;
+  color: #963a3a;
 }
 
 .notification-confirm-actions {
@@ -2001,8 +2001,8 @@
 }
 
 .notification-confirm-actions .notification-confirm-delete {
-  border-color: #c34c4c;
-  background: #c34c4c;
+  border-color: #963a3a;
+  background: #963a3a;
   color: #fff;
 }
 

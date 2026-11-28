@@ -380,12 +380,12 @@
 
 .po-stat-icon.orange {
   background: #fff2e7;
-  color: #d67b32;
+  color: #854410;
 }
 
 .po-stat-icon.purple {
   background: #f0edff;
-  color: #7560c8;
+  color: #5b407c;
 }
 
 .po-stat-card strong {
@@ -515,7 +515,7 @@
   padding: 4px 7px;
   border-radius: 5px;
   background: #fff4e8;
-  color: #b96d2a;
+  color: #854410;
   font-size: 9px;
   font-weight: 800;
 }
@@ -590,7 +590,7 @@
 .po-job-posted {
   display: grid;
   gap: 6px;
-  color: #89948b;
+  color: #526358;
   font-size: 10px;
 }
 
@@ -739,7 +739,7 @@
 }
 
 .po-category-list button small {
-  color: #89948b;
+  color: #526358;
   font-size: 9px;
   white-space: nowrap;
 }
@@ -752,7 +752,7 @@
   place-items: center;
   border-radius: 9px;
   background: #fff4e8;
-  color: #c67a35;
+  color: #854410;
 }
 
 .po-tip-card h3 {
@@ -770,7 +770,7 @@
   border: 1px dashed #d5dfd5;
   border-radius: 13px;
   background: #fff;
-  color: #89948b;
+  color: #526358;
   text-align: center;
 }
 

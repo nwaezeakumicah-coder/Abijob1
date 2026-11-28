@@ -227,7 +227,7 @@
   border: 1px solid #e1e8e0;
   border-radius: 9px;
   background: #fff;
-  color: #849087;
+  color: #526358;
 }
 
 .admin-search input {
@@ -417,17 +417,17 @@
 
 .admin-stat-icon.orange {
   background: #fff0e3;
-  color: #d48642;
+  color: #854410;
 }
 
 .admin-stat-icon.purple {
   background: #eee9fa;
-  color: #8064bd;
+  color: #5b407c;
 }
 
 .admin-stat-icon.yellow {
   background: #f7f1d9;
-  color: #aa8b2f;
+  color: #6b560f;
 }
 
 .admin-stat-card > p {
@@ -632,7 +632,7 @@
   place-items: center;
   border-radius: 9px;
   background: #eaf2e9;
-  color: #39805a;
+  color: #176b45;
 }
 
 .admin-activity-copy {

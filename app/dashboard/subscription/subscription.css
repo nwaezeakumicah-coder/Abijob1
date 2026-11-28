@@ -5,7 +5,7 @@
   --js-green: #176b45;
   --js-dark: #103c2b;
   --js-ink: #17251d;
-  --js-muted: #68766d;
+  --js-muted: #526358;
   --js-line: #dce5da;
   --js-bg: #edf2e9;
   --js-white: #ffffff;
@@ -281,7 +281,7 @@
 .js-billing-section-heading p {
   max-width: 650px;
   margin: 0;
-  color: #68766d;
+  color: #526358;
   font-size: 12px;
   line-height: 1.8;
 }
@@ -527,7 +527,7 @@
 
 .js-billing-summary > span {
   display: block;
-  color: #68766d;
+  color: #526358;
   font-size: 10px;
   font-weight: 700;
 }
@@ -564,7 +564,7 @@
 }
 
 .js-billing-summary-row span {
-  color: #68766d;
+  color: #526358;
   font-size: 10px;
 }
 
@@ -669,7 +669,7 @@
 
 .js-billing-plan-heading p {
   margin: 6px 0 0;
-  color: #68766d;
+  color: #526358;
   font-size: 10px;
   line-height: 1.6;
 }
@@ -700,7 +700,7 @@
 }
 
 .js-billing-price span {
-  color: #68766d;
+  color: #526358;
   font-size: 10px;
 }
 
@@ -770,7 +770,7 @@
 .js-billing-plan-button.disabled {
   width: 100%;
   background: #e8ece7;
-  color: #7a857d;
+  color: #526358;
   cursor: not-allowed;
 }
 
@@ -850,7 +850,7 @@
   padding: 6px 8px;
   border-radius: 20px;
   background: #f0f2ef;
-  color: #68766d;
+  color: #526358;
   font-size: 9px;
   font-weight: 850;
 }
@@ -938,7 +938,7 @@
 
 .js-billing-help > p {
   margin: 0;
-  color: #68766d;
+  color: #526358;
   font-size: 10px;
   line-height: 1.8;
 }
@@ -1076,7 +1076,7 @@
 }
 
 .js-billing-error-page p {
-  color: #68766d;
+  color: #526358;
   font-size: 12px;
   line-height: 1.7;
 }
