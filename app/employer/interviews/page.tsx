@@ -31,6 +31,7 @@ import {
 } from "lucide-react";
 import Logo from "../../../components/Logo";
 import ProfileImage from "@/components/ProfileImage";
+import RecruitmentDocumentButton from "@/components/RecruitmentDocumentButton";
 import { createClient } from "@/lib/supabase/client";
 import "./interviews.css";
 
@@ -1048,6 +1049,19 @@ export default function EmployerInterviewsPage() {
                       )}
 
                       <div className="interview-actions">
+                        <RecruitmentDocumentButton
+                          kind="interview"
+                          recipient={interview.applicant_name}
+                          organization={companyName}
+                          position={interview.job_title}
+                          reference={interview.id}
+                          dateTime={interview.scheduled_at}
+                          duration={interview.duration_minutes}
+                          format={interview.interview_type.replaceAll("_", " ")}
+                          location={interview.location}
+                          meetingLink={interview.meeting_link}
+                          notes={interview.notes}
+                        />
                         <Link
                           href={`/employer/applicants/${interview.application_id}`}
                         >
