@@ -10,7 +10,7 @@ import RecruitmentDocumentButton from "@/components/RecruitmentDocumentButton";
 
 type Offer={id:string;employer_id:string;organization?:string;job_title:string;salary_amount:number;salary_currency:string;employment_type:string;work_location:string;start_date:string;expires_at:string;terms:string;status:string;issued_at:string};
 type RecordRow={id:string;employer_id:string;organization?:string;job_title:string;employment_type:string;salary_amount:number;salary_currency:string;work_location:string;start_date:string;status:string;confirmed_at:string};
-const money=(amount:number,currency:string)=>new Intl.NumberFormat("en-NG",{style:"currency",currency:currency||"NGN",maximumFractionDigits:2}).format(Number(amount||0));
+const money=(amount:number,currency:string)=>{const value=Number(amount||0);const code=currency||"NGN";try{return new Intl.NumberFormat("en-NG",{style:"currency",currency:code,maximumFractionDigits:2}).format(value);}catch{return `${code} ${value.toLocaleString("en-NG",{maximumFractionDigits:2})}`;}};
 const date=(value:string)=>new Intl.DateTimeFormat("en-NG",{day:"numeric",month:"short",year:"numeric"}).format(new Date(value));
 export default function CandidateEmploymentPage(){
  const supabase=useMemo(()=>createClient(),[]),router=useRouter();const [offers,setOffers]=useState<Offer[]>([]),[records,setRecords]=useState<RecordRow[]>([]),[recipientName,setRecipientName]=useState("Candidate"),[loading,setLoading]=useState(true),[busy,setBusy]=useState(""),[error,setError]=useState(""),[success,setSuccess]=useState("");

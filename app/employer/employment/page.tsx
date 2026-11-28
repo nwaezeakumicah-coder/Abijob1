@@ -14,7 +14,7 @@ type RecordRow = { id:string; employee_id:string; employee_name?:string; job_tit
 type Interview = { id:string; applicant_id:string; scheduled_at:string; status:string; applicant_name?:string; job_title?:string };
 type Feedback = { interview_id:string; rating:number; recommendation:string; strengths:string; concerns:string; private_notes:string };
 
-const money=(amount:number,currency:string)=>new Intl.NumberFormat("en-NG",{style:"currency",currency:currency||"NGN",maximumFractionDigits:2}).format(Number(amount||0));
+const money=(amount:number,currency:string)=>{const value=Number(amount||0);const code=currency||"NGN";try{return new Intl.NumberFormat("en-NG",{style:"currency",currency:code,maximumFractionDigits:2}).format(value);}catch{return `${code} ${value.toLocaleString("en-NG",{maximumFractionDigits:2})}`;}};
 const date=(value:string)=>new Intl.DateTimeFormat("en-NG",{day:"numeric",month:"short",year:"numeric"}).format(new Date(value));
 const employmentTypes=[["full_time","Full-time"],["part_time","Part-time"],["contract","Contract"],["temporary","Temporary"],["internship","Internship"],["apprenticeship","Apprenticeship"]];
 
