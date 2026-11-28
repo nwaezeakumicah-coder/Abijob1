@@ -599,14 +599,12 @@ export default function EmployerInterviewsPage() {
 
         setSuccess("Interview rescheduled successfully.");
       } else {
-        const { data: createdInterview, error: insertError } = await supabase
+        const { error: insertError } = await supabase
           .from("interviews")
           .insert({
             ...interviewData,
             status: "scheduled",
-          })
-          .select("id")
-          .single();
+          });
 
         if (insertError) throw insertError;
         setSuccess(
