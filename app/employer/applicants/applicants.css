@@ -328,12 +328,12 @@
 
 .applicant-stat-icon.blue {
   background: #dfeaf2;
-  color: #47789d;
+  color: #2f5c7d;
 }
 
 .applicant-stat-icon.purple {
   background: #ece4f4;
-  color: #8463a8;
+  color: #5b407c;
 }
 
 .applicant-stat-card span,
@@ -533,27 +533,27 @@
 
 .applicant-avatar.orange {
   background: #f7e7d8;
-  color: #ad6c35;
+  color: #824619;
 }
 
 .applicant-avatar.blue {
   background: #e0eaf2;
-  color: #47789d;
+  color: #2f5c7d;
 }
 
 .applicant-avatar.purple {
   background: #eee5f4;
-  color: #8262a6;
+  color: #5b407c;
 }
 
 .applicant-avatar.red {
   background: #f3e2df;
-  color: #a45245;
+  color: #813b31;
 }
 
 .applicant-avatar.pink {
   background: #f3e3eb;
-  color: #a35479;
+  color: #783b59;
 }
 
 .applicant-details {
