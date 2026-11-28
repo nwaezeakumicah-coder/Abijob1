@@ -33,7 +33,7 @@ function safe(value: unknown): string {
     .replace(/'/g, "&#39;");
 }
 
-function readableDate(value?: string): string {
+function safeHttpsUrl(value?: string | null): string | null {\n  if (!value) return null;\n  try {\n    const parsed = new URL(value);\n    return parsed.protocol === "https:" ? parsed.toString() : null;\n  } catch {\n    return null;\n  }\n}\n\nfunction readableDate(value?: string): string {
   if (!value) return "To be confirmed";
   const parsed = new Date(value);
   return Number.isNaN(parsed.getTime())
@@ -59,19 +59,19 @@ export default function RecruitmentDocumentButton(props: Props) {
       : "Print employment letter";
 
   function printDocument() {
-    const popup = window.open("", "_blank", "width=900,height=1000");
+    const popup = window.open("about:blank", "_blank", "width=900,height=1000");
     if (!popup) {
       window.alert("Please allow pop-ups for Abijob to print this document.");
       return;
     }
 
-    const organization = safe(props.organization || "Hiring organisation");
+    popup.opener = null;\n    const organization = safe(props.organization || "Hiring organisation");
     const recipient = safe(props.recipient || "Candidate");
     const position = safe(props.position || "Position not specified");
     const reference = safe(props.reference);
     const location = safe(props.location || "To be confirmed");
     const terms = safe(props.terms || "The employer will communicate any additional agreed conditions in writing.");
-    const notes = safe(props.notes || "");
+    const notes = safe(props.notes || "");\n    const meetingUrl = safeHttpsUrl(props.meetingLink);
     const salary = props.salary == null
       ? "As stated in the signed employment agreement"
       : safe(new Intl.NumberFormat("en-NG", {
@@ -86,7 +86,7 @@ export default function RecruitmentDocumentButton(props: Props) {
           <dt>Duration</dt><dd>${safe(props.duration || 30)} minutes</dd>
           <dt>Format</dt><dd>${safe(props.format || "To be confirmed")}</dd>
           <dt>Venue / location</dt><dd>${location}</dd>
-          ${props.meetingLink ? `<dt>Meeting link</dt><dd><a href="${safe(props.meetingLink)}">${safe(props.meetingLink)}</a></dd>` : ""}
+          ${meetingUrl ? `<dt>Meeting link</dt><dd><a href="${safe(meetingUrl)}">${safe(meetingUrl)}</a></dd>` : ""}
         </dl></section>
         <p>Please arrive or join a few minutes early. Bring relevant portfolio materials and copies of requested credentials where applicable. Never send passwords, card PINs or one-time banking codes as part of recruitment.</p>
         ${notes ? `<section><h2>Additional instructions</h2><p>${notes}</p></section>` : ""}
