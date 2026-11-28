@@ -302,3 +302,75 @@ begin
   return true;
 end;
 $function$;
+
+
+-- The application-status trigger already notifies the candidate when the
+-- application becomes hired. Keep only the employer-side confirmation here
+-- to avoid sending the candidate two near-identical notifications.
+create or replace function public.confirm_employment_offer(
+  p_offer_id uuid
+)
+returns uuid
+language plpgsql
+security definer
+set search_path = ''
+as $function$
+declare
+  v_user uuid := auth.uid();
+  v_offer public.employment_offers%rowtype;
+  v_record_id uuid;
+begin
+  if v_user is null or not public.has_platform_access()
+     or not exists (
+       select 1 from public.profiles p
+       where p.id = v_user and p.role = 'employer'
+     ) then
+    raise exception 'Only an active employer can confirm hiring' using errcode = '42501';
+  end if;
+
+  if p_offer_id is null then
+    raise exception 'Employment offer ID is required' using errcode = '22023';
+  end if;
+
+  select * into v_offer
+  from public.employment_offers
+  where id = p_offer_id and employer_id = v_user
+  for update;
+  if not found then
+    raise exception 'Employment offer not found' using errcode = 'P0002';
+  end if;
+
+  if v_offer.status <> 'accepted' then
+    raise exception 'The candidate must accept the offer before hiring can be confirmed'
+      using errcode = '55000';
+  end if;
+
+  insert into public.employment_records(
+    offer_id,application_id,employer_id,employee_id,job_title,employment_type,
+    salary_amount,salary_currency,work_location,start_date,status
+  ) values (
+    v_offer.id,v_offer.application_id,v_offer.employer_id,v_offer.applicant_id,
+    v_offer.job_title,v_offer.employment_type,v_offer.salary_amount,
+    v_offer.salary_currency,v_offer.work_location,v_offer.start_date,
+    case when v_offer.start_date <= current_date then 'active' else 'upcoming' end
+  )
+  returning id into v_record_id;
+
+  update public.employment_offers
+  set status = 'confirmed', confirmed_at = now(), updated_at = now()
+  where id = v_offer.id;
+
+  update public.job_applications
+  set status = 'hired', updated_at = now()
+  where id = v_offer.application_id;
+
+  insert into public.notifications(user_id,title,description,category,href)
+  values (
+    v_user,'Hiring confirmed',
+    'Employment has been confirmed for ' || v_offer.job_title || '.',
+    'application','/employer/employment'
+  );
+
+  return v_record_id;
+end;
+$function$;
