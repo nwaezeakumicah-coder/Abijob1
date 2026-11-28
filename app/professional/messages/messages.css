@@ -1129,7 +1129,7 @@
 }
 
 .dark .professional-chat-messages {
-  background-image: radial-gradient(#2a382e 0.7px, transparent 0.7px);
+  background-image: none;
 }
 
 .dark .professional-empty-icon {
