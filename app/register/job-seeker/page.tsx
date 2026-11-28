@@ -8,7 +8,6 @@ import Header from "../../../components/Header";
 import Footer from "../../../components/Footer";
 import { createClient } from "../../../lib/supabase/client";
 import { getPasswordPolicyError, PASSWORD_POLICY_HINT } from "../../../lib/auth/password-policy";
-import { getPasswordPolicyError, PASSWORD_POLICY_HINT } from "../../../lib/auth/password-policy";
 import {
   ArrowLeft,
   ArrowRight,
@@ -290,6 +289,7 @@ export default function JobSeekerRegistrationPage() {
                       placeholder="At least 8 characters"
                       autoComplete="new-password"
                       minLength={12}
+                      maxLength={128}
                       required
                       disabled={isSubmitting}
                     />
