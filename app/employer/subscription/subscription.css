@@ -254,13 +254,7 @@
   overflow: hidden;
   border: 1px solid #174b34;
   border-radius: 17px;
-  background:
-    radial-gradient(
-      circle at 95% 0%,
-      rgba(215, 240, 120, 0.14),
-      transparent 35%
-    ),
-    #103c2b;
+  background: #103c2b;
   color: #fff;
 }
 
