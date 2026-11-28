@@ -265,7 +265,7 @@ function HeaderContent() {
       setAvatarPath("");
       closeMenu();
 
-      router.replace("/");
+      router.replace("/home");
       router.refresh();
     } catch (error) {
       console.error("Unexpected logout error:", error);
