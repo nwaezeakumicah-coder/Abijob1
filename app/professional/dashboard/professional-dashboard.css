@@ -595,12 +595,12 @@
 
 .pd-stat-icon.shortlisted {
   background: #f1f5df;
-  color: #718c23;
+  color: #4f6612;
 }
 
 .pd-stat-icon.saved {
   background: #fff1e5;
-  color: #b46b2e;
+  color: #864717;
 }
 
 .pd-stat-copy {
@@ -766,7 +766,7 @@
 
 .pd-status.under-review {
   background: #fff4e5;
-  color: #9b6828;
+  color: #7a4b12;
 }
 
 .pd-status.shortlisted,
@@ -783,7 +783,7 @@
 
 .pd-status.unknown {
   background: #eff1ef;
-  color: #66736a;
+  color: #526358;
 }
 
 /* Opportunities */
