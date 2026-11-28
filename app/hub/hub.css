@@ -1,6 +1,6 @@
 
 .hub-page {
-  --hub-green: #176b45;
+  --hub-green: #145a3a;
   --hub-dark: #103c2b;
   --hub-deep: #0a2b1d;
   --hub-lime: #d7f078;
@@ -323,7 +323,7 @@
   justify-content: space-between;
   padding: 43px 6%;
   border-radius: 22px;
-  background: linear-gradient(112deg, #103c2b 0%, #176b45 68%, #1d7950 100%);
+  background: linear-gradient(112deg, #103c2b 0%, #145a3a 68%, #1d7950 100%);
   color: #fff;
 }
 
@@ -522,22 +522,22 @@
 }
 
 .green-stat {
-  color: #176b45;
+  color: #145a3a;
   background: #e7f2e9;
 }
 
 .orange-stat {
-  color: #b86c24;
+  color: #854410;
   background: #fff0df;
 }
 
 .blue-stat {
-  color: #326eae;
+  color: #28517a;
   background: #e9f2ff;
 }
 
 .purple-stat {
-  color: #7852a3;
+  color: #5b407c;
   background: #f1eafa;
 }
 
@@ -693,27 +693,27 @@
 
 .green-visual {
   background: linear-gradient(135deg, #d9ecdd, #b9d9c1);
-  color: #176b45;
+  color: #145a3a;
 }
 
 .blue-visual {
   background: linear-gradient(135deg, #dcecff, #c3dcf7);
-  color: #326eae;
+  color: #28517a;
 }
 
 .orange-visual {
   background: linear-gradient(135deg, #fff0dc, #f5d5ae);
-  color: #b86c24;
+  color: #854410;
 }
 
 .purple-visual {
   background: linear-gradient(135deg, #eee4fa, #d9c8ee);
-  color: #7852a3;
+  color: #5b407c;
 }
 
 .pink-visual {
   background: linear-gradient(135deg, #f9e2ed, #edc8dc);
-  color: #a44e78;
+  color: #783b59;
 }
 
 .hub-article-visual-icon {
@@ -966,22 +966,22 @@
 }
 
 .blue-community {
-  color: #326eae;
+  color: #28517a;
   background: #e9f2ff;
 }
 
 .pink-community {
-  color: #a44e78;
+  color: #783b59;
   background: #f9e8f0;
 }
 
 .orange-community {
-  color: #b86c24;
+  color: #854410;
   background: #fff0df;
 }
 
 .green-community {
-  color: #176b45;
+  color: #145a3a;
   background: #e7f2e9;
 }
 
@@ -1034,8 +1034,8 @@
 }
 
 .hub-community-card > .hub-community-explore.joined {
-  border-color: #176b45;
-  background: #176b45;
+  border-color: #145a3a;
+  background: #145a3a;
   color: #fff;
 }
 
