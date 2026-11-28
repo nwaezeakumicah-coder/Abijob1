@@ -31,8 +31,22 @@ export default function SetPasswordPage() {
     setError("");
     setSuccess("");
 
-    if (password.length < 12) {
-      setError("Your password must contain at least 12 characters.");
+    const passwordPolicyError =
+      password.length > 128
+        ? "Your password cannot exceed 128 characters."
+        : !/[a-z]/.test(password)
+          ? "Add at least one lowercase letter."
+          : !/[A-Z]/.test(password)
+            ? "Add at least one uppercase letter."
+            : !/[0-9]/.test(password)
+              ? "Add at least one number."
+              : !/[^A-Za-z0-9]/.test(password)
+                ? "Add at least one symbol."
+                : password.length < 12
+                  ? "Your password must contain at least 12 characters."
+                  : null;
+    if (passwordPolicyError) {
+      setError(passwordPolicyError);
       return;
     }
 
@@ -174,7 +188,7 @@ export default function SetPasswordPage() {
 
           <div className="setup-requirement">
             <CheckCircle2 size={16} />
-            Use at least 12 characters for a stronger password.
+            Use 12+ characters with uppercase and lowercase letters, a number and a symbol.
           </div>
 
           {error && (
