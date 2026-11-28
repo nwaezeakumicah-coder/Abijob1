@@ -33,7 +33,17 @@ function safe(value: unknown): string {
     .replace(/'/g, "&#39;");
 }
 
-function safeHttpsUrl(value?: string | null): string | null {\n  if (!value) return null;\n  try {\n    const parsed = new URL(value);\n    return parsed.protocol === "https:" ? parsed.toString() : null;\n  } catch {\n    return null;\n  }\n}\n\nfunction readableDate(value?: string): string {
+function safeHttpsUrl(value?: string | null): string | null {
+  if (!value) return null;
+  try {
+    const parsed = new URL(value);
+    return parsed.protocol === "https:" ? parsed.toString() : null;
+  } catch {
+    return null;
+  }
+}
+
+function readableDate(value?: string): string {
   if (!value) return "To be confirmed";
   const parsed = new Date(value);
   return Number.isNaN(parsed.getTime())
@@ -65,13 +75,15 @@ export default function RecruitmentDocumentButton(props: Props) {
       return;
     }
 
-    popup.opener = null;\n    const organization = safe(props.organization || "Hiring organisation");
+    popup.opener = null;
+    const organization = safe(props.organization || "Hiring organisation");
     const recipient = safe(props.recipient || "Candidate");
     const position = safe(props.position || "Position not specified");
     const reference = safe(props.reference);
     const location = safe(props.location || "To be confirmed");
     const terms = safe(props.terms || "The employer will communicate any additional agreed conditions in writing.");
-    const notes = safe(props.notes || "");\n    const meetingUrl = safeHttpsUrl(props.meetingLink);
+    const notes = safe(props.notes || "");
+    const meetingUrl = safeHttpsUrl(props.meetingLink);
     const salary = props.salary == null
       ? "As stated in the signed employment agreement"
       : safe(new Intl.NumberFormat("en-NG", {
