@@ -17,6 +17,7 @@ import {
   Building2,
 } from "lucide-react";
 import "./role.css";
+import { getPasswordPolicyError, PASSWORD_POLICY_HINT } from "../../../lib/auth/password-policy";
 
 const roles: Record<
   string,
@@ -94,9 +95,10 @@ export default function RoleRegistrationForm({
       formData.get("businessAddress") || ""
     ).trim();
 
-    if (password.length < 8) {
+    const passwordError = getPasswordPolicyError(password);
+    if (passwordError) {
       setIsSuccess(false);
-      setMessage("Your password must contain at least 8 characters.");
+      setMessage(passwordError);
       return;
     }
 
@@ -355,9 +357,9 @@ export default function RoleRegistrationForm({
                 id="password"
                 name="password"
                 type={showPassword ? "text" : "password"}
-                placeholder="At least 8 characters"
+                placeholder="Create a strong password"
                 autoComplete="new-password"
-                minLength={8}
+                minLength={12}
                 required
               />
 
@@ -375,6 +377,7 @@ export default function RoleRegistrationForm({
                 )}
               </button>
             </div>
+            <p className="role-password-hint">{PASSWORD_POLICY_HINT}</p>
 
             <label className="role-terms">
               <input type="checkbox" name="terms" required />
