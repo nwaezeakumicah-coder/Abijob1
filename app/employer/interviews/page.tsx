@@ -597,11 +597,6 @@ export default function EmployerInterviewsPage() {
           );
         }
 
-        const { error: notificationError } = await supabase.rpc("notify_interview_participant", {
-          p_interview_id: editingInterviewId,
-          p_event: "rescheduled",
-        });
-        if (notificationError) console.error("Interview reschedule notification failed:", notificationError);
         setSuccess("Interview rescheduled successfully.");
       } else {
         const { data: createdInterview, error: insertError } = await supabase
