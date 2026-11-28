@@ -298,17 +298,17 @@
 
 .overview-icon.orange {
   background: #fff1e5;
-  color: #d77b35;
+  color: #854410;
 }
 
 .overview-icon.purple {
   background: #f0eafa;
-  color: #8058b7;
+  color: #5b407c;
 }
 
 .experience-overview-card span {
   display: block;
-  color: #7b887e;
+  color: #526358;
   font-size: 11px;
   margin-bottom: 5px;
 }
@@ -369,12 +369,12 @@
 
 .section-heading-icon.orange {
   background: #fff1e5;
-  color: #d77b35;
+  color: #854410;
 }
 
 .section-heading-icon.purple {
   background: #f0eafa;
-  color: #8058b7;
+  color: #5b407c;
 }
 
 .experience-section-title h2 {
@@ -491,7 +491,7 @@
   border: none;
   border-radius: 7px;
   background: #f5f7f5;
-  color: #7b887e;
+  color: #526358;
   cursor: pointer;
 }
 
@@ -503,7 +503,7 @@
 
 .experience-record-actions button:last-child:hover,
 .experience-simple-record > button:hover {
-  color: #d64c4c;
+  color: #963a3a;
   background: #fff0f0;
 }
 
@@ -577,12 +577,12 @@
   place-items: center;
   border-radius: 10px;
   background: #fff1e5;
-  color: #d77b35;
+  color: #854410;
 }
 
 .simple-record-icon.purple {
   background: #f0eafa;
-  color: #8058b7;
+  color: #5b407c;
 }
 
 .simple-record-info {
@@ -880,7 +880,7 @@
   border: none;
   border-radius: 8px;
   background: #f2f5f2;
-  color: #66746a;
+  color: #526358;
   cursor: pointer;
 }
 
