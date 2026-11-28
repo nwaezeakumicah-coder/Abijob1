@@ -576,37 +576,27 @@ export default function EmployerInterviewsPage() {
       };
 
       if (editingInterviewId) {
-        const { data: updatedInterview, error: updateError } = await supabase
-          .from("interviews")
-          .update({
-            scheduled_at: interviewData.scheduled_at,
-            duration_minutes: interviewData.duration_minutes,
-            interview_type: interviewData.interview_type,
-            meeting_link: interviewData.meeting_link,
-            location: interviewData.location,
-            notes: interviewData.notes,
-            status: "rescheduled",
-            applicant_response: null,
-          })
-          .eq("id", editingInterviewId)
-          .eq("employer_id", user.id)
-          .in("status", ["scheduled", "rescheduled"])
-          .select("id")
-          .maybeSingle();
+        const { data: rescheduled, error: updateError } = await supabase.rpc(
+          "reschedule_interview",
+          {
+            p_interview_id: editingInterviewId,
+            p_scheduled_at: interviewData.scheduled_at,
+            p_duration_minutes: interviewData.duration_minutes,
+            p_interview_type: interviewData.interview_type,
+            p_meeting_link: interviewData.meeting_link,
+            p_location: interviewData.location,
+            p_notes: interviewData.notes,
+          }
+        );
 
         if (updateError) throw updateError;
 
-        if (!updatedInterview) {
+        if (rescheduled !== true) {
           throw new Error(
             "The interview was not updated. It may have changed status. Refresh and try again."
           );
         }
 
-        const { error: notificationError } = await supabase.rpc("notify_interview_participant", {
-          p_interview_id: updatedInterview.id,
-          p_event: "rescheduled",
-        });
-        if (notificationError) console.error("Interview reschedule notification failed:", notificationError);
         setSuccess("Interview rescheduled successfully.");
       } else {
         const { data: createdInterview, error: insertError } = await supabase
@@ -695,52 +685,31 @@ export default function EmployerInterviewsPage() {
     setSuccess("");
 
     try {
-      const {
-        data: { user },
-        error: authError,
-      } = await supabase.auth.getUser();
-
-      if (authError || !user) {
-        throw new Error("Your session has expired. Please sign in again.");
-      }
-
-      let query = supabase
-        .from("interviews")
-        .update({ status })
-        .eq("id", interview.id)
-        .eq("employer_id", user.id);
-
-      if (status === "scheduled") {
-        query = query.eq("status", "cancelled");
-      } else {
-        query = query.in("status", ["scheduled", "rescheduled"]);
-      }
-
-      const { data, error: updateError } = await query
-        .select("id")
-        .maybeSingle();
+      const { data: transitioned, error: updateError } = await supabase.rpc(
+        "transition_employer_interview",
+        {
+          p_interview_id: interview.id,
+          p_status: status,
+        }
+      );
 
       if (updateError) throw updateError;
 
-      if (!data) {
+      if (transitioned !== true) {
         throw new Error(
           "The interview status was not changed. Refresh and check its current status."
         );
       }
 
-      const notificationEvent = status === "cancelled" ? "cancelled" : status === "completed" ? "completed" : null;
-      if (notificationEvent) {
-        const { error: notificationError } = await supabase.rpc("notify_interview_participant", {
-          p_interview_id: interview.id,
-          p_event: notificationEvent,
-        });
-        if (notificationError) console.error("Interview status notification failed:", notificationError);
-      }
-
       setInterviews((current) =>
         current.map((item) =>
           item.id === interview.id
-            ? { ...item, status }
+            ? {
+                ...item,
+                status,
+                applicant_response:
+                  status === "scheduled" ? null : item.applicant_response,
+              }
             : item
         )
       );
