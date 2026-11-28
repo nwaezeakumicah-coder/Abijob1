@@ -32,6 +32,7 @@ begin
      or p_scheduled_at <= now()
      or p_duration_minutes is null
      or p_duration_minutes not between 15 and 480
+     or p_interview_type is null
      or p_interview_type not in ('online', 'live_chat', 'in_person', 'phone')
      or char_length(coalesce(p_meeting_link, '')) > 2000
      or char_length(coalesce(p_location, '')) > 500
