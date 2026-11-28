@@ -7,6 +7,7 @@ on:
       - "app/**"
       - "components/**"
       - "lib/**"
+      - "scripts/**"
       - "supabase/migrations/**"
       - "package.json"
       - "package-lock.json"
@@ -44,6 +45,9 @@ jobs:
 
       - name: Install dependencies
         run: npm install --no-audit --no-fund
+
+      - name: Check CSS accessibility
+        run: npm run check:css-accessibility
 
       - name: Type-check application
         run: npx tsc --noEmit
