@@ -146,8 +146,9 @@ function locationCompatibility(applicantLocation: string | null | undefined, job
 
   const applicantLga = resolveAbiaLga(applicant);
   const jobLga = resolveAbiaLga(job);
-  const applicantInAbia = applicant.includes("abia") || applicantLga !== null;
-  const jobInAbia = job.includes("abia") || jobLga !== null;
+  const abiaTownPattern = /\b(aba|umuahia|ohafia|arochukwu|bende|akwete|obehie|uzuakoli|ntigha|omoba)\b/;
+  const applicantInAbia = applicant.includes("abia") || applicantLga !== null || abiaTownPattern.test(applicant);
+  const jobInAbia = job.includes("abia") || jobLga !== null || abiaTownPattern.test(job);
 
   if (applicantLga && jobLga && applicantLga === jobLga) {
     return { score: 15, explanation: `Both locations are within ${applicantLga.replace(/\b\w/g, (letter) => letter.toUpperCase())} LGA, Abia State.` };
