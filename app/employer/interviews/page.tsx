@@ -576,34 +576,29 @@ export default function EmployerInterviewsPage() {
       };
 
       if (editingInterviewId) {
-        const { data: updatedInterview, error: updateError } = await supabase
-          .from("interviews")
-          .update({
-            scheduled_at: interviewData.scheduled_at,
-            duration_minutes: interviewData.duration_minutes,
-            interview_type: interviewData.interview_type,
-            meeting_link: interviewData.meeting_link,
-            location: interviewData.location,
-            notes: interviewData.notes,
-            status: "rescheduled",
-            applicant_response: null,
-          })
-          .eq("id", editingInterviewId)
-          .eq("employer_id", user.id)
-          .in("status", ["scheduled", "rescheduled"])
-          .select("id")
-          .maybeSingle();
+        const { data: rescheduled, error: updateError } = await supabase.rpc(
+          "reschedule_interview",
+          {
+            p_interview_id: editingInterviewId,
+            p_scheduled_at: interviewData.scheduled_at,
+            p_duration_minutes: interviewData.duration_minutes,
+            p_interview_type: interviewData.interview_type,
+            p_meeting_link: interviewData.meeting_link,
+            p_location: interviewData.location,
+            p_notes: interviewData.notes,
+          }
+        );
 
         if (updateError) throw updateError;
 
-        if (!updatedInterview) {
+        if (rescheduled !== true) {
           throw new Error(
             "The interview was not updated. It may have changed status. Refresh and try again."
           );
         }
 
         const { error: notificationError } = await supabase.rpc("notify_interview_participant", {
-          p_interview_id: updatedInterview.id,
+          p_interview_id: editingInterviewId,
           p_event: "rescheduled",
         });
         if (notificationError) console.error("Interview reschedule notification failed:", notificationError);
