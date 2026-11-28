@@ -160,7 +160,7 @@
 }
 
 .admin-jobs-top-profile span {
-  color: #849087;
+  color: #526358;
 }
 
 .admin-jobs-top-avatar {
@@ -270,17 +270,17 @@
 
 .admin-jobs-stat-icon.orange {
   background: #fff1e4;
-  color: #d47b2f;
+  color: #854410;
 }
 
 .admin-jobs-stat-icon.blue {
   background: #eaf1ff;
-  color: #4674c6;
+  color: #315b91;
 }
 
 .admin-jobs-stat-icon.red {
   background: #fff0ef;
-  color: #d84c4c;
+  color: #963a3a;
 }
 
 .admin-jobs-stats article > span {
@@ -401,7 +401,7 @@
 .admin-jobs-table th {
   padding: 13px 17px;
   background: #f8faf8;
-  color: #849087;
+  color: #526358;
   font-size: 9px;
   font-weight: 800;
   letter-spacing: .7px;
@@ -457,7 +457,7 @@
 
 .admin-jobs-status.pending {
   background: #fff3e6;
-  color: #bd742d;
+  color: #854410;
 }
 
 .admin-jobs-status.published {
@@ -467,12 +467,12 @@
 
 .admin-jobs-status.rejected {
   background: #fff0ef;
-  color: #c84949;
+  color: #963a3a;
 }
 
 .admin-jobs-status.closed {
   background: #eef0f1;
-  color: #68747b;
+  color: #526358;
 }
 
 .admin-jobs-view {
@@ -596,7 +596,7 @@
 }
 
 .admin-jobs-modal-heading span {
-  color: #849087;
+  color: #526358;
   font-size: 9px;
   font-weight: 800;
   letter-spacing: 1px;
@@ -711,7 +711,7 @@
 
 .admin-jobs-modal-actions .reject {
   background: #fff0ef;
-  color: #c84949;
+  color: #963a3a;
 }
 
 .admin-jobs-modal-actions .approve {
