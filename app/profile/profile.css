@@ -28,9 +28,7 @@
   padding: 30px 19px 24px;
   display: flex;
   flex-direction: column;
-  background:
-    radial-gradient(circle at 10% 5%, rgba(215, 240, 120, 0.12), transparent 27%),
-    linear-gradient(165deg, #103c2b 0%, #0a2b1d 100%);
+  background: #103c2b;
   color: #ffffff;
   position: sticky;
   top: 0;
@@ -328,9 +326,7 @@
   margin-bottom: 25px;
   padding: 28px 30px 24px;
   border-radius: 19px;
-  background:
-    radial-gradient(circle at 92% 15%, rgba(215, 240, 120, 0.17), transparent 24%),
-    linear-gradient(115deg, #103c2b, #176b45);
+  background: #103c2b;
   color: #ffffff;
   box-shadow: 0 12px 30px rgba(16, 60, 43, 0.12);
 }
