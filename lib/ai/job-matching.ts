@@ -31,14 +31,14 @@ export type MatchResult = {
 function normalize(value: string): string {
   return value.toLocaleLowerCase("en-NG")
     .normalize("NFKD")
-    .replace(/[\\u0300-\\u036f]/g, "")
+    .replace(/[\u0300-\u036f]/g, "")
     .replace(/[^a-z0-9+#. ]/g, " ")
-    .replace(/\\s+/g, " ")
+    .replace(/\s+/g, " ")
     .trim();
 }
 
 function uniqueStrings(values: Array<string | null | undefined>): string[] {
-  return [...new Set(values.flatMap((value) => (value ?? "").split(/[,;\\n|]/).map((item) => item.trim()).filter(Boolean)))];
+  return [...new Set(values.flatMap((value) => (value ?? "").split(/[,;\n|]/).map((item) => item.trim()).filter(Boolean)))];
 }
 
 const SKILL_ALIASES: Record<string, string> = {
@@ -143,7 +143,7 @@ function locationCompatibility(applicantLocation: string | null | undefined, job
   const jobInAbia = job.includes("abia") || jobLga !== null;
 
   if (applicantLga && jobLga && applicantLga === jobLga) {
-    return { score: 15, explanation: `Both locations are within ${applicantLga.replace(/\\b\\w/g, (letter) => letter.toUpperCase())} LGA, Abia State.` };
+    return { score: 15, explanation: `Both locations are within ${applicantLga.replace(/\b\w/g, (letter) => letter.toUpperCase())} LGA, Abia State.` };
   }
   if (applicantInAbia && jobInAbia) {
     return { score: 10, explanation: "Both locations are within Abia State; confirm the commute between LGAs." };
@@ -170,7 +170,7 @@ export function calculateBaselineMatch(input: MatchInput): MatchResult {
     ? (matchedSkills.length / requiredSkills.length) * 55
     : 27.5;
 
-  const experienceTargetMatch = normalize(input.job.experienceLevel ?? "").match(/(\\d{1,2})/);
+  const experienceTargetMatch = normalize(input.job.experienceLevel ?? "").match(/(\d{1,2})/);
   const targetYears = experienceTargetMatch ? Number(experienceTargetMatch[1]) : 0;
   const experienceScore = targetYears > 0
     ? Math.min(Math.max(input.experienceYears, 0) / targetYears, 1) * 15
