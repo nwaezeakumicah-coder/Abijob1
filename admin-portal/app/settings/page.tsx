@@ -196,7 +196,7 @@ export default async function SettingsPage() {
         <AdminPasskeySettings />
 
         <footer className="admin-settings-footer">
-          Abi Job Admin Portal · Administrator settings
+          Abijob Admin Portal · Administrator settings
         </footer>
       </main>
     </AdminShell>

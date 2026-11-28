@@ -274,7 +274,7 @@ export default function PasskeySettings() {
 
       <div className="abj-passkey-note">
         <ShieldCheck size={17} />
-        <span>Abi Job never receives or stores your fingerprint or face data. Your device verifies you locally.</span>
+        <span>Abijob never receives or stores your fingerprint or face data. Your device verifies you locally.</span>
       </div>
 
       {loading ? (
