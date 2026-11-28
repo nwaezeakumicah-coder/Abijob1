@@ -18,9 +18,7 @@
 
 .job-details-hero {
   padding: 35px 0 45px;
-  background:
-    radial-gradient(circle at 90% 10%, rgba(215, 240, 120, 0.15), transparent 27%),
-    linear-gradient(120deg, #0a2b1d, #176b45);
+  background: #103c2b;
 }
 
 .job-breadcrumb {
