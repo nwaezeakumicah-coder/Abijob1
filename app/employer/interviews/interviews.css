@@ -234,7 +234,7 @@
 .interviews-heading p {
   max-width: 650px;
   margin: 0;
-  color: #718075;
+  color: #526358;
   font-size: 14px;
   line-height: 1.6;
 }
@@ -320,12 +320,12 @@
 
 .interviews-stat-icon.upcoming {
   background: #fff5df;
-  color: #a66b14;
+  color: #7e4f0b;
 }
 
 .interviews-stat-icon.completed {
   background: #e8f5eb;
-  color: #27804a;
+  color: #176b45;
 }
 
 .interviews-stat-icon.cancelled {
@@ -715,7 +715,7 @@
 
 .interviews-form-panel select:disabled {
   background: #f2f5f2;
-  color: #718075;
+  color: #526358;
 }
 
 .interviews-field-hint {
