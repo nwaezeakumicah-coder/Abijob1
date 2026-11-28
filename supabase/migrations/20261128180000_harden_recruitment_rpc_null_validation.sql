@@ -233,3 +233,61 @@ begin
   return v_feedback_id;
 end;
 $function$;
+
+
+-- Reject NULL status values before attempting to close an employment record.
+create or replace function public.end_employment_record(
+  p_record_id uuid,
+  p_status text
+)
+returns boolean
+language plpgsql
+security definer
+set search_path = ''
+as $function$
+declare
+  v_user uuid := auth.uid();
+  v_record public.employment_records%rowtype;
+begin
+  if v_user is null or not public.has_platform_access()
+     or not exists (
+       select 1 from public.profiles p
+       where p.id = v_user and p.role = 'employer'
+     ) then
+    raise exception 'Only an active employer can update employment status'
+      using errcode = '42501';
+  end if;
+
+  if p_record_id is null
+     or p_status is null
+     or p_status not in ('completed','terminated') then
+    raise exception 'Invalid employment status update' using errcode = '22023';
+  end if;
+
+  select * into v_record
+  from public.employment_records
+  where id = p_record_id and employer_id = v_user
+  for update;
+  if not found then
+    raise exception 'Employment record not found' using errcode = 'P0002';
+  end if;
+
+  if v_record.status not in ('active','upcoming') then
+    raise exception 'This employment record is already closed' using errcode = '55000';
+  end if;
+
+  update public.employment_records
+  set status = p_status, ended_at = now(), updated_at = now()
+  where id = p_record_id;
+
+  insert into public.notifications(user_id,title,description,category,href)
+  values (
+    v_record.employee_id,
+    case when p_status = 'completed' then 'Employment marked completed' else 'Employment ended' end,
+    'Your employment record for ' || v_record.job_title || ' was updated by the employer.',
+    'application','/dashboard/employment'
+  );
+
+  return true;
+end;
+$function$;
