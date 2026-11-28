@@ -33,6 +33,11 @@ type ApplicantProfile = {
   experience: string | null;
   location: string | null;
   avatar_url: string | null;
+  account_role: string;
+  professional_category: string | null;
+  experience_years: number | null;
+  education: string | null;
+  availability: boolean | null;
 };
 
 function errorResponse(message: string, status: number) {
@@ -119,7 +124,7 @@ export async function GET(request: NextRequest) {
 
   const applicantIds = [...new Set(applications.map((application) => application.applicant_id))];
   const { data: profileData, error: applicantProfilesError } = await supabase.rpc(
-    "get_employer_applicant_profiles",
+    "get_employer_applicant_match_profiles",
     { p_applicant_ids: applicantIds }
   );
 
@@ -141,12 +146,12 @@ export async function GET(request: NextRequest) {
     const skills = splitSkills(application.applicant_skills, applicant?.skills);
     const input: MatchInput = {
       skills,
-      experienceYears: getExperienceYears(experienceText),
+      experienceYears: applicant?.experience_years ?? getExperienceYears(experienceText),
       experienceText,
       headline: application.applicant_title || applicant?.headline || "",
       location: application.applicant_location || applicant?.location || "",
-      professionalCategory: null,
-      education: null,
+      professionalCategory: applicant?.professional_category ?? null,
+      education: applicant?.education ?? null,
       job: {
         title: job.title,
         category: job.category,
@@ -170,6 +175,10 @@ export async function GET(request: NextRequest) {
       appliedAt: application.created_at,
       experience: experienceText,
       experienceYears: input.experienceYears,
+      accountRole: applicant?.account_role ?? "job_seeker",
+      professionalCategory: applicant?.professional_category ?? null,
+      availability: applicant?.availability ?? null,
+      education: applicant?.education ?? null,
       location: application.applicant_location || applicant?.location || "",
       skills,
       score: match.score,
@@ -177,7 +186,7 @@ export async function GET(request: NextRequest) {
       missingSkills: match.missingSkills,
       strengths: match.strengths,
       improvementAreas: match.improvementAreas,
-      explanation: "Preliminary compatibility estimate based on the applicant information available in Abijob. It is not a hiring decision.",
+      explanation: match.explanation,
     }];
   }).sort((a, b) => b.score - a.score || new Date(b.appliedAt).getTime() - new Date(a.appliedAt).getTime());
 
