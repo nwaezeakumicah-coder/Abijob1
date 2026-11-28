@@ -38,6 +38,11 @@ jobs:
       - name: Check CSS accessibility
         run: node ../scripts/check-css-accessibility.mjs
 
+      - name: Report dependency audit findings
+        run: |
+          npm audit --json > /tmp/admin-npm-audit.json || true
+          node --input-type=module -e 'import fs from "node:fs"; const report = JSON.parse(fs.readFileSync("/tmp/admin-npm-audit.json", "utf8")); for (const [name, item] of Object.entries(report.vulnerabilities ?? {})) console.log(`${name}: ${item.severity}; range=${item.range}; fixAvailable=${JSON.stringify(item.fixAvailable)}`);'
+
       - name: Type-check admin portal
         run: npx tsc --noEmit
 
