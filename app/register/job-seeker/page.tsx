@@ -7,6 +7,7 @@ import Link from "next/link";
 import Header from "../../../components/Header";
 import Footer from "../../../components/Footer";
 import { createClient } from "../../../lib/supabase/client";
+import { getPasswordPolicyError, PASSWORD_POLICY_HINT } from "../../../lib/auth/password-policy";
 import {
   ArrowLeft,
   ArrowRight,
@@ -48,9 +49,10 @@ export default function JobSeekerRegistrationPage() {
       formData.get("confirmPassword") || ""
     );
 
-    if (password.length < 8) {
+    const passwordError = getPasswordPolicyError(password);
+    if (passwordError) {
       setIsSuccess(false);
-      setMessage("Your password must contain at least 8 characters.");
+      setMessage(passwordError);
       return;
     }
 
@@ -286,7 +288,7 @@ export default function JobSeekerRegistrationPage() {
                       type={showPassword ? "text" : "password"}
                       placeholder="At least 8 characters"
                       autoComplete="new-password"
-                      minLength={8}
+                      minLength={12}
                       required
                       disabled={isSubmitting}
                     />
