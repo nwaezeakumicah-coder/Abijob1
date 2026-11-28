@@ -690,52 +690,31 @@ export default function EmployerInterviewsPage() {
     setSuccess("");
 
     try {
-      const {
-        data: { user },
-        error: authError,
-      } = await supabase.auth.getUser();
-
-      if (authError || !user) {
-        throw new Error("Your session has expired. Please sign in again.");
-      }
-
-      let query = supabase
-        .from("interviews")
-        .update({ status })
-        .eq("id", interview.id)
-        .eq("employer_id", user.id);
-
-      if (status === "scheduled") {
-        query = query.eq("status", "cancelled");
-      } else {
-        query = query.in("status", ["scheduled", "rescheduled"]);
-      }
-
-      const { data, error: updateError } = await query
-        .select("id")
-        .maybeSingle();
+      const { data: transitioned, error: updateError } = await supabase.rpc(
+        "transition_employer_interview",
+        {
+          p_interview_id: interview.id,
+          p_status: status,
+        }
+      );
 
       if (updateError) throw updateError;
 
-      if (!data) {
+      if (transitioned !== true) {
         throw new Error(
           "The interview status was not changed. Refresh and check its current status."
         );
       }
 
-      const notificationEvent = status === "cancelled" ? "cancelled" : status === "completed" ? "completed" : null;
-      if (notificationEvent) {
-        const { error: notificationError } = await supabase.rpc("notify_interview_participant", {
-          p_interview_id: interview.id,
-          p_event: notificationEvent,
-        });
-        if (notificationError) console.error("Interview status notification failed:", notificationError);
-      }
-
       setInterviews((current) =>
         current.map((item) =>
           item.id === interview.id
-            ? { ...item, status }
+            ? {
+                ...item,
+                status,
+                applicant_response:
+                  status === "scheduled" ? null : item.applicant_response,
+              }
             : item
         )
       );
