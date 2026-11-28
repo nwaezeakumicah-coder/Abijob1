@@ -15,6 +15,7 @@ import Logo from "@/components/Logo";
 import { createClient } from "@/lib/supabase/client";
 import "./reset-password.css";
 import { getPasswordPolicyError, PASSWORD_POLICY_HINT } from "@/lib/auth/password-policy";
+import { getPasswordPolicyError, PASSWORD_POLICY_HINT } from "@/lib/auth/password-policy";
 
 type RecoveryStatus = "checking" | "ready" | "invalid";
 
@@ -375,7 +376,7 @@ export default function ResetPasswordPage() {
                           setMessage("");
                         }}
                         autoComplete="new-password"
-                        minLength={8}
+                        minLength={12}
                         required
                       />
 
