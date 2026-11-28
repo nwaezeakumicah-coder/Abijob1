@@ -84,13 +84,19 @@ export default function RecruitmentDocumentButton(props: Props) {
     const terms = safe(props.terms || "The employer will communicate any additional agreed conditions in writing.");
     const notes = safe(props.notes || "");
     const meetingUrl = safeHttpsUrl(props.meetingLink);
-    const salary = props.salary == null
-      ? "As stated in the signed employment agreement"
-      : safe(new Intl.NumberFormat("en-NG", {
+    let salary = "As stated in the signed employment agreement";
+    if (props.salary != null) {
+      try {
+        const currency = /^[A-Z]{3}$/.test(props.currency || "") ? props.currency! : "NGN";
+        salary = safe(new Intl.NumberFormat("en-NG", {
           style: "currency",
-          currency: props.currency || "NGN",
+          currency,
           maximumFractionDigits: 2,
         }).format(props.salary));
+      } catch {
+        salary = safe(`${props.currency || "NGN"} ${props.salary}`);
+      }
+    }
     const interviewDetails = isInterview
       ? `
         <section><h2>Interview details</h2><dl>
