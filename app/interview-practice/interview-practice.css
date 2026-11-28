@@ -398,17 +398,17 @@
 
 .session-icon-1 {
   background: #fff0e4;
-  color: #c87537;
+  color: #854410;
 }
 
 .session-icon-2 {
   background: #eeeafb;
-  color: #7661bb;
+  color: #5b407c;
 }
 
 .session-icon-3 {
   background: #e8f0fa;
-  color: #4778b4;
+  color: #315b91;
 }
 
 .interview-session-check {
@@ -744,7 +744,7 @@
   place-items: center;
   border-radius: 9px;
   background: #fff0e4;
-  color: #bd753b;
+  color: #854410;
 }
 
 .interview-cv-promo h3 {
@@ -811,7 +811,7 @@
   border: 1px solid #e3e9e2;
   border-radius: 7px;
   background: #fff;
-  color: #718076;
+  color: #526358;
   font-size: 10px;
   font-weight: 700;
   cursor: pointer;
@@ -940,7 +940,7 @@
 .interview-guidance-button {
   border: 1px solid #e3e9dc;
   background: #f7f9f2;
-  color: #71834f;
+  color: #526358;
 }
 
 .interview-feedback-button {
