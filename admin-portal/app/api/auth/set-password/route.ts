@@ -19,9 +19,23 @@ export async function POST(request: NextRequest) {
     const password =
       typeof body.password === "string" ? body.password : "";
 
-    if (password.length < 12 || password.length > 128) {
+    const passwordPolicyError =
+      password.length < 12
+        ? "Your password must contain at least 12 characters."
+        : password.length > 128
+          ? "Your password cannot exceed 128 characters."
+          : !/[a-z]/.test(password)
+            ? "Add at least one lowercase letter."
+            : !/[A-Z]/.test(password)
+              ? "Add at least one uppercase letter."
+              : !/[0-9]/.test(password)
+                ? "Add at least one number."
+                : !/[^A-Za-z0-9]/.test(password)
+                  ? "Add at least one symbol."
+                  : null;
+    if (passwordPolicyError) {
       return NextResponse.json(
-        { error: "Your password must contain between 12 and 128 characters." },
+        { error: passwordPolicyError },
         { status: 400 }
       );
     }
