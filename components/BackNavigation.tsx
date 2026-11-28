@@ -2,6 +2,7 @@
 
 import { usePathname, useRouter } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
+import "./BackNavigation.css";
 
 function getFallbackPath(pathname: string): string {
   if (pathname === "/home" || pathname === "/landing" || pathname === "/") return "/home";
