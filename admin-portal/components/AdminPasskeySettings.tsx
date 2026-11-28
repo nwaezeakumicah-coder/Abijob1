@@ -54,7 +54,7 @@ export default function AdminPasskeySettings() {
 
   return <section className="admin-settings-section">
     <div className="admin-settings-section-heading"><div><h2>Passkey and biometric sign-in</h2><p>Secure administrator access with fingerprint, Face ID, device PIN or a security key.</p></div></div>
-    <div className="admin-passkey-note"><ShieldCheck size={17}/> Abi Job never receives or stores your fingerprint or face data. Verification happens on your device.</div>
+    <div className="admin-passkey-note"><ShieldCheck size={17}/> Abijob never receives or stores your fingerprint or face data. Verification happens on your device.</div>
     {loading?<p>Checking registered passkeys…</p>:passkeys.length?<div className="admin-passkey-list">{passkeys.map(p=><div className="admin-passkey-row" key={p.id}><span><KeyRound size={17}/><strong>{p.friendly_name||"Registered device"}</strong></span><button type="button" onClick={()=>void remove(p)} disabled={working} aria-label="Remove passkey"><Trash2 size={16}/></button></div>)}</div>:<p>No passkeys registered yet.</p>}
     {message&&<p role={failed?"alert":"status"} className={failed?"admin-passkey-error":"admin-passkey-success"}>{message}</p>}
     <button type="button" className="admin-passkey-add" onClick={()=>void add()} disabled={working||loading}><Plus size={16}/>{working?"Please wait…":"Add a passkey"}</button>
