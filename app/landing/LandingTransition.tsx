@@ -15,7 +15,7 @@ export default function LandingTransition({ children }: { children: ReactNode })
     if (!link || link.target === "_blank" || link.hasAttribute("download")) return;
 
     const destination = new URL(link.href, window.location.href);
-    if (destination.origin !== window.location.origin || destination.pathname !== "/") return;
+    if (destination.origin !== window.location.origin || destination.pathname !== "/home") return;
 
     event.preventDefault();
     if (isLeaving) return;
