@@ -74,6 +74,16 @@ begin
           using errcode = '22023';
       end if;
       new.applicant_response := null;
+    elsif new.status = 'rescheduled' then
+      if old.status not in ('scheduled','rescheduled') then
+        raise exception 'Only active interviews can be rescheduled'
+          using errcode = '55000';
+      end if;
+      if new.scheduled_at is null or new.scheduled_at <= now() then
+        raise exception 'A rescheduled interview must have a future date'
+          using errcode = '22023';
+      end if;
+      new.applicant_response := null;
     else
       raise exception 'Invalid interview status transition'
         using errcode = '22023';
